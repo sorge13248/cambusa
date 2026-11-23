@@ -1,5 +1,5 @@
 // Cambusa PWA Service Worker
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const CACHE_NAME = `cambusa-cache-v${VERSION}`;
 
 const PRECACHE_ASSETS = [
