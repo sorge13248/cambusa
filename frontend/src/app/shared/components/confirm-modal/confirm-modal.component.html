@@ -1,0 +1,23 @@
+<section class="confirm-modal-shell" role="alertdialog" aria-modal="true">
+  <header class="modal-header">
+    <h3 class="modal-title">{{ data.title }}</h3>
+    <p class="modal-message">{{ data.message }}</p>
+  </header>
+
+  <footer class="modal-footer">
+    @if (data.showCancel !== false && data.cancelLabel !== null) {
+      <button type="button" class="btn btn-secondary" (click)="close()">
+        {{ data.cancelLabel || 'Cancel' }}
+      </button>
+    }
+    <button
+      type="button"
+      class="btn"
+      [class.btn-danger]="data.confirmVariant !== 'primary'"
+      [class.btn-primary]="data.confirmVariant === 'primary'"
+      (click)="confirm()"
+    >
+      {{ data.confirmLabel || 'Confirm' }}
+    </button>
+  </footer>
+</section>

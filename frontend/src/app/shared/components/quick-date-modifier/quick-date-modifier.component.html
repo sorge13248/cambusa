@@ -1,0 +1,14 @@
+<div class="expiration-modifier-bar" [class.compact]="compact()" (click)="$event.stopPropagation()">
+  <div class="exp-date-display">
+    <span class="exp-label">{{ label() }}</span>
+    <span class="exp-date">{{ formattedCurrentDate() }}</span>
+  </div>
+  <div class="quick-buttons">
+    <button type="button" class="btn btn-secondary btn-xs" (click)="adjust('today')" title="Set to today">Today</button>
+    <button type="button" class="btn btn-secondary btn-xs" (click)="adjust('tomorrow')" title="Set to tomorrow">Tomorrow</button>
+    <button type="button" class="btn btn-secondary btn-xs" (click)="adjust('+2d')">+2d</button>
+    <button type="button" class="btn btn-secondary btn-xs" (click)="adjust('-2d')">-2d</button>
+    <button type="button" class="btn btn-secondary btn-xs" (click)="adjust('+5d')">+5d</button>
+    <button type="button" class="btn btn-secondary btn-xs" (click)="adjust('+7d')">+7d</button>
+  </div>
+</div>

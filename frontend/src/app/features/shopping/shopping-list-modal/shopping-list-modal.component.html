@@ -1,0 +1,44 @@
+<div class="list-modal-shell" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <h3>{{ data.shoppingList ? 'Edit Shopping List' : 'New Shopping List' }}</h3>
+    <button class="modal-close-btn" (click)="close(false)">×</button>
+  </div>
+
+  <div class="modal-body">
+    <div class="form-group">
+      <label>List Name *</label>
+      <input
+        type="text"
+        [(ngModel)]="name"
+        placeholder="e.g. Weekly Supermarket Run, Organic Market..."
+        autofocus
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Associated Store (Optional)</label>
+      <select [(ngModel)]="storeId">
+        <option [ngValue]="null">No specific store (General list)</option>
+        @for (s of data.stores; track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+      <span class="field-hint">
+        Associating a store automatically sorts items by the store's aisle order.
+      </span>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="close(false)">Cancel</button>
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="!name.trim() || isSaving()"
+      (click)="save()"
+    >
+      {{ isSaving() ? 'Saving...' : 'Save List' }}
+    </button>
+  </div>
+</div>

@@ -1,0 +1,251 @@
+<div class="action-modal-shell" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="header-left">
+      <h3>{{ data.product.name }}</h3>
+      @if (productGroupName()) {
+        <span class="product-group-badge">{{ productGroupName() }}</span>
+      }
+    </div>
+    <div class="header-right">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="openEditProduct()">✏️ Edit Product</button>
+      <button type="button" class="modal-close-btn" (click)="requestClose()">×</button>
+    </div>
+  </div>
+
+  <div class="modal-body">
+    <!-- Big Action Buttons -->
+    <div class="big-buttons-grid">
+      <button
+        type="button"
+        class="big-action-btn btn-consume"
+        [class.active]="activeAction() === 'consume'"
+        (click)="setAction('consume')"
+      >
+        <span class="action-emoji">🍽️</span>
+        <span class="action-label">Consume</span>
+      </button>
+
+      <button
+        type="button"
+        class="big-action-btn btn-purchase"
+        [class.active]="activeAction() === 'purchase'"
+        (click)="setAction('purchase')"
+      >
+        <span class="action-emoji">🛒</span>
+        <span class="action-label">Purchase</span>
+      </button>
+
+      <button
+        type="button"
+        class="big-action-btn btn-move"
+        [class.active]="activeAction() === 'move'"
+        (click)="setAction('move')"
+      >
+        <span class="action-emoji">📦</span>
+        <span class="action-label">Move</span>
+      </button>
+    </div>
+
+    <!-- Action Specific Form -->
+    @if (activeAction() === 'consume') {
+      <div class="action-form consume-form">
+        <h4>Consume Item</h4>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Quantity to consume *</label>
+            <div class="amount-stepper">
+              <button type="button" class="stepper-btn" (click)="adjustConsumeAmount(-1)">-</button>
+              <input type="number" min="1" step="1" [(ngModel)]="consumeAmount" />
+              <button type="button" class="stepper-btn" (click)="adjustConsumeAmount(1)">+</button>
+            </div>
+          </div>
+
+          <div class="form-group flex-1">
+            <label>From Location</label>
+            <select [(ngModel)]="consumeLocationId">
+              <option value="">Any / FIFO</option>
+              @for (loc of availableLocations(); track loc.id) {
+                <option [value]="loc.id">{{ loc.name }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Specific batch (optional)</label>
+          <select [(ngModel)]="consumeStockItemId">
+            <option value="">FIFO (Earliest expiry)</option>
+            @for (item of productStockItems(); track item.id) {
+              <option [value]="item.id">
+                {{ item.amount }}x &bull; Exp: {{ (item.bestBeforeDate | localDate) || 'Never' }} &bull; {{ item.locationName || 'No location' }}
+              </option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group-checkbox">
+          <label>
+            <input type="checkbox" [(ngModel)]="consumeIsSpoiled" />
+            <span>Mark as spoiled / expired</span>
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="setAction('none')">Cancel</button>
+          <button type="button" class="btn btn-danger" [disabled]="consumeAmount <= 0" (click)="submitConsume()">
+            Confirm Consume
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (activeAction() === 'purchase') {
+      <app-stock-purchase-form
+        [product]="data.product"
+        [locations]="data.locations"
+        [stores]="data.stores"
+        [units]="data.units"
+        (submitted)="onPurchaseSubmitted($event)"
+        (cancelled)="setAction('none')"
+      ></app-stock-purchase-form>
+    }
+
+    @if (activeAction() === 'move') {
+      <div class="action-form move-form">
+        <h4>Move Item</h4>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>From Location</label>
+            <select [(ngModel)]="moveFromLocationId">
+              <option value="">Any location</option>
+              @for (loc of availableLocations(); track loc.id) {
+                <option [value]="loc.id">{{ loc.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label>To Location *</label>
+            <select [(ngModel)]="moveToLocationId" (ngModelChange)="onTargetLocationChanged()">
+              <option value="" disabled>Select destination</option>
+              @for (loc of data.locations; track loc.id) {
+                <option [value]="loc.id">{{ loc.name }}{{ loc.isFreezer ? ' ❄️ (Freezer)' : '' }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (moveFreezerWarning()) {
+          <div class="freezer-alert" role="alert">
+            ⚠️ Warning: This product is configured as "Cannot be frozen". It cannot be moved into a freezer location!
+          </div>
+        }
+
+        @if (recalculatedExpiryInfo()) {
+          <div class="recalc-info-alert">
+            ℹ️ Recalculated expiry: Moving into freezer extends best before date to <strong>{{ recalculatedExpiryInfo() }}</strong>.
+          </div>
+        }
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Quantity to move *</label>
+            <input type="number" min="1" step="1" [(ngModel)]="moveAmount" />
+          </div>
+
+          <div class="form-group flex-1">
+            <label>Specific batch (optional)</label>
+            <select [(ngModel)]="moveStockItemId">
+              <option value="">Any batch</option>
+              @for (item of productStockItems(); track item.id) {
+                <option [value]="item.id">
+                  {{ item.amount }}x &bull; Exp: {{ (item.bestBeforeDate | localDate) || 'Never' }} &bull; {{ item.locationName || 'N/A' }}
+                </option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="setAction('none')">Cancel</button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="!moveToLocationId || moveAmount <= 0 || moveFreezerWarning()"
+            (click)="submitMove()"
+          >
+            Confirm Move
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Product Details Section -->
+    <div class="product-details-card">
+      <div class="details-top">
+        <div class="product-photo-preview">
+          @if (mainPhotoUrl()) {
+            <img [src]="mainPhotoUrl()" [alt]="data.product.name" class="main-photo-img" />
+          } @else {
+            <div class="no-photo-placeholder">📦</div>
+          }
+        </div>
+
+        <div class="details-stats">
+          <div class="stat-row">
+            <span class="stat-name">Total in pantry:</span>
+            <span class="stat-val highlight">{{ totalStockAmount() }} {{ stockUnitName() }}</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-name">Current locations:</span>
+            <span class="stat-val">{{ locationSummary() }}</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-name">Next expiration:</span>
+            <span class="stat-val" [class.danger]="nextExpirationUrgent()">{{ (nextExpirationDate() | localDate) || 'No expiration date' }}</span>
+          </div>
+          @if (data.product.cannotBeFrozen) {
+            <div class="badge-nofreeze">❄️ Cannot be frozen</div>
+          }
+        </div>
+      </div>
+
+      @if (productStockItems().length > 0) {
+        <div class="batches-section">
+          <h5>Batches in pantry:</h5>
+          <div class="batches-list">
+            @for (item of productStockItems(); track item.id) {
+              <div class="batch-chip">
+                <div class="batch-main">
+                  <span class="batch-amount">{{ item.amount }}x</span>
+                  <span class="batch-loc">{{ item.locationName || 'No location' }}</span>
+                  <span class="batch-date">{{ item.bestBeforeDate ? 'Exp: ' + (item.bestBeforeDate | localDate) : 'Never expires' }}</span>
+                  @if (item.isOpen) {
+                    <span class="open-badge">Opened</span>
+                  }
+                </div>
+                <div class="batch-right-actions">
+                  <!-- Reusable Quick Date Modifier inside modal -->
+                  <div class="batch-quick-date">
+                    <app-quick-date-modifier
+                      [currentDate]="item.bestBeforeDate"
+                      (dateChange)="onQuickDateChange(item, $event)"
+                    ></app-quick-date-modifier>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs btn-edit-batch"
+                    (click)="openEditStockItem(item)"
+                    title="Edit batch (expiration, location, price, notes)"
+                  >
+                    ✏️ Edit
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

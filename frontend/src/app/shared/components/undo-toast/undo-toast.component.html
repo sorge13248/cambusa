@@ -1,0 +1,25 @@
+@if (action(); as act) {
+  <div
+    class="undo-toast-shell"
+    role="alert"
+    aria-live="polite"
+    (mouseenter)="pause()"
+    (mouseleave)="resume()"
+    [class.is-paused]="isPaused()"
+  >
+    <div class="toast-content">
+      <span class="action-icon">↩️</span>
+      <span class="action-desc">{{ act.description }}</span>
+      <button type="button" class="btn-undo" (click)="undo()">
+        Undo ({{ act.remainingSeconds }}s)
+      </button>
+      <button type="button" class="btn-close" (click)="dismiss()" title="Dismiss">
+        ✕
+      </button>
+    </div>
+    <div
+      class="toast-progress-bar"
+      [style.animationDuration]="act.totalSeconds + 's'"
+    ></div>
+  </div>
+}

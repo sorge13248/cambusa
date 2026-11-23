@@ -1,0 +1,147 @@
+<div class="households-page">
+  <div class="page-header">
+    <div>
+      <h2>Household &amp; Member Management</h2>
+      <p class="subtitle">Multi-tenant family spaces, member roles, and email invitations.</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreateModal()">+ Create New Household</button>
+  </div>
+
+  <!-- Pending Received Invitations Banner -->
+  @if (receivedInvitations().length > 0) {
+    <div class="invitations-banner">
+      <h3>📬 Pending Invitations to Join Other Households</h3>
+      <div class="received-invitations-list">
+        @for (inv of receivedInvitations(); track inv.id) {
+          <div class="invitation-card">
+            <div class="inv-info">
+              <strong>{{ inv.householdName }}</strong>
+              <span class="inv-from">Invited by {{ inv.inviterName }} ({{ inv.inviterEmail }})</span>
+            </div>
+            <div class="inv-actions">
+              <button class="btn btn-primary btn-sm" (click)="respondInvitation(inv.id, true)">
+                Accept &amp; Join
+              </button>
+              <button class="btn btn-secondary btn-sm" (click)="respondInvitation(inv.id, false)">
+                Decline
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- My Households List -->
+  <div class="section-card">
+    <h3>My Households</h3>
+    <div class="households-grid">
+      @for (hh of auth.households(); track hh.id) {
+        <div class="hh-card" [class.active-hh]="hh.id === auth.activeHouseholdId()">
+          <div class="hh-card-header">
+            <div class="hh-title-row">
+              <h4>{{ hh.name }}</h4>
+              @if (hh.id === auth.activeHouseholdId()) {
+                <span class="badge badge-good">Active Context</span>
+              }
+            </div>
+            <div class="hh-role-strip">
+              @if (hh.isOwner) {
+                <span class="role-badge badge-owner">👑 Owner</span>
+              } @else {
+                <span class="role-badge badge-shared">👥 Shared ({{ hh.role }})</span>
+              }
+            </div>
+          </div>
+
+          <p class="hh-meta">Members: {{ hh.memberCount }}</p>
+
+          <div class="hh-card-actions">
+            <div class="actions-left">
+              @if (hh.id !== auth.activeHouseholdId()) {
+                <button class="btn btn-secondary btn-sm" (click)="switchHousehold(hh.id)">
+                  Switch
+                </button>
+              }
+            </div>
+
+            <!-- Only Household Owners can Rename or Delete -->
+            @if (hh.isOwner) {
+              <div class="actions-right">
+                <button class="btn-icon" (click)="openRenameModal(hh)" title="Rename Household">
+                  ✏️
+                </button>
+                @if (auth.households().length > 1) {
+                  <button class="btn-icon btn-icon-danger" (click)="confirmDeleteHousehold(hh)" title="Delete Household">
+                    🗑️
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Active Household Members & Sent Invitations -->
+  @if (auth.activeHousehold(); as currentHh) {
+    <div class="two-columns">
+      <!-- Members Column -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Members of "{{ currentHh.name }}"</h3>
+        </div>
+        <div class="members-list">
+          @for (m of members(); track m.id) {
+            <div class="member-item">
+              <div class="member-avatar">
+                @if (m.pictureUrl) {
+                  <img [src]="m.pictureUrl" [alt]="m.displayName" class="member-avatar-img" />
+                } @else {
+                  👤
+                }
+              </div>
+              <div class="member-info">
+                <span class="member-name">{{ m.displayName }}</span>
+                <span class="member-email">{{ m.email || 'No email' }}</span>
+              </div>
+              <span class="badge" [class.badge-good]="m.role === 'owner'" [class.badge-approaching]="m.role !== 'owner'">
+                {{ m.role === 'owner' ? '👑 Owner' : m.role }}
+              </span>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Sent Invitations Column -->
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Invite New Member</h3>
+        </div>
+        <div class="invite-form">
+          <input
+            type="email"
+            [(ngModel)]="inviteEmail"
+            placeholder="Enter member email to invite..."
+          />
+          <button class="btn btn-primary" (click)="sendInvite()" [disabled]="!inviteEmail.trim()">
+            Send Invite
+          </button>
+        </div>
+
+        @if (sentInvitations().length > 0) {
+          <h4 class="sub-heading">Pending Invitations Sent</h4>
+          <div class="sent-invites-list">
+            @for (inv of sentInvitations(); track inv.id) {
+              <div class="sent-invite-row">
+                <span>{{ inv.email }}</span>
+                <button class="btn btn-danger btn-xs" (click)="revokeInvite(inv.id)">Revoke</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

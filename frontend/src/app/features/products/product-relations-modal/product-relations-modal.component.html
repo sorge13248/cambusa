@@ -1,0 +1,305 @@
+<div class="product-relations-shell" role="dialog" aria-modal="true">
+  <!-- Modal Header -->
+  <div class="modal-header">
+    <div class="header-left">
+      <span class="header-icon">🔗</span>
+      <div class="header-title-box">
+        <h3>Product Hierarchy &amp; Relations</h3>
+        <p class="subtitle">Parent ancestors and child sub-products for <strong>{{ currentProduct().name }}</strong></p>
+      </div>
+    </div>
+    <button type="button" class="modal-close-btn" (click)="close()" title="Close dialog">×</button>
+  </div>
+
+  <!-- Modal Body -->
+  <div class="modal-body">
+    <!-- Active Product Hero Card -->
+    <div class="active-product-hero">
+      <div class="hero-main">
+        <div class="hero-photo">
+          @if (currentProduct().pictureFileNames && currentProduct().pictureFileNames.length > 0) {
+            <img [src]="'/api/products/pictures/' + currentProduct().pictureFileNames[0]" [alt]="currentProduct().name" />
+          } @else {
+            <span class="no-photo-emoji">📦</span>
+          }
+        </div>
+
+        <div class="hero-info">
+          <!-- Hierarchy Path Breadcrumbs -->
+          @if (ancestorProducts().length > 0) {
+            <div class="breadcrumbs">
+              @for (anc of ancestorProducts(); track anc.id) {
+                <span class="crumb">{{ anc.name }}</span>
+                <span class="crumb-separator">&rsaquo;</span>
+              }
+              <span class="crumb active-crumb">{{ currentProduct().name }}</span>
+            </div>
+          }
+
+          <div class="hero-title-row">
+            <h4>{{ currentProduct().name }}</h4>
+            @if (getGroupName(currentProduct().productGroupId)) {
+              <span class="badge badge-group">{{ getGroupName(currentProduct().productGroupId) }}</span>
+            }
+          </div>
+
+          <div class="hero-stock-pills">
+            <span class="stock-pill">
+              In Pantry: <strong>{{ currentProduct().directStockAmount || 0 }}</strong>
+            </span>
+            @if (currentProduct().aggregatedStockAmount !== undefined && currentProduct().aggregatedStockAmount !== currentProduct().directStockAmount) {
+              <span class="stock-pill family-pill" title="Aggregated stock across all sub-products">
+                Family Stock: <strong>{{ currentProduct().aggregatedStockAmount }}</strong>
+              </span>
+            }
+            <span class="stock-pill">
+              Min Threshold: <strong>{{ currentProduct().minStockAmount || 0 }}</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hero Actions -->
+      <div class="hero-actions">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm btn-stock-action"
+          (click)="openStockModal(currentProduct())"
+          title="View pantry stock and expiration dates"
+        >
+          📊 View Stock
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          (click)="openEditProductModal(currentProduct())"
+          title="Edit this product"
+        >
+          ✏️ Edit Product
+        </button>
+      </div>
+    </div>
+
+    <!-- Parent Products (Ancestors) Section -->
+    <div class="relations-section">
+      <div class="section-title-row">
+        <h4>
+          <span>⬆️ Parent Products (Ancestors)</span>
+          <span class="count-tag">{{ ancestorProducts().length }}</span>
+        </h4>
+        <span class="section-hint">Click a parent product to edit it</span>
+      </div>
+
+      @if (ancestorProducts().length === 0) {
+        <div class="empty-relation-card">
+          <p class="empty-icon">🌱</p>
+          <p class="empty-title">Root Product</p>
+          <p class="empty-text">This product does not have a parent product assigned.</p>
+        </div>
+      } @else {
+        <div class="relation-items-list">
+          @for (parent of ancestorProducts(); track parent.id; let isLast = $last) {
+            <div
+              class="relation-item-card is-parent"
+              (click)="openEditProductModal(parent)"
+              title="Click to edit this product"
+            >
+              <div class="relation-item-main">
+                <div class="relation-thumb">
+                  @if (parent.pictureFileNames && parent.pictureFileNames.length > 0) {
+                    <img [src]="'/api/products/pictures/' + parent.pictureFileNames[0]" [alt]="parent.name" />
+                  } @else {
+                    <span>📦</span>
+                  }
+                </div>
+
+                <div class="relation-details">
+                  <div class="relation-name-row">
+                    <span class="relation-name">{{ parent.name }}</span>
+                    @if (isLast) {
+                      <span class="badge badge-relation direct-parent">Direct Parent</span>
+                    } @else {
+                      <span class="badge badge-relation">Ancestor</span>
+                    }
+                    @if (getGroupName(parent.productGroupId)) {
+                      <span class="badge badge-group">{{ getGroupName(parent.productGroupId) }}</span>
+                    }
+                  </div>
+
+                  <div class="relation-meta">
+                    <span class="meta-item">Stock in pantry: <strong>{{ parent.directStockAmount || 0 }}</strong></span>
+                    @if (parent.aggregatedStockAmount !== undefined && parent.aggregatedStockAmount !== parent.directStockAmount) {
+                      <span class="meta-item family-meta">Family stock: <strong>{{ parent.aggregatedStockAmount }}</strong></span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div class="relation-item-actions">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="openStockModal(parent, $event)"
+                  title="View stock for this product"
+                >
+                  📊 View Stock
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="openEditProductModal(parent, $event)"
+                  title="Edit this product"
+                >
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Child Products (Sub-products) Section -->
+    <div class="relations-section">
+      <div class="section-title-row">
+        <h4>
+          <span>⬇️ Child Products (Sub-products)</span>
+          <span class="count-tag">{{ childProducts().length }}</span>
+        </h4>
+        <span class="section-hint">Click a child product to edit it</span>
+      </div>
+
+      @if (childProducts().length === 0) {
+        <div class="empty-relation-card">
+          <p class="empty-icon">🍃</p>
+          <p class="empty-title">No Child Products</p>
+          <p class="empty-text">No other products reference this product as their parent.</p>
+        </div>
+      } @else {
+        <div class="relation-items-list">
+          @for (child of childProducts(); track child.id) {
+            <div
+              class="relation-item-card is-child"
+              (click)="openEditProductModal(child)"
+              title="Click to edit this product"
+            >
+              <div class="relation-item-main">
+                <div class="relation-thumb">
+                  @if (child.pictureFileNames && child.pictureFileNames.length > 0) {
+                    <img [src]="'/api/products/pictures/' + child.pictureFileNames[0]" [alt]="child.name" />
+                  } @else {
+                    <span>📦</span>
+                  }
+                </div>
+
+                <div class="relation-details">
+                  <div class="relation-name-row">
+                    <span class="relation-name">{{ child.name }}</span>
+                    <span class="badge badge-relation direct-child">Direct Child</span>
+                    @if (getGroupName(child.productGroupId)) {
+                      <span class="badge badge-group">{{ getGroupName(child.productGroupId) }}</span>
+                    }
+                  </div>
+
+                  <div class="relation-meta">
+                    <span class="meta-item">Stock in pantry: <strong>{{ child.directStockAmount || 0 }}</strong></span>
+                    @if (child.barcodes && child.barcodes.length > 0) {
+                      <span class="meta-item">🏷️ {{ child.barcodes.length }} barcode{{ child.barcodes.length > 1 ? 's' : '' }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div class="relation-item-actions">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="openStockModal(child, $event)"
+                  title="View stock for this product"
+                >
+                  📊 View Stock
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="openEditProductModal(child, $event)"
+                  title="Edit this product"
+                >
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Nested Descendants Section (if any deeper levels exist) -->
+    @if (descendantProducts().length > 0) {
+      <div class="relations-section">
+        <div class="section-title-row">
+          <h4>
+            <span>🌱 Deeper Descendants</span>
+            <span class="count-tag">{{ descendantProducts().length }}</span>
+          </h4>
+          <span class="section-hint">Grandchildren and sub-variants</span>
+        </div>
+
+        <div class="relation-items-list">
+          @for (desc of descendantProducts(); track desc.id) {
+            <div
+              class="relation-item-card is-descendant"
+              (click)="openEditProductModal(desc)"
+              title="Click to edit this product"
+            >
+              <div class="relation-item-main">
+                <div class="relation-thumb">
+                  @if (desc.pictureFileNames && desc.pictureFileNames.length > 0) {
+                    <img [src]="'/api/products/pictures/' + desc.pictureFileNames[0]" [alt]="desc.name" />
+                  } @else {
+                    <span>📦</span>
+                  }
+                </div>
+
+                <div class="relation-details">
+                  <div class="relation-name-row">
+                    <span class="relation-name">{{ desc.name }}</span>
+                    <span class="badge badge-relation descendant">Sub-variant</span>
+                  </div>
+
+                  <div class="relation-meta">
+                    <span class="meta-item">Stock: <strong>{{ desc.directStockAmount || 0 }}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="relation-item-actions">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="openStockModal(desc, $event)"
+                  title="View stock for this product"
+                >
+                  📊 View Stock
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  (click)="openEditProductModal(desc, $event)"
+                  title="Edit this product"
+                >
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Modal Footer -->
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="close()">Close</button>
+  </div>
+</div>

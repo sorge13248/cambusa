@@ -1,0 +1,26 @@
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="brand-header">
+      <div class="brand-icon">📦</div>
+      <h1 class="brand-title">Cambusa</h1>
+      <p class="brand-subtitle">Smart Home Pantry &amp; Grocery Management</p>
+    </div>
+
+    <div class="login-body">
+      <p class="login-intro">
+        Authentication is required to access your household inventory, shopping lists, and pantry stocks.
+      </p>
+
+      <button class="btn btn-primary btn-block btn-lg" (click)="signIn()">
+        <span class="btn-icon">🔐</span>
+        <span>Sign in with OpenID Connect</span>
+      </button>
+    </div>
+
+    <div class="login-footer">
+      <p class="security-note">
+        <span>🛡️</span> Protected by OpenID Connect &amp; HttpOnly session cookies.
+      </p>
+    </div>
+  </div>
+</div>

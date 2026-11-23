@@ -1,0 +1,34 @@
+<div class="hh-modal-shell" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <h3>{{ data.householdId ? 'Rename Household' : 'Create New Household' }}</h3>
+    <button class="modal-close-btn" (click)="requestClose()">×</button>
+  </div>
+
+  <div class="modal-body">
+    <div class="form-group">
+      <label>Household Name *</label>
+      <input
+        type="text"
+        [(ngModel)]="name"
+        placeholder="e.g. Mountain Cabin, Family Home"
+        autofocus
+        (keyup.enter)="save()"
+      />
+      <span class="field-hint">
+        Each household has its own isolated pantry, shopping lists, products, and members.
+      </span>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="requestClose()">Cancel</button>
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="!name.trim() || isSaving()"
+      (click)="save()"
+    >
+      {{ isSaving() ? 'Saving...' : (data.householdId ? 'Rename' : 'Create') }}
+    </button>
+  </div>
+</div>

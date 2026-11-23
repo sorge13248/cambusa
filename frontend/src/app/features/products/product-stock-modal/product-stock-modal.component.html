@@ -1,0 +1,227 @@
+<div class="product-stock-shell" role="dialog" aria-modal="true">
+  <!-- Modal Header -->
+  <div class="modal-header">
+    <div class="header-left">
+      <div class="product-thumb">
+        @if (data.product.pictureFileNames && data.product.pictureFileNames.length > 0) {
+          <img [src]="'/api/products/pictures/' + data.product.pictureFileNames[0]" [alt]="data.product.name" />
+        } @else {
+          <span class="no-photo-emoji">📦</span>
+        }
+      </div>
+      <div class="header-title-box">
+        <h3>{{ data.product.name }}</h3>
+        <p class="subtitle">Current inventory batches, locations, and expiration dates</p>
+      </div>
+    </div>
+    <button type="button" class="modal-close-btn" (click)="close()" title="Close dialog">×</button>
+  </div>
+
+  <!-- Modal Body -->
+  <div class="modal-body">
+    <!-- Summary Metrics -->
+    <div class="stats-overview">
+      <div class="metric-card">
+        <span class="metric-label">In Pantry (Direct)</span>
+        <span class="metric-val highlight">
+          {{ totalDirectAmount() }}
+          @if (stockUnitName()) {
+            <small>{{ stockUnitName() }}</small>
+          }
+        </span>
+      </div>
+
+      @if (data.product.aggregatedStockAmount !== undefined && data.product.aggregatedStockAmount !== totalDirectAmount()) {
+        <div class="metric-card family-card" title="Total stock including all sub-products">
+          <span class="metric-label">Family Stock (Total)</span>
+          <span class="metric-val family-val">{{ totalFamilyAmount() }}</span>
+        </div>
+      }
+
+      <div class="metric-card">
+        <span class="metric-label">Min Threshold</span>
+        <span class="metric-val">{{ data.product.minStockAmount || 0 }}</span>
+      </div>
+
+      <div class="metric-card">
+        <span class="metric-label">Batches</span>
+        <span class="metric-val">{{ directStockItems().length }}</span>
+      </div>
+
+      @if (expiredCount() > 0) {
+        <div class="metric-card danger-card">
+          <span class="metric-label">Expired</span>
+          <span class="metric-val danger-val">{{ expiredCount() }}</span>
+        </div>
+      }
+
+      @if (dueSoonCount() > 0) {
+        <div class="metric-card warning-card">
+          <span class="metric-label">Due Soon</span>
+          <span class="metric-val warning-val">{{ dueSoonCount() }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- Direct Stock Batches -->
+    <div class="section-title-row">
+      <h4>Pantry Batches</h4>
+      @if (data.product.cannotBeFrozen) {
+        <span class="badge-nofreeze" title="This product cannot be frozen">❄️ Cannot be frozen</span>
+      }
+    </div>
+
+    @if (isLoading()) {
+      <div class="loading-state">
+        <span class="spinner">⏳</span> Loading stock items...
+      </div>
+    } @else if (directStockItems().length === 0) {
+      <div class="empty-state">
+        <p class="empty-icon">📭</p>
+        <p class="empty-text">No active stock in pantry for this product.</p>
+        <p class="empty-hint">Stock records are created upon purchasing or adding items to the pantry.</p>
+      </div>
+    } @else {
+      <div class="batches-list">
+        @for (item of directStockItems(); track item.id) {
+          <div class="batch-card" [attr.data-urgency]="item.urgency">
+            <div class="batch-header">
+              <div class="batch-amount">
+                <span class="qty-badge">{{ item.amount }}x</span>
+                @if (item.quName || stockUnitName()) {
+                  <span class="qu-label">{{ item.quName || stockUnitName() }}</span>
+                }
+              </div>
+
+              <div class="batch-header-right">
+                <div class="batch-badges">
+                  @if (item.isOpen) {
+                    <span class="badge badge-open">
+                      Opened
+                      @if (item.openedDate) {
+                        ({{ item.openedDate | localDate }})
+                      }
+                    </span>
+                  }
+                  <span class="badge badge-urgency" [class]="'urgency-' + item.urgency">
+                    {{ getUrgencyLabel(item.urgency) }}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-xs btn-edit-batch"
+                  (click)="openEditStockItem(item)"
+                  title="Edit this batch (expiration, location, price, notes)"
+                >
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+
+            <div class="batch-details-grid">
+              <div class="detail-item">
+                <span class="detail-key">Storage Location:</span>
+                <span class="detail-val">{{ item.locationName || 'Unassigned' }}</span>
+              </div>
+
+              <div class="detail-item">
+                <span class="detail-key">Best Before Date:</span>
+                <span class="detail-val" [class.danger-text]="item.urgency === 'expired'" [class.warning-text]="item.urgency === 'due_soon'">
+                  {{ (item.bestBeforeDate | localDate) || 'No date set' }}
+                  @if (item.daysUntilExpiration !== null && item.daysUntilExpiration !== undefined) {
+                    <small class="days-pill">({{ getDaysLabel(item.daysUntilExpiration) }})</small>
+                  }
+                </span>
+              </div>
+
+              @if (item.purchasedDate) {
+                <div class="detail-item">
+                  <span class="detail-key">Purchased Date:</span>
+                  <span class="detail-val">{{ item.purchasedDate | localDate }}</span>
+                </div>
+              }
+
+              @if (item.price !== null && item.price !== undefined) {
+                <div class="detail-item">
+                  <span class="detail-key">Price Paid:</span>
+                  <span class="detail-val">{{ item.price | currency:'EUR':'symbol':'1.2-2' }}</span>
+                </div>
+              }
+
+              @if (item.note) {
+                <div class="detail-item full-width">
+                  <span class="detail-key">Note:</span>
+                  <span class="detail-val note-val">{{ item.note }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Sub-Products (Family Stock) Batches Section -->
+    @if (childStockItems().length > 0) {
+      <div class="sub-products-section">
+        <div class="section-title-row">
+          <h4>Sub-Product Batches (Family Stock)</h4>
+          <span class="badge badge-subproducts">{{ childStockItems().length }} batches</span>
+        </div>
+        <p class="section-hint">Stock items belonging to sub-products that roll up into this family tree.</p>
+
+        <div class="batches-list">
+          @for (item of childStockItems(); track item.id) {
+            <div class="batch-card is-child-batch" [attr.data-urgency]="item.urgency">
+              <div class="batch-header">
+                <div class="batch-amount">
+                  <span class="child-product-name">{{ item.productName }}</span>
+                  <span class="qty-badge">{{ item.amount }}x</span>
+                  @if (item.quName) {
+                    <span class="qu-label">{{ item.quName }}</span>
+                  }
+                </div>
+
+                <div class="batch-header-right">
+                  <div class="batch-badges">
+                    <span class="badge badge-urgency" [class]="'urgency-' + item.urgency">
+                      {{ getUrgencyLabel(item.urgency) }}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-xs btn-edit-batch"
+                    (click)="openEditStockItem(item)"
+                    title="Edit this batch (expiration, location, price, notes)"
+                  >
+                    ✏️ Edit
+                  </button>
+                </div>
+              </div>
+
+              <div class="batch-details-grid">
+                <div class="detail-item">
+                  <span class="detail-key">Location:</span>
+                  <span class="detail-val">{{ item.locationName || 'Unassigned' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-key">Best Before:</span>
+                  <span class="detail-val">
+                    {{ (item.bestBeforeDate | localDate) || 'No date' }}
+                    @if (item.daysUntilExpiration !== null && item.daysUntilExpiration !== undefined) {
+                      <small class="days-pill">({{ getDaysLabel(item.daysUntilExpiration) }})</small>
+                    }
+                  </span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Modal Footer -->
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="close()">Close</button>
+  </div>
+</div>

@@ -1,0 +1,20 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g5-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#061c14"/>
+      <stop offset="1" stop-color="#0f291e"/>
+    </linearGradient>
+    <linearGradient id="g5-leaf" x1="30" y1="30" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10b981"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#g5-bg)"/>
+  <rect x="2" y="2" width="116" height="116" rx="26" stroke="rgba(16,185,129,0.25)" stroke-width="2"/>
+  <path d="M30 46C30 32 43 24 60 24C77 24 90 32 90 46V92H30V46Z" stroke="rgba(255,255,255,0.2)" stroke-width="2.5" fill="rgba(16,185,129,0.06)"/>
+  <line x1="60" y1="24" x2="60" y2="92" stroke="rgba(255,255,255,0.25)" stroke-width="2"/>
+  <path d="M60 40C72 40 80 50 78 66C66 66 60 56 60 40Z" fill="url(#g5-leaf)"/>
+  <path d="M60 52C48 52 42 60 44 74C54 74 60 66 60 52Z" fill="#10b981" fill-opacity="0.8"/>
+  <circle cx="54" cy="62" r="1.5" fill="#ffffff"/>
+  <circle cx="66" cy="54" r="1.5" fill="#ffffff"/>
+</svg>

@@ -1,0 +1,341 @@
+@import '@angular/cdk/overlay-prebuilt.css';
+
+/* ==========================================================================
+   AERO GLASS DESIGN SYSTEM & OS THEME (Light & Dark)
+   ========================================================================== */
+
+:root {
+  /* Dark Mode (Default) — Obsidian Aero Glass */
+  --bg-primary: #0b1120;
+  --bg-secondary: rgba(30, 41, 59, 0.7);
+  --bg-card: rgba(30, 41, 59, 0.65);
+  --bg-card-hover: rgba(51, 65, 85, 0.8);
+  --bg-subtle: rgba(255, 255, 255, 0.06);
+
+  --glass-navbar-bg: rgba(15, 23, 42, 0.75);
+  --glass-navbar-border: rgba(255, 255, 255, 0.12);
+  --glass-navbar-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+
+  --glass-card-bg: rgba(30, 41, 59, 0.62);
+  --glass-card-border: rgba(255, 255, 255, 0.1);
+  --glass-card-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+
+  --glass-modal-bg: rgba(15, 23, 42, 0.88);
+  --glass-modal-border: rgba(255, 255, 255, 0.14);
+  --glass-modal-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+
+  --glass-dropdown-bg: rgba(15, 23, 42, 0.94);
+  --glass-dropdown-border: rgba(255, 255, 255, 0.14);
+  --glass-dropdown-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+  
+  --glass-blur: blur(16px);
+  --glass-blur-sm: blur(10px);
+  --glass-blur-lg: blur(24px);
+  --glass-bg-hover: rgba(255, 255, 255, 0.1);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --primary: #10b981;
+  --primary-hover: #059669;
+  --primary-light: rgba(16, 185, 129, 0.18);
+  --accent: #38bdf8;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --yellow: #eab308;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-focus: #10b981;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 36px -6px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* Light Mode — Frosted Crystal Aero Glass */
+    --bg-primary: #f8fafc;
+    --bg-secondary: rgba(255, 255, 255, 0.85);
+    --bg-card: rgba(255, 255, 255, 0.8);
+    --bg-card-hover: rgba(255, 255, 255, 0.95);
+    --bg-subtle: rgba(0, 0, 0, 0.04);
+
+    --glass-navbar-bg: rgba(255, 255, 255, 0.82);
+    --glass-navbar-border: rgba(0, 0, 0, 0.08);
+    --glass-navbar-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+
+    --glass-card-bg: rgba(255, 255, 255, 0.78);
+    --glass-card-border: rgba(0, 0, 0, 0.08);
+    --glass-card-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+
+    --glass-modal-bg: rgba(255, 255, 255, 0.9);
+    --glass-modal-border: rgba(0, 0, 0, 0.1);
+    --glass-modal-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
+
+    --glass-dropdown-bg: rgba(255, 255, 255, 0.95);
+    --glass-dropdown-border: rgba(0, 0, 0, 0.1);
+    --glass-dropdown-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.85) inset;
+    
+    --glass-blur: blur(16px);
+    --glass-blur-sm: blur(10px);
+    --glass-blur-lg: blur(24px);
+    --glass-bg-hover: rgba(0, 0, 0, 0.06);
+
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+
+    --primary: #059669;
+    --primary-hover: #047857;
+    --primary-light: rgba(5, 150, 105, 0.14);
+    --accent: #0284c7;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --yellow: #ca8a04;
+    --border: rgba(0, 0, 0, 0.1);
+    --border-focus: #059669;
+
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 14px 32px -4px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg-primary);
+  background-image: radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.09) 0px, transparent 50%),
+                    radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.09) 0px, transparent 50%),
+                    radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  color: var(--text-primary);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  outline: none;
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+
+.btn-secondary {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background-color: var(--bg-card-hover);
+}
+
+.btn-danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background-color: var(--danger);
+  color: #ffffff;
+}
+
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 0.82rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-expired {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-due-soon {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-approaching {
+  background-color: rgba(234, 179, 8, 0.2);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.badge-good {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.badge-inactive {
+  background-color: rgba(148, 163, 184, 0.2);
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Angular CDK & Dialog Backdrops with Frosted Glass Blur */
+.cdk-overlay-backdrop,
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  opacity: 1 !important;
+}
+
+@media (prefers-color-scheme: light) {
+  .cdk-overlay-backdrop,
+  .modal-backdrop {
+    background-color: rgba(15, 23, 42, 0.28) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+/* Ensure undo-toast always renders above all modals, dialogs, overlays, and backdrops */
+app-undo-toast {
+  position: relative;
+  z-index: 100000 !important;
+}
+
+.undo-toast-shell {
+  z-index: 100000 !important;
+}
+
+/* Universal Aero Glass Modals */
+.action-modal-shell,
+.product-editor-shell,
+.shopping-add-shell,
+.list-modal-shell,
+.missing-modal-shell,
+.hh-modal-shell,
+.confirm-modal-shell,
+.modal-content {
+  background-color: var(--glass-modal-bg) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid var(--glass-modal-border) !important;
+  box-shadow: var(--glass-modal-shadow) !important;
+}
+
+/* Universal Aero Glass Dropdowns */
+.dropdown-menu,
+.sync-dropdown,
+.autocomplete-dropdown-panel {
+  background-color: var(--glass-dropdown-bg) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid var(--glass-dropdown-border) !important;
+  box-shadow: var(--glass-dropdown-shadow) !important;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 12px;
+}
+
+.modal-header h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  color: var(--text-secondary);
+  font-size: 1.4rem;
+  padding: 4px;
+}
+
+.modal-body {
+  padding: 16px 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 24px 20px;
+}

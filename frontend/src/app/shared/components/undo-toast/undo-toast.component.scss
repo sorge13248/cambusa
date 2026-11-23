@@ -1,0 +1,107 @@
+:host {
+  display: contents;
+}
+
+.undo-toast-shell {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100000;
+  pointer-events: auto !important;
+  background-color: var(--glass-dropdown-bg, rgba(15, 23, 42, 0.94));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--glass-dropdown-border, #334155);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--glass-dropdown-shadow, 0 20px 45px -10px rgba(0, 0, 0, 0.65));
+  overflow: hidden;
+  min-width: 340px;
+  max-width: 90vw;
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.action-icon {
+  font-size: 1.1rem;
+}
+
+.action-desc {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-undo {
+  background-color: var(--primary, #10b981);
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-undo:hover {
+  background-color: #059669;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.btn-close:hover {
+  color: #fff;
+}
+
+.toast-progress-bar {
+  height: 3px;
+  background-color: var(--primary, #10b981);
+  width: 100%;
+  animation-name: progressBarCountdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.undo-toast-shell:hover .toast-progress-bar,
+.undo-toast-shell.is-paused .toast-progress-bar {
+  animation-play-state: paused;
+}
+
+@keyframes progressBarCountdown {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}

@@ -1,0 +1,67 @@
+<div class="missing-modal-shell" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div>
+      <h3>Items Below Minimum Stock</h3>
+      <p class="subtitle">Automatic replenishment based on your household's inventory thresholds.</p>
+    </div>
+    <button class="modal-close-btn" (click)="close(false)">×</button>
+  </div>
+
+  <div class="modal-body">
+    @if (data.missingProducts.length === 0) {
+      <div class="empty-missing">
+        <span class="empty-icon">🎉</span>
+        <p>All items in this household are currently above their minimum stock levels!</p>
+      </div>
+    } @else {
+      <div class="missing-toolbar">
+        <span class="selection-count">{{ selectedIds.size }} of {{ data.missingProducts.length }} items selected</span>
+        <div class="quick-select-btns">
+          <button type="button" class="btn-text" (click)="selectAll()">Select All</button>
+          <button type="button" class="btn-text" (click)="selectNone()">Deselect All</button>
+        </div>
+      </div>
+
+      <div class="missing-list">
+        @for (m of data.missingProducts; track m.productId) {
+          <label class="missing-item-row" [class.selected]="selectedIds.has(m.productId)">
+            <input
+              type="checkbox"
+              [checked]="selectedIds.has(m.productId)"
+              (change)="toggle(m.productId)"
+            />
+
+            <div class="missing-thumb">
+              @if (m.productPictureFileNames && m.productPictureFileNames.length > 0) {
+                <img [src]="'/api/products/pictures/' + m.productPictureFileNames[0]" [alt]="m.productName" />
+              } @else {
+                <span>📦</span>
+              }
+            </div>
+
+            <div class="missing-details">
+              <span class="missing-name">{{ m.productName }}</span>
+              <div class="missing-meta">
+                <span>In Pantry: <strong>{{ m.currentStock }}</strong></span>
+                <span>Min: <strong>{{ m.minStockAmount }}</strong></span>
+                <span class="missing-qty-needed">Need: +{{ m.amountMissing }} {{ m.quName || 'units' }}</span>
+              </div>
+            </div>
+          </label>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="close(false)">Cancel</button>
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="selectedIds.size === 0 || isAdding()"
+      (click)="addSelected()"
+    >
+      {{ isAdding() ? 'Adding...' : 'Add ' + selectedIds.size + ' Items' }}
+    </button>
+  </div>
+</div>

@@ -1,0 +1,12 @@
+<div class="callback-card">
+  @if (loading()) {
+    <div class="spinner"></div>
+    <h2>Logging in to Cambusa...</h2>
+    <p>Please wait while we verify your session.</p>
+  } @else if (error()) {
+    <div class="error-icon">⚠️</div>
+    <h2>Authentication Failed</h2>
+    <p class="error-msg">{{ error() }}</p>
+    <button class="btn btn-primary" (click)="retry()">Return to Login</button>
+  }
+</div>

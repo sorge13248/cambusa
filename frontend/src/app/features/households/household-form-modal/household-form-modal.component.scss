@@ -1,0 +1,129 @@
+:host {
+  display: block;
+  width: min(440px, 94vw);
+  max-width: 440px;
+  box-sizing: border-box;
+}
+
+.hh-modal-shell {
+  background-color: var(--glass-modal-bg, rgba(15, 23, 42, 0.88));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  color: var(--text-primary, #f8fafc);
+  border-radius: var(--radius-lg, 12px);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--glass-modal-shadow, 0 25px 50px -12px rgba(0, 0, 0, 0.5));
+  border: 1px solid var(--glass-modal-border, #334155);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border, #334155);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+
+  &:hover {
+    color: #fff;
+  }
+}
+
+.modal-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary, #94a3b8);
+  }
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+
+input[type='text'] {
+  background-color: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border, #334155);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary, #10b981);
+  }
+}
+
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border, #334155);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background-color: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+.btn-secondary {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, #f8fafc);
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+}
+.btn-primary {
+  background-color: var(--primary, #10b981);
+  color: #fff;
+
+  &:hover {
+    background-color: #059669;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

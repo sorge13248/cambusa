@@ -1,0 +1,22 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g4-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b0f19"/>
+      <stop offset="1" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="g4-cloche" x1="20" y1="30" x2="100" y2="90" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#818cf8"/>
+      <stop offset="0.6" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#g4-bg)"/>
+  <rect x="2" y="2" width="116" height="116" rx="26" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+  <path d="M60 25C64 25 67 28 67 32C67 34 65 36 62 37" stroke="url(#g4-cloche)" stroke-width="3" stroke-linecap="round"/>
+  <path d="M88 68C88 47 75 38 60 38C45 38 32 47 32 68" stroke="url(#g4-cloche)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M26 76H94" stroke="url(#g4-cloche)" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="48" cy="62" r="4" fill="#34d399"/>
+  <circle cx="60" cy="58" r="4" fill="#38bdf8"/>
+  <circle cx="72" cy="62" r="4" fill="#818cf8"/>
+  <path d="M36 82H84" stroke="rgba(255,255,255,0.15)" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,86 @@
+<div class="action-form purchase-form">
+  @if (showHeader) {
+    <h4>{{ headerTitle }}</h4>
+  }
+  <div class="form-row">
+    <div class="form-group flex-1">
+      <label>Quantity purchased *</label>
+      <input type="number" min="1" step="1" [(ngModel)]="purchaseAmount" />
+    </div>
+
+    <div class="form-group flex-1">
+      <label>Purchase date</label>
+      <input type="date" [(ngModel)]="purchaseDate" />
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Best before date</label>
+    <app-cdk-datepicker
+      [date]="purchaseBestBeforeDate"
+      (dateChange)="purchaseBestBeforeDate = $event"
+    ></app-cdk-datepicker>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group flex-1">
+      <label>Price (optional)</label>
+      <input type="number" step="0.01" min="0" placeholder="0.00" [(ngModel)]="purchasePrice" />
+    </div>
+
+    <div class="form-group flex-1 price-mode-group">
+      <label>Price mode</label>
+      <div class="radio-row">
+        <label>
+          <input type="radio" name="priceMode" value="total" [(ngModel)]="purchasePriceMode" />
+          Total
+        </label>
+        <label>
+          <input type="radio" name="priceMode" value="unit" [(ngModel)]="purchasePriceMode" />
+          Unit
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group flex-1">
+      <label>Store (optional)</label>
+      <select [(ngModel)]="purchaseStoreId">
+        <option value="">No store</option>
+        @for (s of stores; track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-group flex-1">
+      <label>Storage location</label>
+      <select [(ngModel)]="purchaseLocationId">
+        <option value="">Select location</option>
+        @for (loc of locations; track loc.id) {
+          <option [value]="loc.id">{{ loc.name }}{{ loc.isFreezer ? ' ❄️ (Freezer)' : '' }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Notes (optional)</label>
+    <textarea [(ngModel)]="purchaseNote" rows="2" placeholder="Purchase notes..."></textarea>
+  </div>
+
+  <div class="form-actions">
+    @if (showCancel) {
+      <button type="button" class="btn btn-secondary" (click)="onCancel()">Cancel</button>
+    }
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="purchaseAmount <= 0 || isSubmitting"
+      (click)="submitPurchase()"
+    >
+      {{ isSubmitting ? 'Saving...' : submitLabel }}
+    </button>
+  </div>
+</div>

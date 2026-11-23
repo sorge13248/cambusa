@@ -1,0 +1,21 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g3-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1a202c"/>
+    </linearGradient>
+    <linearGradient id="g3-crate" x1="20" y1="30" x2="100" y2="90" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fbbf24"/>
+      <stop offset="0.5" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#g3-bg)"/>
+  <rect x="2" y="2" width="116" height="116" rx="26" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+  <path d="M84 34H44C34 34 26 42 26 52V68C26 78 34 86 44 86H84" stroke="url(#g3-crate)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="38" y1="50" x2="74" y2="50" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+  <line x1="38" y1="62" x2="74" y2="62" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+  <line x1="38" y1="74" x2="74" y2="74" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+  <rect x="70" y="38" width="8" height="18" rx="2" fill="#38bdf8"/>
+  <circle cx="86" cy="46" r="6" fill="#f43f5e"/>
+</svg>

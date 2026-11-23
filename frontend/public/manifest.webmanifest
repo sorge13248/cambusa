@@ -1,0 +1,63 @@
+{
+  "name": "Cambusa",
+  "short_name": "Cambusa",
+  "description": "Smart home pantry, grocery shopping, and inventory system with offline-first resilience.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["lifestyle", "utilities", "food"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pantry",
+      "short_name": "Pantry",
+      "description": "Check current pantry inventory and expiring stock",
+      "url": "/pantry"
+    },
+    {
+      "name": "Shopping List",
+      "short_name": "Shopping",
+      "description": "View and manage supermarket shopping list by aisle",
+      "url": "/shopping"
+    },
+    {
+      "name": "Products",
+      "short_name": "Products",
+      "description": "Browse and catalog household products and prices",
+      "url": "/products"
+    }
+  ]
+}

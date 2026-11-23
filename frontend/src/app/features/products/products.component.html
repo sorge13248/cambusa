@@ -1,0 +1,198 @@
+<div class="products-page">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h2>Product Catalog &amp; Hierarchy</h2>
+      <p class="subtitle">Infinite parent product nesting, multi-store pricing, and minimum stock rules.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" (click)="openAddProductModal()">+ New Product</button>
+    </div>
+  </div>
+
+  <!-- Search & Category & Status Filters -->
+  <div class="filter-card">
+    <div class="search-row">
+      <div class="search-box">
+        <input
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchChange($event)"
+          placeholder="Search products by name, barcode, description..."
+        />
+        @if (searchQuery()) {
+          <button class="clear-btn" (click)="clearSearch()" title="Clear search">×</button>
+        }
+      </div>
+
+      <div class="filter-controls">
+        <select [(ngModel)]="filterGroupId" (ngModelChange)="onFilterChange()">
+          <option value="">All Categories</option>
+          @for (g of productGroups(); track g.id) {
+            <option [value]="g.id">{{ g.name }}</option>
+          }
+        </select>
+
+        <select [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()">
+          <option value="all">All Statuses</option>
+          <option value="active">Active Only</option>
+          <option value="inactive">Inactive (Archived)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products Grid -->
+  @if (isLoading()) {
+    <div class="loading-state">Loading product catalog...</div>
+  } @else if (filteredProducts().length === 0) {
+    <div class="empty-state">
+      <p>No products found matching your filters.</p>
+      <button class="btn btn-primary" (click)="openAddProductModal()">Create your first product</button>
+    </div>
+  } @else {
+    <div class="products-grid">
+      @for (p of paginatedProducts(); track p.id) {
+        <div class="product-card" [class.is-inactive]="p.active === false">
+          <!-- Top Row with Photo & Title -->
+          <div class="card-header-with-photo">
+            <div class="card-photo">
+              @if (p.pictureFileNames && p.pictureFileNames.length > 0) {
+                <img [src]="'/api/products/pictures/' + p.pictureFileNames[0]" [alt]="p.name" />
+              } @else {
+                <div class="no-photo-thumb">📦</div>
+              }
+            </div>
+
+            <div class="card-top-info">
+              <!-- Hierarchy Path Breadcrumbs -->
+              @if (p.ancestors && p.ancestors.length > 0) {
+                <div class="breadcrumbs">
+                  @for (anc of p.ancestors; track anc.id; let last = $last) {
+                    <span class="crumb">{{ anc.name }}</span>
+                    @if (!last) {
+                      <span class="crumb-separator">&rsaquo;</span>
+                    }
+                  }
+                </div>
+              }
+
+              <div class="product-title-row">
+                <h4 class="product-title">{{ p.name }}</h4>
+                <div class="badge-group">
+                  @if (p.active === false) {
+                    <span class="badge badge-inactive">Inactive</span>
+                  }
+                  @if (p.cannotBeFrozen) {
+                    <span class="badge badge-warning" title="Cannot be frozen">❄️ Cannot be frozen</span>
+                  }
+                </div>
+              </div>
+
+              @if (p.description) {
+                <div class="product-desc" [innerHTML]="p.description"></div>
+              }
+            </div>
+          </div>
+
+          <!-- Stock & Min-Stock Stats -->
+          <div class="product-stats">
+            <div class="stat-pill">
+              <span class="stat-label">In Pantry:</span>
+              <span class="stat-val">{{ p.directStockAmount || 0 }}</span>
+            </div>
+            @if (p.aggregatedStockAmount !== undefined && p.aggregatedStockAmount !== p.directStockAmount) {
+              <div class="stat-pill aggregate-pill" title="Aggregated stock across all sub-products">
+                <span class="stat-label">Family Stock:</span>
+                <span class="stat-val">{{ p.aggregatedStockAmount }}</span>
+              </div>
+            }
+            <div class="stat-pill">
+              <span class="stat-label">Min Threshold:</span>
+              <span class="stat-val">{{ p.minStockAmount || 0 }}</span>
+            </div>
+            @if (p.barcodes && p.barcodes.length > 0) {
+              <div class="stat-pill" title="Barcodes count">
+                <span class="stat-label">🏷️</span>
+                <span class="stat-val">{{ p.barcodes.length }}</span>
+              </div>
+            }
+          </div>
+
+          <!-- Store Prices Tag Strip -->
+          @if (p.stores && p.stores.length > 0) {
+            <div class="store-prices-strip">
+              <span class="store-strip-label">Stores:</span>
+              @for (ps of p.stores; track ps.storeId) {
+                <span class="store-chip">
+                  {{ getStoreName(ps.storeId) }}:
+                  {{ ps.averagePrice ? (ps.averagePrice | currency:'EUR':'symbol':'1.2-2') : 'No price' }}
+                  @if (ps.aisle) {
+                    ({{ ps.aisle }})
+                  }
+                </span>
+              }
+            </div>
+          }
+
+          <!-- Card Actions Footer -->
+          <div class="product-card-footer">
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              (click)="openProductStockModal(p)"
+              title="View current pantry stock and expiration dates"
+            >
+              📊 View Stock
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              (click)="openProductRelationsModal(p)"
+              title="View parent and child product relationships"
+            >
+              🔗 View Relations
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openEditProductModal(p)">Edit</button>
+            <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeleteProduct(p)">Delete</button>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Pagination Controls -->
+    @if (totalPages() > 1) {
+      <div class="pagination-bar">
+        <div class="pagination-info">
+          Showing <strong>{{ (currentPage() - 1) * pageSize + 1 }}</strong> &ndash;
+          <strong>{{ Math.min(currentPage() * pageSize, totalItems()) }}</strong> of
+          <strong>{{ totalItems() }}</strong> products
+        </div>
+
+        <div class="pagination-controls">
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            [disabled]="currentPage() === 1"
+            (click)="goToPage(currentPage() - 1)"
+          >
+            &larr; Prev
+          </button>
+
+          <span class="page-indicator">
+            Page <strong>{{ currentPage() }}</strong> of <strong>{{ totalPages() }}</strong>
+          </span>
+
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            [disabled]="currentPage() === totalPages()"
+            (click)="goToPage(currentPage() + 1)"
+          >
+            Next &rarr;
+          </button>
+        </div>
+      </div>
+    }
+  }
+</div>

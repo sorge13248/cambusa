@@ -1,0 +1,130 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.action-form {
+  background-color: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border, #334155);
+  border-radius: var(--radius-md, 8px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeIn 0.2s ease-out;
+
+  h4 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary, #f8fafc);
+    margin: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #94a3b8);
+    font-weight: 500;
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 8px 12px;
+    background-color: var(--bg-primary, #0f172a);
+    border: 1px solid var(--border, #334155);
+    border-radius: var(--radius-sm, 6px);
+    color: var(--text-primary, #f8fafc);
+    font-size: 0.9rem;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary, #10b981);
+    }
+  }
+}
+
+.price-mode-group .radio-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding-top: 8px;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-primary, #f8fafc);
+    cursor: pointer;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary {
+  background-color: var(--bg-subtle, #1e293b);
+  color: var(--text-primary, #f8fafc);
+  border: 1px solid var(--border, #334155);
+
+  &:hover {
+    background-color: var(--bg-card-hover, #334155);
+  }
+}
+
+.btn-primary {
+  background-color: var(--primary, #10b981);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background-color: #059669;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

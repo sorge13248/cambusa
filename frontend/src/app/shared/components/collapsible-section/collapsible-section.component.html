@@ -1,0 +1,22 @@
+<div class="collapsible-section-card" [class.is-expanded]="isSectionExpanded()">
+  <div class="section-header" (click)="toggle()">
+    <div class="section-title">
+      <span class="section-icon">{{ icon() }}</span>
+      <span class="section-heading">{{ title() }}</span>
+      @if (badge() !== null && badge() !== undefined && badge() !== '') {
+        <span class="section-badge" [class.badge-warning]="badgeVariant() === 'warning'">
+          {{ badge() }}
+        </span>
+      }
+    </div>
+    <span class="chevron-arrow" [class.rotated]="isSectionExpanded()">▼</span>
+  </div>
+
+  <div class="section-collapse-wrapper" [class.expanded]="isSectionExpanded()">
+    <div class="section-collapse-inner">
+      <div class="section-content">
+        <ng-content></ng-content>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+<div class="datepicker-wrapper">
+  <div class="input-row">
+    <input
+      type="date"
+      class="date-input"
+      [disabled]="neverExpires()"
+      [ngModel]="currentDate()"
+      (ngModelChange)="onDateChange($event)"
+    />
+    <label class="never-expires-label">
+      <input
+        type="checkbox"
+        [checked]="neverExpires()"
+        (change)="toggleNeverExpires($event)"
+      />
+      <span>Never expires</span>
+    </label>
+  </div>
+
+  @if (!neverExpires()) {
+    <div class="quick-presets">
+      <button type="button" class="preset-btn" (click)="setPresetDays(0)">Today</button>
+      <button type="button" class="preset-btn" (click)="setPresetDays(2)">+2d</button>
+      <button type="button" class="preset-btn" (click)="setPresetDays(7)">+1 wk</button>
+      <button type="button" class="preset-btn" (click)="setPresetDays(30)">+1 mo</button>
+      <button type="button" class="preset-btn" (click)="setPresetDays(180)">+6 mos</button>
+      <button type="button" class="preset-btn" (click)="setPresetDays(365)">+1 yr</button>
+    </div>
+  }
+</div>

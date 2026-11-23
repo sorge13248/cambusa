@@ -1,0 +1,277 @@
+<div class="home-container">
+  <!-- Top Welcome Banner -->
+  <section class="welcome-banner glass-card">
+    <div class="welcome-left">
+      <div class="welcome-avatar">
+        @if (auth.currentUser()?.pictureUrl) {
+          <img [src]="auth.currentUser()!.pictureUrl!" [alt]="auth.currentUser()?.displayName || 'User'" class="welcome-avatar-img" />
+        } @else {
+          {{ auth.currentUser()?.displayName?.charAt(0) || '👋' }}
+        }
+      </div>
+      <div class="welcome-text">
+        <h1 class="welcome-title">
+          {{ getGreeting() }}, {{ auth.currentUser()?.displayName || 'Friend' }}!
+        </h1>
+        <p class="welcome-subtitle">
+          Here is what needs your attention today in
+          <strong class="household-highlight">{{ auth.activeHousehold()?.name || nextData()?.household?.name || 'your pantry' }}</strong>.
+        </p>
+      </div>
+    </div>
+    <div class="welcome-right">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm refresh-btn"
+        (click)="loadDashboardData()"
+        [disabled]="isLoading()"
+        title="Refresh dashboard metrics"
+      >
+        <span class="refresh-icon" [class.spinning]="isLoading()">🔄</span>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </section>
+
+  @if (errorMessage()) {
+    <div class="alert-box alert-error">
+      <span>⚠️ {{ errorMessage() }}</span>
+      <button type="button" class="btn btn-secondary btn-xs" (click)="loadDashboardData()">Retry</button>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Gathering pantry analytics and expiration alerts...</p>
+    </div>
+  } @else if (nextData(); as data) {
+    <!-- Metrics KPI Grid -->
+    <section class="kpi-grid">
+      <!-- KPI 1: Unique Products Counted Once -->
+      <div class="kpi-card glass-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Distinct Products</span>
+          <span class="kpi-icon icon-emerald">🥫</span>
+        </div>
+        <div class="kpi-value">{{ data.summary.totalUniqueProductsInStock }}</div>
+        <div class="kpi-footer">Unique items stocked in pantry</div>
+      </div>
+
+      <!-- KPI 2: Total Units Volume -->
+      <div class="kpi-card glass-card">
+        <div class="kpi-header">
+          <span class="kpi-title">Total Inventory Units</span>
+          <span class="kpi-icon icon-sky">📦</span>
+        </div>
+        <div class="kpi-value">{{ data.summary.totalStockItems }}</div>
+        <div class="kpi-footer">Total physical units on shelves</div>
+      </div>
+
+      <!-- KPI 3: Expiring Soon -->
+      <div class="kpi-card glass-card kpi-warning" [class.has-items]="data.summary.expiringSoonCount > 0">
+        <div class="kpi-header">
+          <span class="kpi-title">Expiring Soon</span>
+          <span class="kpi-icon icon-amber">⏳</span>
+        </div>
+        <div class="kpi-value">{{ data.summary.expiringSoonCount }}</div>
+        <div class="kpi-footer">Within next {{ data.summary.configuredDays }} days</div>
+      </div>
+
+      <!-- KPI 4: Already Expired -->
+      <div class="kpi-card glass-card kpi-danger" [class.has-items]="data.summary.expiredCount > 0">
+        <div class="kpi-header">
+          <span class="kpi-title">Expired Products</span>
+          <span class="kpi-icon icon-rose">⚠️</span>
+        </div>
+        <div class="kpi-value">{{ data.summary.expiredCount }}</div>
+        <div class="kpi-footer">Requires immediate check</div>
+      </div>
+    </section>
+
+    <!-- Main Content Grid -->
+    <div class="dashboard-content-grid">
+      <!-- Expirations & Action Items Section -->
+      <section class="card glass-card alerts-section">
+        <div class="alerts-header">
+          <div class="alerts-title-group">
+            <h2 class="section-title">Pantry Attention Feed</h2>
+          </div>
+
+          <!-- Filter Pills -->
+          <div class="filter-pills">
+            <button
+              type="button"
+              class="pill-btn"
+              [class.active]="activeTab() === 'all'"
+              (click)="setTab('all')"
+            >
+              All ({{ data.expired.length + data.expiringSoon.length }})
+            </button>
+            <button
+              type="button"
+              class="pill-btn pill-danger"
+              [class.active]="activeTab() === 'expired'"
+              (click)="setTab('expired')"
+            >
+              Expired ({{ data.expired.length }})
+            </button>
+            <button
+              type="button"
+              class="pill-btn pill-warning"
+              [class.active]="activeTab() === 'expiring'"
+              (click)="setTab('expiring')"
+            >
+              Expiring Soon ({{ data.expiringSoon.length }})
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty Feed State -->
+        @if ((activeTab() === 'all' && data.expired.length === 0 && data.expiringSoon.length === 0) ||
+             (activeTab() === 'expired' && data.expired.length === 0) ||
+             (activeTab() === 'expiring' && data.expiringSoon.length === 0)) {
+          <div class="empty-feed">
+            <span class="empty-feed-icon">🎉</span>
+            <h3 class="empty-feed-title">Everything is in order!</h3>
+            <p class="empty-feed-desc">No products require immediate attention under the selected filter.</p>
+          </div>
+        } @else {
+          <div class="items-list">
+            <!-- Expired Items -->
+            @if (activeTab() === 'all' || activeTab() === 'expired') {
+              @for (item of data.expired; track item.id) {
+                <div
+                  class="item-card item-expired"
+                  role="button"
+                  tabindex="0"
+                  (click)="openProductActionModal(item)"
+                  (keydown.enter)="openProductActionModal(item)"
+                  title="Click to manage stock, consume, move, or adjust expiration"
+                >
+                  <div class="item-indicator-bar danger-bar"></div>
+                  <div class="item-main">
+                    <div class="item-name-row">
+                      <span class="product-name">{{ item.productName }}</span>
+                      <span class="badge badge-expired">Expired {{ item.daysOverdue }}d ago</span>
+                    </div>
+                    <div class="item-details-row">
+                      <span class="item-qty">
+                        <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
+                      </span>
+                      <span class="item-dot">•</span>
+                      <span class="item-loc">📍 {{ item.location }}</span>
+                      <span class="item-dot">•</span>
+                      <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
+                      @if (item.isOpened) {
+                        <span class="badge badge-opened">Opened</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="item-action">
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-xs action-link"
+                      (click)="openProductActionModal(item); $event.stopPropagation()"
+                    >
+                      Manage...
+                    </button>
+                  </div>
+                </div>
+              }
+            }
+
+            <!-- Expiring Soon Items -->
+            @if (activeTab() === 'all' || activeTab() === 'expiring') {
+              @for (item of data.expiringSoon; track item.id) {
+                <div
+                  class="item-card item-expiring"
+                  role="button"
+                  tabindex="0"
+                  (click)="openProductActionModal(item)"
+                  (keydown.enter)="openProductActionModal(item)"
+                  title="Click to manage stock, consume, move, or adjust expiration"
+                >
+                  <div class="item-indicator-bar warning-bar"></div>
+                  <div class="item-main">
+                    <div class="item-name-row">
+                      <span class="product-name">{{ item.productName }}</span>
+                      <span class="badge badge-expiring">
+                        {{ item.daysRemaining === 0 ? 'Expires Today!' : (item.daysRemaining === 1 ? 'Expires Tomorrow' : 'Expires in ' + item.daysRemaining + ' days') }}
+                      </span>
+                    </div>
+                    <div class="item-details-row">
+                      <span class="item-qty">
+                        <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
+                      </span>
+                      <span class="item-dot">•</span>
+                      <span class="item-loc">📍 {{ item.location }}</span>
+                      <span class="item-dot">•</span>
+                      <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
+                      @if (item.isOpened) {
+                        <span class="badge badge-opened">Opened</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="item-action">
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-xs action-link"
+                      (click)="openProductActionModal(item); $event.stopPropagation()"
+                    >
+                      Manage...
+                    </button>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+        }
+      </section>
+
+      <!-- Sidebar / Quick Actions Section -->
+      <aside class="sidebar-shortcuts">
+        <div class="card glass-card shortcuts-card">
+          <h3 class="shortcuts-title">Quick Actions</h3>
+          <div class="shortcuts-list">
+            <a routerLink="/pantry" class="shortcut-item">
+              <span class="shortcut-icon icon-emerald">🥫</span>
+              <div class="shortcut-text">
+                <span class="shortcut-name">Pantry Inventory</span>
+                <span class="shortcut-desc">Track stock, locations and batches</span>
+              </div>
+              <span class="shortcut-arrow">→</span>
+            </a>
+
+            <a routerLink="/shopping" class="shortcut-item">
+              <span class="shortcut-icon icon-sky">🛒</span>
+              <div class="shortcut-text">
+                <span class="shortcut-name">Shopping List</span>
+                <span class="shortcut-desc">Check off groceries and missing items</span>
+              </div>
+              <span class="shortcut-arrow">→</span>
+            </a>
+
+            <a routerLink="/products" class="shortcut-item">
+              <span class="shortcut-icon icon-indigo">🏷️</span>
+              <div class="shortcut-text">
+                <span class="shortcut-name">Product Master Data</span>
+                <span class="shortcut-desc">Barcodes, pictures and categories</span>
+              </div>
+              <span class="shortcut-arrow">→</span>
+            </a>
+
+            <a routerLink="/profile" class="shortcut-item">
+              <span class="shortcut-icon icon-amber">⚡</span>
+              <div class="shortcut-text">
+                <span class="shortcut-name">Your profile</span>
+                <span class="shortcut-desc">Notifications, dashboard and account settings</span>
+              </div>
+              <span class="shortcut-arrow">→</span>
+            </a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  }
+</div>

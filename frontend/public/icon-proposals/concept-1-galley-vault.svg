@@ -1,0 +1,20 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1-bg" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="g1-accent" x1="20" y1="20" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10b981"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#g1-bg)"/>
+  <rect x="2" y="2" width="116" height="116" rx="26" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+  <rect x="26" y="24" width="68" height="72" rx="14" fill="#0b1120" stroke="url(#g1-accent)" stroke-width="3"/>
+  <circle cx="60" cy="50" r="18" fill="rgba(16, 185, 129, 0.12)" stroke="url(#g1-accent)" stroke-width="2.5"/>
+  <path d="M60 40C60 40 68 44 67 52C66 60 60 61 60 61C60 61 54 60 53 52C52 44 60 40 60 40Z" fill="url(#g1-accent)"/>
+  <path d="M60 42V59" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="38" y1="78" x2="82" y2="78" stroke="#334155" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="60" cy="78" r="4" fill="#10b981"/>
+</svg>

@@ -1,0 +1,64 @@
+<div class="pantry-add-shell" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="header-left">
+      <h3>Add Item to Pantry</h3>
+      <p class="subtitle">Search an active product and record its purchase and inventory details.</p>
+    </div>
+    <button type="button" class="modal-close-btn" (click)="close()">×</button>
+  </div>
+
+  <div class="modal-body">
+    <!-- Product Autocomplete Input -->
+    <div class="form-group product-search-group">
+      <label for="pantry-product-input">Select Product *</label>
+      <div class="autocomplete-input-wrapper">
+        <input
+          #productInput
+          id="pantry-product-input"
+          type="text"
+          class="form-input"
+          [appAutocomplete]="productOptions()"
+          [selectedId]="selectedProductId()"
+          (selectedIdChange)="onProductSelected($event)"
+          (validityChange)="isProductValid = $event"
+          placeholder="Search by product name or barcode..."
+          autofocus
+        />
+        @if (selectedProductId()) {
+          <button
+            type="button"
+            class="btn-clear-product"
+            (click)="clearSelectedProduct(productInput)"
+            title="Clear selection"
+          >
+            ✕
+          </button>
+        }
+      </div>
+      @if (!isProductValid && productInput.value.trim()) {
+        <span class="field-error">Please select a valid active product from the autocomplete list.</span>
+      }
+    </div>
+
+    <!-- Reusable Purchase Box -->
+    @if (selectedProduct(); as prod) {
+      <app-stock-purchase-form
+        [product]="prod"
+        [locations]="data.locations"
+        [stores]="data.stores"
+        [units]="data.units"
+        [showHeader]="true"
+        [headerTitle]="'Purchase Details'"
+        [submitLabel]="'Confirm Purchase'"
+        [showCancel]="true"
+        (submitted)="onPurchaseSuccess($event)"
+        (cancelled)="close()"
+      ></app-stock-purchase-form>
+    } @else {
+      <div class="empty-product-prompt">
+        <div class="prompt-icon">🔍</div>
+        <p>Type above to search among active products, then select one to enter purchase and stock details.</p>
+      </div>
+    }
+  </div>
+</div>

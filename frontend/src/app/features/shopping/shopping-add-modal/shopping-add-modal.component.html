@@ -1,0 +1,156 @@
+<div class="shopping-add-shell" role="dialog" aria-modal="true">
+  <div class="modal-header">
+    <div class="header-left">
+      <h3>{{ isEditMode() ? 'Edit Shopping Item' : 'Add Item to Shopping List' }}</h3>
+      <p class="subtitle">{{ isEditMode() ? 'Update item details, quantity, or store.' : 'Search catalog items or add a custom uncataloged product.' }}</p>
+    </div>
+    <button class="modal-close-btn" (click)="requestClose()">×</button>
+  </div>
+
+  <div class="modal-body">
+    <!-- If no product is selected yet: Search Box with Autocomplete -->
+    @if (!selectedProduct() && !isCustom()) {
+      <div class="form-group">
+        <label>Search Product Catalog</label>
+        <div class="search-input-wrapper">
+          <input
+            type="text"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="searchQuery.set($event)"
+            placeholder="Type product name or scan barcode..."
+            autofocus
+          />
+          @if (searchQuery().trim()) {
+            <button class="btn-clear-search" (click)="searchQuery.set('')">✕</button>
+          }
+        </div>
+      </div>
+
+      <!-- Autocomplete Results -->
+      @if (searchResults().length > 0) {
+        <div class="autocomplete-list">
+          @for (p of searchResults(); track p.id) {
+            <div class="autocomplete-item" (click)="selectProduct(p)">
+              <div class="item-thumb">
+                @if (p.pictureFileNames && p.pictureFileNames.length > 0) {
+                  <img [src]="'/api/products/pictures/' + p.pictureFileNames[0]" [alt]="p.name" />
+                } @else {
+                  <span>📦</span>
+                }
+              </div>
+              <div class="item-info">
+                <span class="product-name">{{ p.name }}</span>
+                <span class="product-stock">Stock: {{ p.directStockAmount || 0 }}</span>
+              </div>
+              <span class="btn-select-indicator">Select &rsaquo;</span>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Option to add as custom item -->
+      @if (searchQuery().trim()) {
+        <div class="custom-item-option" (click)="chooseCustomItem()">
+          <span class="custom-icon">✨</span>
+          <div class="custom-text">
+            <strong>Add "{{ searchQuery().trim() }}" as custom uncataloged item</strong>
+            <span class="hint">Will appear on your shopping list without a catalog link</span>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- Selected Catalog Product Preview -->
+    @if (selectedProduct(); as prod) {
+      <div class="selected-product-card">
+        <div class="selected-photo">
+          @if (prod.pictureFileNames && prod.pictureFileNames.length > 0) {
+            <img [src]="'/api/products/pictures/' + prod.pictureFileNames[0]" [alt]="prod.name" />
+          } @else {
+            <span class="placeholder-icon">📦</span>
+          }
+        </div>
+        <div class="selected-details">
+          <div class="title-row">
+            <h4>{{ prod.name }}</h4>
+            <button class="btn-change" (click)="deselectProduct()">Change</button>
+          </div>
+          <div class="meta-row">
+            <span class="meta-pill">In Pantry: <strong>{{ prod.directStockAmount || 0 }}</strong></span>
+            @if (prod.minStockAmount) {
+              <span class="meta-pill">Min Threshold: <strong>{{ prod.minStockAmount }}</strong></span>
+            }
+            @if (earliestExpDate()) {
+              <span class="meta-pill exp-pill">Earliest Expiry: <strong>{{ earliestExpDate() | localDate }}</strong></span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Custom Uncataloged Item Form -->
+    @if (isCustom()) {
+      <div class="custom-input-card">
+        <div class="custom-header">
+          <label>Custom Product Name</label>
+          <button class="btn-change" (click)="deselectProduct()">Search Catalog</button>
+        </div>
+        <input
+          type="text"
+          [(ngModel)]="customName"
+          placeholder="e.g. Specific brand of bread, spices..."
+        />
+      </div>
+    }
+
+    <!-- Item Configuration (Quantity, Store, Note) -->
+    @if (selectedProduct() || isCustom()) {
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label>Quantity</label>
+          <div class="qty-control">
+            <button type="button" class="btn-qty" (click)="decrementAmount()">-</button>
+            <input
+              type="number"
+              min="1"
+              [(ngModel)]="amount"
+              class="qty-input"
+            />
+            <button type="button" class="btn-qty" (click)="incrementAmount()">+</button>
+          </div>
+        </div>
+
+        <div class="form-group flex-2">
+          <label>Preferred Store</label>
+          <select [(ngModel)]="selectedStoreId">
+            <option [ngValue]="null">No specific store</option>
+            @for (s of data.stores; track s.id) {
+              <option [value]="s.id">{{ s.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Optional Note</label>
+        <input
+          type="text"
+          [(ngModel)]="note"
+          placeholder="e.g. Only buy on promotion, check expiration..."
+        />
+      </div>
+    }
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="requestClose()">Cancel</button>
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="isSaving() || !canSave()"
+      (click)="save()"
+    >
+      {{ isSaving() ? 'Saving...' : (isEditMode() ? 'Save Changes' : 'Add to List') }}
+    </button>
+  </div>
+</div>
