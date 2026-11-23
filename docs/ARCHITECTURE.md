@@ -40,8 +40,8 @@ Cambusa follows a modern decoupled architecture packaged in a single, lightweigh
 │       │               Nginx Reverse Proxy & Static             │       │
 │       │                                                        │       │
 │       │  • Serves Angular SPA assets & PWA manifest / sw.js    │       │
-│       │  • Proxies /api/* to NestJS on 127.0.0.1:3000          │       │
-│       │  • Serves /uploads/products/* with cache headers       │       │
+│       │  • Proxies ^~ /api/* to NestJS on 127.0.0.1:3000       │       │
+│       │  • Ensures /api/ media endpoints bypass regex assets   │       │
 │       └───────────────────────────┬────────────────────────────┘       │
 │                                   │                                    │
 │                                   ▼                                    │

@@ -182,6 +182,9 @@ All errors follow standard RFC 7807 JSON schemas:
 ### `DELETE /api/products/:id`
 - **Description**: Deletes product, associated picture files, and writes record to `sync_tombstones`.
 
+### `GET /api/products/pictures/:fileName`
+- **Description**: Streams the stored WebP product picture with `Content-Type: image/webp` and immutable caching headers (`Cache-Control: public, max-age=31536000, immutable`). Publicly accessible without session authentication so HTML `<img>` elements can display product pictures directly.
+
 ### `POST /api/products/:id/picture`
 - **Body**: `multipart/form-data` with `file`.
 - **Description**: Uploads a photo, optimizes and transcodes to WebP (`1200x1200px` max, quality 85) in `uploads/products/<uuid>.webp`, and appends filename to `pictureFileNames`.
