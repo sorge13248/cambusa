@@ -21,8 +21,8 @@ Cambusa is packaged as a unified, self-contained Docker container combining Ngin
 │  │        Port 80/443        │  │    127.0.0.1:3000      │  │
 │  │                           │  │                        │  │
 │  │ • / → Static Angular PWA  │  │ • /api/* API & Sync    │  │
-│  │ • /uploads/* → Media files│  │ • SQLite WAL Engine    │  │
-│  │ • /api/* → Proxy to NestJS│  │                        │  │
+│  │ • ^~ /api/* → Proxy NestJS│  │ • Pictures & Media     │  │
+│  │ • /health → Proxy NestJS  │  │ • SQLite WAL Engine    │  │
 │  └───────────────────────────┘  └────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
