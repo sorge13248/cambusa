@@ -95,9 +95,9 @@ The production `Dockerfile` uses a 3-stage build:
    - Compiles TypeScript NestJS backend using `nest build`.
    - Prunes devDependencies and retains native SQLite bindings (`better-sqlite3`, `sharp`).
 3. **Stage 3 (Unified Runtime)**:
-   - Alpine Linux base image with Nginx, Node.js, and Supervisor.
-   - Combines the compiled frontend and backend assets into `/var/www/cambusa` and `/app/backend`.
-   - Runs non-root or managed supervisor daemon.
+   - Debian-based `node:slim` base image with Nginx and Supervisor.
+   - Combines the compiled frontend into `/usr/share/nginx/html` and backend into `/app/backend/dist` (with `/app/backend/node_modules`).
+   - Runs `supervisord` daemon orchestrating both Nginx and the NestJS backend (`node /app/backend/dist/main`).
 
 ---
 
