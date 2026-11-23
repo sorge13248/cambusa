@@ -1,205 +1,163 @@
 # Cambusa
 
-Private-first, self-hostable home pantry, grocery shopping, and inventory system with offline-first PWA resilience, multi-tenant household management, and intelligent aisle-sorted shopping.
+<p align="center">
+  <img src="frontend/public/icon.webp" alt="Cambusa Logo" width="120" height="120" />
+</p>
 
----
+<p align="center">
+  <strong>The private-first, self-hostable home pantry, grocery manager, and meal companion.</strong><br>
+  <em>Designed for families, food enthusiasts, and smart homes — fully offline-first with zero telemetry.</em>
+</p>
 
-## Features
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
+  <a href="https://angular.dev"><img src="https://img.shields.io/badge/frontend-Angular%2022-DD0031.svg" alt="Angular 22" /></a>
+  <a href="https://nestjs.com"><img src="https://img.shields.io/badge/backend-NestJS%2012-E0234E.svg" alt="NestJS 12" /></a>
+  <a href="docs/OFFLINE_SYNC.md"><img src="https://img.shields.io/badge/architecture-Offline--First%20PWA-10b981.svg" alt="Offline-First PWA" /></a>
+  <a href="https://www.docker.com"><img src="https://img.shields.io/badge/deployment-Docker-2496ED.svg" alt="Docker Ready" /></a>
+</p>
 
-- **Home Dashboard & Next Engine (`/home`)**:
-  - Time-aware greeting and welcome banner with active household context.
-  - KPI metric cards powered by `/api/next`:
-    - **Distinct Products in Stock** (`totalUniqueProductsInStock`): Counted once regardless of batches or package amounts.
-    - **Total Inventory Units** (`totalStockItems`): Aggregated volume across all pantry locations.
-    - **Expiring Soon** (`expiringSoonCount`): Highlighted alerts within user-configured scan horizon.
-    - **Expired Items** (`expiredCount`): Urgent alerts for items overdue.
-  - Interactive Pantry Attention Feed with filter tabs (`All`, `Expired`, `Expiring Soon`), overdue/due-date badges, opened badges, and direct click-to-modal opening of `PantryActionModalComponent` with automatic dashboard metric refresh.
-  - Quick action shortcuts to Pantry, Shopping List, Product Master Data, and Profile Integrations.
-- **Next Engine Feed & Automation (`/api/next`)**:
-  - High-performance, JSON-driven endpoint for external dashboard widgets, Home Assistant sensors, and e-ink displays.
-  - Dual authentication: supports browser session cookies or bearer/header API keys (`X-API-Key: cambusa_ak_...` or `Authorization: Bearer cambusa_ak_...`).
-  - Configurable scan horizon per user with optional query overrides (`?days=7`).
-- **User Profile & Integrations (`/profile`)**:
-  - **API Key Management**: Generate, list (with display prefixes), and revoke 256-bit cryptographically secure API keys with SHA-256 storage, raw key copy-to-clipboard, and CDK confirmation modals.
-  - **Smart Mealie Integration**: Configure Mealie instance URL and Bearer token, with live endpoint testing (`/api/profile/mealie/test`) reporting online version and total recipe counts.
-  - **Next Horizon Configuration**: Configure the number of days ahead (1–365) scanned by the Next engine.
-  - **Daily Morning Email Digest Notifications**: Configure recipient notification email address, toggle daily morning automated dispatches, set preferred dispatch time in 24-hour format (default `06:00` / 6 AM), and send on-demand test emails (`POST /api/profile/notifications/test`) with live SMTP status feedback.
-  - **Automated Email Service**: Daily scheduled background engine dispatching high-fidelity graphical HTML summaries with KPI badges, days overdue, days remaining, clickable links opening the pantry action modal on the dashboard (`/home?openProduct=<id>`), and inline product photos transcoded to lightweight JPEG thumbnails embedded directly as CID attachments from local storage.
-- **Aero Glass Design System & Concept 2 Brand Identity**:
-  - Vector SVG logo and WebP icons featuring Concept 2 (Obsidian Mason Jar with emerald/sky illumination) across PWA manifest, favicons, apple touch icons, and navigation bar.
-  - Frosted glass aesthetics with dual-layer blur: dialog backdrops blur the underlying screen (`backdrop-filter: blur(14px)`), modal containers render as frosted translucent sheets (`backdrop-filter: blur(24px)`), inner sections and cards provide secondary glass refraction (`blur(12px)`), and floating dropdowns feature heavy frosted blurring (`blur(20px)`).
-  - Horizontally-centered, rounded floating pill navigation island (`AppShellComponent`) with responsive edge padding.
-  - Automatic OS-native Light and Dark modes adapting instantaneously to user system preferences (`@media (prefers-color-scheme)`) without manual switch toggles.
-  - Browser-native local date formatting (`LocalDatePipe`) rendering all expiration and purchase dates in the user's localized format (e.g. `dd/mm/yyyy` in Europe/IT) without UTC timezone shifting.
-- **Pantry & Stock Management**:
-  - Expiration-date first ordering by default, with urgency color badges (expired, due soon, good).
-  - Sentinel expiration normalization: products that never expire have `null` dates (sentinel values like Grocy's `2999-12-31` are normalized to `null` across database imports, API queries, and datepickers).
-  - Consolidated product cards: inventory batches belonging to the same product are grouped into unified product cards displaying total centralized stock (`calculateProductTotalStock`), earliest expiration date, worst urgency status, and storage locations, with full batch-by-batch control inside the action modal.
-  - Real-time free-text search filtering across product names and HTML descriptions.
-  - **Add Item to Pantry Modal (`PantryAddItemModalComponent`)**: Dedicated dialog launched via the "+ Add Item" button in the Pantry page. Features a free-text input with floating autocomplete suggestions (`AutocompleteDirective`) of all available active products (filtering out inactive catalog items), with barcode and hierarchy match assistance, instant selection clearing, and dynamic rendering of the shared purchase panel.
-  - **Reusable Stock Purchase Component (`StockPurchaseFormComponent`)**: Centralized purchase form extracted into a shared component utilized both within `PantryAddItemModalComponent` and when activating the "Purchase" action inside `PantryActionModalComponent`. Manages quantity, purchase date, localized expiration datepicker (`CdkDatepickerComponent`), total vs. unit price modes, store selection, storage location defaults, and purchase notes with 10-second undo protection (`UndoService`).
-  - URL query parameter synchronization (`q`, `group`, `location`, `status`, `sort`, `page`) seamlessly connected to browser history (Back, Forward, and Reload).
-  - Responsive pagination (24 items per page) with page number indicators, total item counters, and smooth previous/next navigation.
-  - **Specific Stock Batch Editor Modal (`StockItemEditorModalComponent`)**: Dedicated dialog to edit any specific inventory batch, allowing modification of expiration date (with datepicker presets and "Never expires" toggle), storage location (with freezer safety validations against `cannotBeFrozen`), price paid, purchase notes, batch quantity, and opened state. Every modification registers a 10-second inverse compensation closure with `UndoService`.
-  - **Batch Edit Triggers Across Inventory Lists**: Quick `✏️ Edit` buttons are integrated everywhere stock batches are listed: directly on each batch card in the product stock dialog (`ProductStockModalComponent`, including sub-product batches), within the batch list of the pantry action modal (`PantryActionModalComponent`), and on single-batch pantry cards.
-  - Reusable quick expiration date modifier (`QuickDateModifierComponent`) embedded both on pantry cards and inside action modals (`Today`, `Tomorrow`, `+2d / -2d`, `+5d`, `+7d`).
-  - Comprehensive Product Action Modal (**Consume**, **Purchase**, **Move**):
-    - **Consume**: consume discrete amounts or specific opened/unopened stock batches, with spoiled disposal tracking and whole integer stepper inputs.
-    - **Purchase**: purchase and restock items with location, store, price, quantity, and custom datepicker (quick presets + "Never expires" toggle).
-    - **Move**: transfer stock between locations with strict freezer safety checks (`cannotBeFrozen`) and automatic expiration recalculation upon freezing and thawing.
-    - **Edit Product**: direct action button to open the product editor with optimistic in-place inventory updating.
-  - **10-Second Reversible Actions (Undo System) & Unified Global Toasts**: Every inventory mutation (consume, purchase, transfer, quick date modification) registers with `UndoService`, triggering a persistent bottom-center toast (`UndoToastComponent`) with a smooth 60fps countdown progress bar to revert the operation. Attached directly to `document.body` and automatically brought to front on every update with maximum stacking context `z-index: 2147483647 !important` and host `position: fixed; inset: 0; pointer-events: none;`, the overlay renders both undo actions and global system notifications (`ToastService`) strictly on top of all modal dialogs, CDK overlays, and backdrop blur layers. Hovering over the toast pauses the timer and progress bar, resuming smoothly upon mouse leave.
-  - **Responsive AppShell & Animated Mobile Hamburger Menu**: Responsive glass navbar that compresses navigation links into a smooth animated hamburger toggle and sliding frosted-glass navigation drawer on mobile screens (`<= 768px`). The household switcher is moved cleanly into the mobile drawer, with edge-to-edge compact padding and margins.
-  - **Continuous Background Auth Refresh & Session Resilience**: Transparent `authInterceptor` retrying failed requests via silent `/api/auth/refresh`, proactive background token renewal on tab focus/visibility change, periodic session pings, and a dedicated CDK Dialog modal prompt on session expiration.
-  - Visual product photo thumbnails on all pantry cards and catalogs without destructive discard controls.
-  - Customizable filters by product category, storage location, and stock status with savable 1-click filter presets.
-  - Unsaved modifications protection: closing any dirty modal triggers a confirmation dialog (`ConfirmModalComponent`) preventing accidental data loss, cleanly rendered without redundant divider lines.
-- **Smart Multi-List Shopping**:
-  - Support for multiple shopping lists, each optionally associated with a specific store.
-  - Supermarket walking routes sorted by store-specific aisle order (`aisle` and `aisleOrder`).
-  - Dedicated CDK Dialog for adding and editing items:
-    - Real-time catalog search with reactive signal tracking, immediately suggesting candidate products when empty.
-    - In-place item editing: direct edit button on shopping items opening the modal pre-filled to modify quantity, store, and notes.
-    - Live product preview: main photo thumbnail, current in-pantry stock, and earliest expiration date.
-    - Quantity selector, store assignment, and multiline instructions/notes.
-    - Uncataloged custom product support for ad-hoc shopping items without catalog linkage.
-  - Automated missing item replenishment with one-click dialog to add items below minimum stock thresholds (respecting `treatOpenedAsOutOfStock`).
-  - Non-destructive "Done" toggle that strikes through completed cart items without removing them or altering pantry stock.
-- **Product Catalog, Hierarchy & Expiration Policies**:
-  - Infinite recursive parent-child nesting (e.g. `Produce` &rarr; `Fresh Fruit` &rarr; `Citrus` &rarr; `Oranges` &rarr; `Tarocco`) with automatic aggregated stock roll-up across sub-trees.
-  - Responsive catalog pagination (24 products per page) with full URL query parameter synchronization (`q`, `group`, `status`, `page`), real-time search across names, barcodes, descriptions, and hierarchy paths, and status filtering (`All`, `Active Only`, `Inactive (Archived)`).
-  - HTML description rendering: product descriptions are displayed with sanitized HTML support.
-  - **Stock Batches Modal (`ProductStockModalComponent`)**: Dedicated dialog accessible directly via "View Stock" on each product card, presenting direct pantry inventory batches, family sub-product stock, storage locations, best before dates, color-coded urgency states, opened statuses, purchase dates, prices, and notes.
-  - **Hierarchy & Relations Modal (`ProductRelationsModalComponent`)**: Dedicated dialog accessible via "View Relations" on each product card, displaying the complete chain of parent ancestors (from root to direct parent) and all child sub-products. Allows direct editing of any related product by clicking on it, and provides quick "View Stock" buttons to inspect pantry inventory for any related product without leaving the context.
-  - Modular product editor dialog (`min(840px, 94vw)` locked width, vertical scrolling):
-    - **Basic Information**: product name, multiline HTML description, category, `cannotBeFrozen` constraint checkbox, `active` / inactive archive toggle, and parent product text input with autocomplete suggestions (`AutocompleteDirective` with dynamic input-relative attachment directly below the input, keyboard arrow navigation, and default option listing) and validation error feedback.
-    - **Photos & Media**: multi-photo upload, Drag & Drop visual reordering with tight 6-dot grip handles (`@angular/cdk/drag-drop`), primary image badge, and individual deletion.
-    - **Locations & Default Store**: default storage location, open location (`openLocationId`), `moveOnOpen` relocation toggle, and default supermarket.
-    - **Expiration Policies**: due date type (`best_before` vs `use_by`), shelf life days on purchase, days after opening, days after freezing, and days after thawing.
-    - **Quantity Rules**: minimum pantry threshold, unit of measure, and `treatOpenedAsOutOfStock` setting.
-    - **Barcodes**: multiple EAN/UPC barcodes per product with chip management.
-    - **Store Aisles & Prices**: multi-store aisle names, walking order numbers, and average purchase prices.
-    - **Collapsible Sections**: standalone accordion component (`CollapsibleSectionComponent`) with smooth animated CSS grid row transitions.
-    - **Optimistic In-Place Updates**: saving or updating products updates local state immediately without triggering full-page data reloads.
-- **Multi-Tenant Household Architecture & Ownership**:
-  - OpenID Connect (OIDC) authentication with Backend-for-Frontend (BFF) cookie security, enriched profile photo avatars from OIDC claims (with fallback initials in navigation header, mobile drawer, and home banner), and automated user provisioning.
-  - Quick household switcher in the navigation bar with click-outside and escape-key auto-dismissal.
-  - Strict household ownership: only household owners can rename or delete households (with CDK confirmation dialog); shared members have read/edit inventory permissions without destructive household actions.
-  - Complete household management: create households, view members, send and manage email invitations.
-- **Offline-First PWA Resilience & Navbar Sync Indicator**:
-  - Fully functional offline via IndexedDB local storage (`cambusa_offline_v1`) and Cache-First Service Worker (`sw.js`).
-  - Animated navbar sync indicator with dropdown menu displaying live connectivity, unpushed pending mutations counter, relative sync timestamps, force sync trigger, and a server-reset "Download from Server" rescue option via CDK dialog.
-  - Bi-directional sync engine with Last-Write-Wins (LWW) conflict resolution and tombstone deletion reconciliation.
-- **Grocy Migration Tool**:
-  - Built-in migration CLI to import your existing Grocy SQLite database (`grocy.db`), multiple barcodes, attachments, and product pictures directly into your chosen Cambusa household, with automated `2999-12-31` sentinel date normalization to `null`.
+<p align="center">
+  <img src="docs/assets/cambusa-pantry-firefox-kde.png" alt="Cambusa Pantry Inventory in Firefox on KDE Breeze" width="100%" />
+</p>
 
----
+## Why Cambusa?
 
-## Technology Stack
+Food waste is costly and frustrating, grocery planning across family members can be chaotic, and most home inventory tools are either clunky spreadsheets or cloud services that monetize your personal data.
 
-- **Backend**: NestJS 12, TypeORM 1.1, `better-sqlite3` (WAL mode enabled, relational foreign key constraints enforced with CASCADE / SET NULL actions), `nodemailer` (SMTP digest delivery & inline CID attachments), `jose` (OIDC/PKCE), `sharp` (WebP image processing), Vitest.
-- **Frontend**: Angular 22 (100% Standalone components strictly structured across 4 files: `.component.ts`, `.component.html`, `.component.scss`, `.component.spec.ts`), Angular Signals (`signal`, `computed`, `effect`, `model`), Angular CDK (`@angular/cdk/dialog`, `@angular/cdk/drag-drop`), Reusable Directives & Components (`appAutocomplete`, `CollapsibleSectionComponent`, `QuickDateModifierComponent`, `UndoToastComponent`), IndexedDB (`OfflineStorageService`), Service Worker (`sw.js`).
-- **Container**: Unified multi-stage Docker container running Nginx and NestJS supervised by `supervisord`.
+**Cambusa** (Italian for the galley or ship's pantry) is built to make food management effortless, reliable, and visually delightful:
 
----
+- 🥑 **Never Let Food Go to Waste**: Clear, color-coded expiration timelines ensure you consume what is due first.
+- 🛒 **Shop in Record Time**: Multi-store shopping lists automatically sorted by the real walking aisle order of your local supermarket.
+- 📶 **Works Everywhere (Even With Zero Signal)**: Take your shopping list into supermarket basements without losing connectivity. Cambusa is an offline-first Progressive Web App (PWA) that syncs seamlessly when you're back online.
+- 🏡 **Built for Households**: Switch between multiple households (home, vacation cabin, shared space) with individual member access and privacy-first single sign-on.
+- 🍲 **Connected to Your Kitchen**: Seamlessly integrates with **Mealie** for recipe discovery based on on-hand ingredients, and **Home Assistant** for smart kitchen dashboards and e-ink displays.
+- ⚡ **Accident-Proof**: Made a mistake while logging purchases or consumption? Every action features a 10-second instant undo.
 
-## Quick Start (Local Development)
+## Highlights & Features
 
-### Prerequisites
+### 📦 Smart Pantry & Expiration Tracking
+- **Expiration-First Priority**: Inventory is automatically ordered by best-before and use-by dates, with vivid urgency badges highlighting what needs attention.
+- **Single-Tap Quick Date Adjustments**: Postpone or adjust due dates on the fly with fast date chips (`Today`, `Tomorrow`, `+2d`, `+7d`).
+- **Batch & Location Control**: Group inventory into unified product cards while tracking distinct batches across pantries, refrigerators, and freezers.
+- **Freezer Protection**: Guard items with freezer-safety constraints and automatic shelf-life recalculation upon freezing and thawing.
+- **Accurate Actions**: Easily record items as **Consumed** (with spoiled waste tracking), **Purchased** (with price and store details), or **Moved** between rooms.
+- **Instant Search & Filters**: Search catalog names and descriptions in real time, filter by category or storage location, and save your favorite view presets.
 
-- Node.js 22+ (tested on v26)
-- npm 11+
+### 🛒 Intelligent Supermarket Shopping Lists
+- **Store-Aware Walking Order**: Organize your shopping items by actual aisle sequences (`Produce` &rarr; `Bakery` &rarr; `Dairy`), eliminating zig-zagging through the store.
+- **Multi-List Flexibility**: Maintain distinct lists for different stores (e.g. Weekly Supermarket, Farmer's Market, Wholesale Club, Pharmacy).
+- **One-Click Low-Stock Restocking**: Instantly restock items that have dropped below your configured pantry thresholds.
+- **Non-Destructive Cart Check-Off**: Checking off an item marks it completed without deleting it from your list or altering inventory until you choose to restock.
+- **Uncataloged Quick Items**: Add ad-hoc shopping items on the fly without having to set up formal catalog entries beforehand.
 
-### Installation
+### 🍲 Kitchen & Smart Home Integrations
+- **Mealie Recipe Companion**: Connect your [Mealie](https://mealie.io) recipe manager to discover recipes you can cook right now with what is currently in stock. Open recipes with mapped ingredients directly in a single click.
+- **Next Engine Feed (`/api/next`)**: A dedicated high-performance JSON endpoint built for external integrations, Home Assistant sensor dashboards, and kitchen e-ink displays.
+- **Daily Morning Email Digest**: Wake up to an elegant graphical summary of food expiring soon, complete with item photos, days remaining, and direct dashboard links.
+- **Developer API Keys**: Generate secure, revocable 256-bit API keys directly from your profile to build your own scripts and automations.
+
+### ⚡ Accident-Proof 10-Second Undo
+- Tapped "Consume" or "Purchased" by mistake? Cambusa gives you a persistent 10-second countdown toast on every inventory mutation.
+- A single click reverses the entire operation cleanly without manual database corrections.
+
+### 📶 Offline-First PWA Resilience
+- Built from the ground up as an offline-first Progressive Web Application.
+- Works offline via client-side IndexedDB storage and Cache-First Service Workers.
+- Transparent bi-directional synchronization with Last-Write-Wins (LWW) conflict resolution and tombstone deletion tracking once your device reconnects.
+
+### 🎨 Modern Aero Glass Interface
+- Built with a frosted glass aesthetic, featuring smooth backdrop blurs and floating navigation islands.
+- Automatic OS-native Dark and Light mode adaptation (`prefers-color-scheme`).
+- Fully responsive across desktop, tablet, and mobile screens with a dedicated mobile drawer and touch-friendly controls.
+
+### 🔄 Easy Grocy Migration
+- Moving from Grocy? Cambusa includes a dedicated CLI migration tool that imports your products, barcodes, storage locations, product pictures, stock items, and shopping lists in seconds.
+
+## Quick Start
+
+### 1. Production Deployment (Docker Compose)
+
+The easiest way to run Cambusa is using Docker Compose:
 
 ```bash
-# Install backend dependencies
-cd backend && npm install
+# Clone the repository
+git clone https://github.com/your-username/cambusa.git
+cd cambusa
 
-# Install frontend dependencies
-cd ../frontend && npm install
-```
-
-### Running in Development
-
-In the root directory:
-
-```bash
-# Optional: copy example environment configuration (defaults to cambusa.sqlite in repo root)
+# Copy the example environment configuration
 cp .env.example .env
 
-# Start backend (NestJS dev server on http://localhost:3000)
-npm run start:backend
-
-# Start frontend (Angular dev server on http://localhost:4200)
-npm run start:frontend
-```
-
-In local development, the backend automatically reads `.env` from the project root and places the SQLite database (`cambusa.sqlite`) and uploads directory (`uploads/`) directly in the monorepo root.
-
-Open `http://localhost:4200` in your browser. The Angular dev proxy forwards `/api/*` requests to the backend at `http://localhost:3000`.
-
----
-
-## Production Deployment (Docker Compose)
-
-```bash
-# Copy example environment configuration
-cp .env.example .env
-
-# Edit .env with your OIDC provider credentials and secret keys
+# Edit .env with your session secrets and OIDC provider details
 # nano .env
 
-# Build and start container
+# Launch the unified container
 docker compose up -d
 ```
 
-Cambusa is available on port `8080` (e.g. `http://localhost:8080`).
+Cambusa will be accessible at `http://localhost:8080`.
 
----
+### 2. Local Development
 
-## Migrating from Grocy
+#### Prerequisites
+- **Node.js**: v22+ (v26 recommended)
+- **npm**: v11+
 
-Cambusa includes an automated migration CLI to import your existing Grocy SQLite database and product pictures into your chosen Cambusa household:
+#### Setup & Execution
 
 ```bash
-# Specify the Grocy source directory (mandatory):
-npm run migrate:grocy -- FROM-GROCY
+# 1. Install dependencies
+cd backend && npm install
+cd ../frontend && npm install
+cd ..
 
-# With optional household or database overrides:
+# 2. Configure environment
+cp .env.example .env
+
+# 3. Start development servers
+npm run start:backend   # NestJS API running on http://localhost:3000
+npm run start:frontend  # Angular SPA running on http://localhost:4200
+```
+
+Open `http://localhost:4200` in your browser. The Angular dev server automatically proxies `/api/*` calls to the NestJS backend.
+
+## Grocy Data Migration
+
+If you are migrating from an existing Grocy installation, run the automated migration command:
+
+```bash
+# Specify the path to your Grocy backup directory containing grocy.db and product pictures:
+npm run migrate:grocy -- /path/to/grocy-backup
+
+# Optional: target a specific household UUID
 npm run migrate:grocy -- /path/to/grocy-backup --household-id <TARGET_HOUSEHOLD_UUID>
 ```
 
-### Folder Structure
-The specified folder must contain your Grocy database and product pictures in standard layout:
-- **Database**: `<grocy-folder>/grocy.db` (or `<grocy-folder>/data/grocy.db`)
-- **Product Pictures**: `<grocy-folder>/storage/productpictures` (or `<grocy-folder>/data/storage/productpictures`)
+The migration tool automatically:
+- Converts and optimizes all product pictures to WebP format (`1200x1200` max inside fit, 85% quality).
+- Imports quantity units, categories, storage locations, stores, and parent-child product trees.
+- Normalizes Grocy sentinel dates (e.g. `2999-12-31`) to standard `null` dates.
+- Migrates existing stock batches and active shopping lists.
 
-### What Gets Migrated
-1. **Quantity Units & Product Groups**: All units and categories with plural names and active status.
-2. **Storage Locations & Stores**: Pantries, refrigerators, freezers (`isFreezer`), and shopping locations.
-3. **Products & Hierarchy**: Names, descriptions, minimum stock levels, default expiration days, preferred stores, and parent-product tree hierarchies.
-4. **Product Barcodes**: Multi-barcode arrays extracted from `product_barcodes` and `products.barcode`.
-5. **Product Pictures & Attachments**: Converted and optimized to WebP format (`1200x1200` max inside fit, 85% quality) and stored in `uploads/products/<UUID>.webp`.
-6. **Userfields**: Yuka scores (`yuka_score`) and taste preference ratings (`tastes_good`).
-7. **Stock Inventory**: In-stock items with quantities, best-before dates, purchase dates, prices, opened state, and notes.
-8. **Shopping Lists & Items**: Multi-list shopping lists (with store assignments) and active shopping items mapped to their target lists.
+## Technical Documentation Suite
 
----
+For comprehensive deep dives into Cambusa's architecture, data model, security implementation, and APIs, refer to the technical guides in [`docs/`](docs/):
 
-## Documentation Suite
+| Document | Focus & Highlights |
+| :--- | :--- |
+| **[System Architecture](docs/ARCHITECTURE.md)** | High-level topology, BFF pattern, Aero Glass design system, Mealie and email architecture, component structure. |
+| **[Data Model & Database](docs/DATA_MODEL.md)** | TypeORM schema, SQLite WAL pragmas, infinite parent-child product hierarchy, cascading relations. |
+| **[Authentication & Security](docs/AUTHENTICATION.md)** | OpenID Connect (OIDC) PKCE flow, HttpOnly cookie security, household tenant isolation guards. |
+| **[Offline Synchronization](docs/OFFLINE_SYNC.md)** | IndexedDB client storage, Service Worker caching, Last-Write-Wins (LWW) conflict resolution, tombstones. |
+| **[API Reference](docs/API_REFERENCE.md)** | Complete REST endpoint specifications, request/response schemas, `/api/next` engine parameters. |
+| **[Deployment & DevOps](docs/DEPLOYMENT_AND_DEVOPS.md)** | Unified Docker container, Nginx reverse proxy, Supervisor process manager, multi-arch CI/CD. |
 
-Detailed architecture specifications, entity models, and developer guides are available in the [`docs/`](file:///home/fsorge/projects/new-grocy/docs/) directory:
+## Technology Stack
 
-- [System Architecture](file:///home/fsorge/projects/new-grocy/docs/ARCHITECTURE.md) — High-level topology, BFF security, and PWA integration.
-- [Data Model & Entities](file:///home/fsorge/projects/new-grocy/docs/DATA_MODEL.md) — Entity relationships, SQLite WAL configuration, and infinite product tree.
-- [Authentication & Security](file:///home/fsorge/projects/new-grocy/docs/AUTHENTICATION.md) — OIDC PKCE flow, HttpOnly cookie storage, and tenant isolation guards.
-- [Offline Sync & PWA Engine](file:///home/fsorge/projects/new-grocy/docs/OFFLINE_SYNC.md) — IndexedDB storage, sync protocol, LWW conflict resolution, and tombstones.
-- [API Reference](file:///home/fsorge/projects/new-grocy/docs/API_REFERENCE.md) — Complete REST endpoint documentation and error payloads.
-- [Deployment & DevOps](file:///home/fsorge/projects/new-grocy/docs/DEPLOYMENT_AND_DEVOPS.md) — Docker multi-stage builds, Supervisor, Nginx proxy, and GitHub Actions CI/CD.
-
----
+- **Frontend**: [Angular 22](https://angular.dev) (100% Standalone Components, Angular Signals, Angular CDK Dialog & Drag-Drop), IndexedDB, Service Worker.
+- **Backend**: [NestJS 12](https://nestjs.com), [TypeORM 1.1](https://typeorm.io), `better-sqlite3` (WAL mode enabled), `sharp` (WebP image processing), `nodemailer`, `jose`.
+- **Infrastructure**: Single-container multi-stage build running Nginx reverse proxy and NestJS supervised by `supervisord`.
 
 ## License
 
-This project is licensed under the AGPL-3.0-or-later License.
+This project is licensed under the **AGPL-3.0-or-later** License. See the [LICENSE](LICENSE) file for details.

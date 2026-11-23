@@ -133,8 +133,10 @@ Every household in Cambusa acts as an autonomous data boundary (tenant).
   - Pantry stock batches are grouped by `productId` into unified product cards displaying the centralized aggregate stock quantity (`calculateProductTotalStock`), earliest expiration date, worst urgency state, and storage locations.
   - Individual batch details (locations, opened state, specific expirations) and actions (consume, purchase, move) are managed through the consolidated product action modal.
   - Specific stock batches can be modified directly via `StockItemEditorModalComponent`, accessible through `✏️ Edit` buttons on every batch list (in `ProductStockModalComponent`, `PantryActionModalComponent`, and single-batch pantry cards), updating expiration dates, storage locations, purchase prices, purchase notes, batch quantities, and opened states with 10-second undo protection (`UndoService`).
-- **URL & Browser History Synchronization**:
+- **URL & Browser History Synchronization & Instant Filter Reset**:
   - Filter criteria (`group`, `location`, `status`, `sort`), text search query (`q`), and active pagination index (`page`) are bi-directionally synchronized with Angular's `ActivatedRoute` and `Router` query parameters across both Pantry and Products Catalog pages.
+  - An instant filter reset button (`Reset Filters` / `Clear Filters`) allows one-click clearing of all search terms and category/location/status/sorting filters, resetting pagination and clearing query parameters from the browser URL.
+  - The "Expiring Soon" status filter dynamically reads the user's configured scan horizon (`nextExpiringDays` from the `/next` engine user profile configuration) and reflects the active threshold in the select dropdown label (`Expiring Soon (≤ Nd)`).
   - Synchronous query param restoration avoids overwriting requested page numbers on page reload while asynchronous data fetches complete.
   - Seamlessly integrates with standard browser history events (Back, Forward, and Page Reload), preserving user context across reloads and shares.
 - **Real-Time Free-Text Search**:
@@ -183,7 +185,25 @@ Every household in Cambusa acts as an autonomous data boundary (tenant).
   - Configuration of Next engine scan horizon (1–365 days).
   - Smart integration with self-hosted Mealie recipe instances, including URL/token management and live endpoint connectivity verification (`/api/profile/mealie/test`).
 
-### 2.12 Automated Morning Email Notification Service
+### 2.13 Mealie Recipes & Foods Integration Architecture
+- **Bidirectional Product-to-Mealie Mapping & Recursive Ancestor Inheritance**:
+  - Products maintain `mealieFoods` (`{ id, name }[]`) and `mealieRecipes` (`{ id, slug, name }[]`) simple-json columns, enabling N:M mappings between Cambusa products and Mealie foods and explicit recipes.
+  - Child products automatically inherit all mapped Mealie foods and recipes from their entire parent hierarchy (both direct parents and recursive ancestors). `MealieService.getProductRecipes()` traverses ancestor products within the active household, deduplicates entries by ID, and resolves matching recipes for all aggregated food mappings.
+  - The Product Editor modal features a dedicated "Mealie" collapsible section (visible only when the user has configured domain and token), displaying inherited ancestor items with "Inherited" badges alongside directly mapped links.
+  - Multi-select autocomplete dialogs (`MealieLinkModalComponent`) enable users to select multiple foods or recipes simultaneously by clicking anywhere on item rows, featuring checkboxes, search filtering, a selected items chip preview bar, and full dark-mode alignment with the Aero Glass design system (`var(--glass-modal-bg)`, `backdrop-filter: blur(24px)`).
+- **4-Hour Caching Engine & Invalidation Protocol**:
+  - The backend `MealieService` provides an in-memory caching layer with a 4-hour TTL (`14_400_000` ms) for foods lists (`foods:<userId>`), recipes lists (`recipes:<userId>`), and product-specific recipe discovery (`product-recipes:<userId>:<productId>`).
+  - Cache entries store timestamps (`cachedAt`, `expiresAt`). Passing `?refresh=true` invalidates the cached entry and re-fetches live data from Mealie.
+  - Updating or deleting any product automatically invalidates its cached recipe recommendations (`clearProductCache(id)`), ensuring subsequent queries fetch fresh data.
+- **Recipe Discovery & Food Links in Pantry Modal**:
+  - When opening `PantryActionModalComponent`, Mealie recipes containing the product's linked ingredients (queried via Mealie's SQL-like `queryFilter=recipeIngredient.food.id IN [...]`) and explicitly linked recipes are loaded and presented.
+  - Recipes are rendered in a responsive grid of max 3 items per row showing thumbnail images, titles, and preparation times (with ISO 8601 duration parsing). Clicking opens `/g/home/r/:slug` in a new tab.
+  - Linked foods are displayed as clickable pills linking directly to `/g/home?foods=:uuid` to inspect all recipes containing that food on Mealie.
+  - Editing a product directly from the pantry modal refreshes the underlying view's Mealie recipes and foods in place immediately upon modal closure, without requiring a browser page reload.
+- **Backend Image Proxy**:
+  - Mealie thumbnails are served via `GET /api/mealie/recipes/:recipeId/image`, streaming authenticated WebP images directly to the client with `Cache-Control: public, max-age=86400` to eliminate CORS, mixed-content, or Bearer auth limitations.
+
+### 2.14 Automated Morning Email Notification Service
 - **Scheduled Digest Background Engine**:
   - The backend `MailService` runs an automated background scheduler that evaluates configured user dispatches every minute.
   - Compares the server local time against each user's `notificationTime` (24h format, default `06:00` / 6 AM) when `emailNotificationsEnabled` is active.

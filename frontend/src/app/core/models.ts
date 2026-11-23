@@ -89,6 +89,40 @@ export interface ProductStore {
 
 export type DueType = 'best_before' | 'use_by';
 
+export interface MealieLinkedFood {
+  id: string;
+  name: string;
+}
+
+export interface MealieLinkedRecipe {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export interface MealieRecipeSummary {
+  id: string;
+  slug: string;
+  name: string;
+  totalTime: string | null;
+  imageUrl: string | null;
+}
+
+export interface MealieFoodSummary {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface MealieProductRecipesResponse {
+  configured: boolean;
+  mealieUrl: string | null;
+  recipes: MealieRecipeSummary[];
+  foods: MealieLinkedFood[];
+  cachedAt: string;
+  expiresAt: string;
+}
+
 export interface Product {
   id: string;
   householdId: string;
@@ -116,6 +150,8 @@ export interface Product {
   tastesGood: boolean | null;
   parentProductId: string | null;
   active: boolean;
+  mealieFoods?: MealieLinkedFood[];
+  mealieRecipes?: MealieLinkedRecipe[];
   ancestors?: Array<{ id: string; name: string }>;
   hierarchyPath?: string;
   directStockAmount?: number;

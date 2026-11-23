@@ -18,6 +18,17 @@ import { QuantityUnit } from './quantity-unit.entity.js';
 
 export type DueType = 'best_before' | 'use_by';
 
+export interface MealieLinkedFood {
+  id: string;
+  name: string;
+}
+
+export interface MealieLinkedRecipe {
+  id: string;
+  slug: string;
+  name: string;
+}
+
 @Entity({ name: 'products' })
 @Unique(['householdId', 'name'])
 @Index(['householdId'])
@@ -44,6 +55,12 @@ export class Product {
 
   @Column({ type: 'simple-json', default: '[]' })
   pictureFileNames!: string[];
+
+  @Column({ type: 'simple-json', default: '[]' })
+  mealieFoods!: MealieLinkedFood[];
+
+  @Column({ type: 'simple-json', default: '[]' })
+  mealieRecipes!: MealieLinkedRecipe[];
 
   @Column({ type: 'boolean', default: false })
   cannotBeFrozen!: boolean;

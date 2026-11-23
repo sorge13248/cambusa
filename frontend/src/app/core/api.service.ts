@@ -23,6 +23,9 @@ import {
   CreatedApiKeyDto,
   UserSettingsDto,
   MealieTestResultDto,
+  MealieFoodSummary,
+  MealieProductRecipesResponse,
+  MealieRecipeSummary,
   NextResponseDto,
 } from './models.js';
 
@@ -257,8 +260,12 @@ export class ApiService {
   }
 
   // Stock & Pantry
-  getStock(): Promise<StockItem[]> {
-    return firstValueFrom(this.http.get<StockItem[]>('/api/stock', this.options));
+  getStock(dueSoonDays?: number): Promise<StockItem[]> {
+    let url = '/api/stock';
+    if (dueSoonDays) {
+      url += `?dueSoonDays=${encodeURIComponent(dueSoonDays)}`;
+    }
+    return firstValueFrom(this.http.get<StockItem[]>(url, this.options));
   }
 
   addStock(data: Partial<StockItem>): Promise<StockItem> {
@@ -445,6 +452,26 @@ export class ApiService {
         this.options,
       ),
     );
+  }
+
+  // Mealie Integration Endpoints (4-Hour Cache with Force Refresh)
+  getMealieStatus(): Promise<{ configured: boolean; mealieUrl: string | null }> {
+    return firstValueFrom(this.http.get<{ configured: boolean; mealieUrl: string | null }>('/api/mealie/status', this.options));
+  }
+
+  getMealieFoods(refresh = false): Promise<{ items: MealieFoodSummary[]; cachedAt: string; expiresAt: string }> {
+    const url = `/api/mealie/foods${refresh ? '?refresh=true' : ''}`;
+    return firstValueFrom(this.http.get<{ items: MealieFoodSummary[]; cachedAt: string; expiresAt: string }>(url, this.options));
+  }
+
+  getMealieRecipes(refresh = false): Promise<{ items: MealieRecipeSummary[]; cachedAt: string; expiresAt: string }> {
+    const url = `/api/mealie/recipes${refresh ? '?refresh=true' : ''}`;
+    return firstValueFrom(this.http.get<{ items: MealieRecipeSummary[]; cachedAt: string; expiresAt: string }>(url, this.options));
+  }
+
+  getProductMealieRecipes(productId: string, refresh = false): Promise<MealieProductRecipesResponse> {
+    const url = `/api/mealie/products/${encodeURIComponent(productId)}/recipes${refresh ? '?refresh=true' : ''}`;
+    return firstValueFrom(this.http.get<MealieProductRecipesResponse>(url, this.options));
   }
 
   // Next Engine

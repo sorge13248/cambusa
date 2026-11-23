@@ -67,6 +67,38 @@
   }
 }
 
+.filter-actions-group {
+  flex: 0 0 auto;
+  min-width: auto;
+  justify-content: flex-end;
+
+  .action-label {
+    user-select: none;
+  }
+
+  .btn-clear-filters {
+    padding: 8px 14px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.88rem;
+    font-weight: 500;
+    white-space: nowrap;
+    border-radius: var(--radius-sm);
+
+    .clear-icon {
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+}
+
 .saved-presets-chips {
   display: flex;
   align-items: center;
@@ -267,6 +299,14 @@
   background-color: var(--bg-card);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
+
+  .empty-state-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+  }
 }
 
 /* Modals */

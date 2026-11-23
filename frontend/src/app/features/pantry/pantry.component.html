@@ -53,7 +53,7 @@
         <label>Status</label>
         <select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
           <option value="all">All Items</option>
-          <option value="due">Expiring Soon (&le; 3d)</option>
+          <option value="due">Expiring Soon (&le; {{ expiringSoonDays() }}d)</option>
           <option value="overdue">Overdue / Expired</option>
           <option value="open">Opened Items</option>
         </select>
@@ -67,6 +67,19 @@
           <option value="amount">Quantity (Highest First)</option>
           <option value="location">Storage Location</option>
         </select>
+      </div>
+
+      <div class="filter-group filter-actions-group">
+        <label class="action-label">&nbsp;</label>
+        <button
+          type="button"
+          class="btn btn-secondary btn-clear-filters"
+          [disabled]="!hasActiveFilters()"
+          (click)="clearAllFilters()"
+          title="Clear all filters and reset view"
+        >
+          <span class="clear-icon">↺</span> Reset Filters
+        </button>
       </div>
     </div>
 
@@ -90,7 +103,12 @@
   } @else if (filteredStock().length === 0) {
     <div class="empty-state">
       <p>No pantry items found matching your filters.</p>
-      <button class="btn btn-primary" (click)="openAddStockModal()">Add an Item to Pantry</button>
+      <div class="empty-state-actions">
+        @if (hasActiveFilters()) {
+          <button class="btn btn-secondary" (click)="clearAllFilters()">Clear Filters</button>
+        }
+        <button class="btn btn-primary" (click)="openAddStockModal()">Add an Item to Pantry</button>
+      </div>
     </div>
   } @else {
     <div class="stock-grid">

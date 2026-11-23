@@ -465,4 +465,33 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     expect(updated.price).toBe(11.5);
     expect(updated.note).toBe('Updated premium cold pressed');
   });
+
+  it('11. Computes urgency dynamically based on dueSoonDays (Next engine horizon)', async () => {
+    const user = await usersService.ensureUser({ id: 'u11', subject: 'sub-u11', email: 'u11@example.com', displayName: 'User 11' });
+    const hh = await householdsService.getDefaultHousehold(user.id);
+    expect(hh).toBeTruthy();
+
+    const prod = await productsService.createProduct(hh!.id, { name: 'Fresh Milk' });
+
+    // Expiration in 7 days
+    const in7Days = new Date();
+    in7Days.setDate(in7Days.getDate() + 7);
+    const dateStr = in7Days.toISOString().slice(0, 10);
+
+    await stockService.addStock(hh!.id, {
+      productId: prod.id,
+      amount: 1,
+      bestBeforeDate: dateStr,
+    });
+
+    // With 3-day horizon: should not be due_soon
+    const stock3d = await stockService.getStock(hh!.id, 3);
+    expect(stock3d).toHaveLength(1);
+    expect(stock3d[0].urgency).not.toBe('due_soon');
+
+    // With 10-day horizon: should be marked due_soon
+    const stock10d = await stockService.getStock(hh!.id, 10);
+    expect(stock10d).toHaveLength(1);
+    expect(stock10d[0].urgency).toBe('due_soon');
+  });
 });

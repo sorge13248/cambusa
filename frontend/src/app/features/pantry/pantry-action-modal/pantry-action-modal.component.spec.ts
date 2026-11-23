@@ -27,6 +27,15 @@ describe('PantryActionModalComponent', () => {
     addStock: vi.fn().mockResolvedValue({ id: 's2', amount: 2 }),
     transferStock: vi.fn().mockResolvedValue({ transferred: true }),
     adjustDate: vi.fn().mockResolvedValue({ id: 's1' }),
+    getMealieStatus: vi.fn().mockResolvedValue({ configured: true, mealieUrl: 'https://mealie.local' }),
+    getProductMealieRecipes: vi.fn().mockResolvedValue({
+      configured: true,
+      mealieUrl: 'https://mealie.local',
+      recipes: [
+        { id: 'rec-1', slug: 'pasta-carbonara', name: 'Pasta Carbonara', totalTime: '25 min', imageUrl: '/api/mealie/recipes/rec-1/image' },
+      ],
+      foods: [{ id: 'f-1', name: 'Garofalo Pasta' }],
+    }),
   };
 
   const mockUndoService = {
@@ -98,5 +107,41 @@ describe('PantryActionModalComponent', () => {
       }),
     );
     expect(component.productStockItems().find((s) => s.id === item.id)?.amount).toBe(5);
+  });
+
+  it('should load Mealie recipes and build URLs properly', async () => {
+    await fixture.whenStable();
+    expect(mockApiService.getMealieStatus).toHaveBeenCalled();
+    expect(mockApiService.getProductMealieRecipes).toHaveBeenCalledWith('p1', false);
+    expect(component.isMealieConfigured()).toBe(true);
+    expect(component.mealieRecipes().length).toBe(1);
+    expect(component.mealieRecipes()[0].name).toBe('Pasta Carbonara');
+
+    const foodUrl = component.getMealieFoodUrl('f-1');
+    expect(foodUrl).toBe('https://mealie.local/g/home?foods=f-1');
+
+    const recipeUrl = component.getMealieRecipeUrl('pasta-carbonara');
+    expect(recipeUrl).toBe('https://mealie.local/g/home/r/pasta-carbonara');
+
+    await component.loadMealieRecipes(true);
+    expect(mockApiService.getProductMealieRecipes).toHaveBeenCalledWith('p1', true);
+  });
+
+  it('should refresh Mealie recipes and foods in place when product is updated via openEditProduct', async () => {
+    const updatedProduct = {
+      ...mockData.product,
+      mealieFoods: [{ id: 'f-2', name: 'New Food' }],
+      mealieRecipes: [{ id: 'r-2', slug: 'new-recipe', name: 'New Recipe' }],
+    };
+
+    mockDialog.open.mockReturnValue({
+      closed: of({ product: updatedProduct }),
+    });
+
+    await component.openEditProduct();
+
+    expect(component.data.product).toBe(updatedProduct);
+    expect(component.productModified).toBe(true);
+    expect(mockApiService.getProductMealieRecipes).toHaveBeenCalledWith('p1', true);
   });
 });

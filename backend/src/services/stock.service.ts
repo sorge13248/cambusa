@@ -54,7 +54,7 @@ export class StockService {
     private readonly tombstonesRepository: Repository<SyncTombstone>,
   ) {}
 
-  async getStock(householdId: string): Promise<EnrichedStockItemDto[]> {
+  async getStock(householdId: string, dueSoonDays = 5): Promise<EnrichedStockItemDto[]> {
     const rawItems = await this.stockRepository.find({
       where: { householdId },
     });
@@ -90,9 +90,9 @@ export class StockService {
 
         if (daysUntilExpiration < 0) {
           urgency = 'expired';
-        } else if (daysUntilExpiration <= 3) {
+        } else if (daysUntilExpiration <= dueSoonDays) {
           urgency = 'due_soon';
-        } else if (daysUntilExpiration <= 7) {
+        } else if (daysUntilExpiration <= dueSoonDays + 4) {
           urgency = 'approaching';
         } else {
           urgency = 'good';

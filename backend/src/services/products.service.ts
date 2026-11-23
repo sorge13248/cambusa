@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { Repository } from 'typeorm';
 import { Product, ProductStore, StockItem, SyncTombstone } from '../entities/index.js';
 import { resolveUploadsDir } from '../load-env.js';
+import { MealieService } from './mealie.service.js';
 
 export interface ProductDetailDto extends Product {
   ancestors: Array<{ id: string; name: string }>;
@@ -28,6 +29,8 @@ export class ProductsService {
     private readonly stockRepository: Repository<StockItem>,
     @InjectRepository(SyncTombstone)
     private readonly tombstonesRepository: Repository<SyncTombstone>,
+    @Optional()
+    private readonly mealieService?: MealieService,
   ) {
     this.uploadsDir = resolveUploadsDir();
   }
@@ -151,7 +154,9 @@ export class ProductsService {
     }
 
     Object.assign(product, data);
-    return this.productsRepository.save(product);
+    const saved = await this.productsRepository.save(product);
+    this.mealieService?.clearProductCache(id);
+    return saved;
   }
 
   async deleteProduct(id: string, householdId: string): Promise<void> {
@@ -159,6 +164,7 @@ export class ProductsService {
     if (!product) throw new NotFoundException('Product not found');
 
     await this.productsRepository.delete({ id, householdId });
+    this.mealieService?.clearProductCache(id);
     await this.tombstonesRepository.save(
       this.tombstonesRepository.create({ householdId, entityType: 'product', entityId: id }),
     );

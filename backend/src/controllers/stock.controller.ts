@@ -1,18 +1,41 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { BearerJwtGuard } from '../common/auth/bearer-jwt.guard.js';
 import { ActiveHousehold } from '../common/household/active-household.decorator.js';
 import { HouseholdMemberGuard } from '../common/household/household-member.guard.js';
+import { CurrentUser } from '../common/auth/current-user.decorator.js';
+import { AuthUser } from '../common/auth/auth.types.js';
 import { StockItem } from '../entities/index.js';
 import { ExpirationPreset, StockService } from '../services/stock.service.js';
+import { ProfileService } from '../services/profile.service.js';
 
 @Controller('stock')
 @UseGuards(BearerJwtGuard, HouseholdMemberGuard)
 export class StockController {
-  constructor(private readonly stockService: StockService) {}
+  constructor(
+    private readonly stockService: StockService,
+    private readonly profileService: ProfileService,
+  ) {}
 
   @Get()
-  getStock(@ActiveHousehold() householdId: string) {
-    return this.stockService.getStock(householdId);
+  async getStock(
+    @ActiveHousehold() householdId: string,
+    @CurrentUser() user: AuthUser,
+    @Query('dueSoonDays') dueSoonDays?: string,
+  ) {
+    let days: number | undefined;
+    if (dueSoonDays) {
+      const parsed = parseInt(dueSoonDays, 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        days = parsed;
+      }
+    }
+    if (!days && user?.id) {
+      const settings = await this.profileService.getUserSettings(user.id);
+      if (settings?.nextExpiringDays) {
+        days = settings.nextExpiringDays;
+      }
+    }
+    return this.stockService.getStock(householdId, days ?? 5);
   }
 
   @Post()

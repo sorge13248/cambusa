@@ -181,6 +181,8 @@ Primary catalog entity supporting infinite recursive parent hierarchies, multi-p
 | `description` | TEXT | NULLABLE | Detailed description (HTML or text) |
 | `barcodes` | TEXT (JSON) | DEFAULT '[]' | JSON array of EAN/UPC barcodes |
 | `pictureFileNames` | TEXT (JSON) | DEFAULT '[]' | Ordered JSON array of WebP filenames in `uploads/products/` |
+| `mealieFoods` | TEXT (JSON) | DEFAULT '[]' | JSON array of mapped Mealie food entities (`[{ id, name }]`) |
+| `mealieRecipes` | TEXT (JSON) | DEFAULT '[]' | JSON array of explicitly mapped Mealie recipes (`[{ id, slug, name }]`) |
 | `cannotBeFrozen` | BOOLEAN | DEFAULT FALSE | If true, prevents transfers to freezer locations |
 | `openLocationId` | VARCHAR | NULLABLE, FK &rarr; `locations(id)` ON DELETE SET NULL | Destination location when item is unsealed |
 | `moveOnOpen` | BOOLEAN | DEFAULT FALSE | Automatically move item to `openLocationId` upon opening |

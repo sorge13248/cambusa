@@ -409,6 +409,90 @@
         </div>
       }
     </app-collapsible-section>
+
+    <!-- Section 8: Mealie Integration (Visible only when configured) -->
+    @if (isMealieConfigured()) {
+      <app-collapsible-section
+        title="Mealie"
+        icon="🍲"
+        [badge]="mealieBadge()"
+        [(expanded)]="sections.mealie"
+      >
+        <p class="field-hint mb-3">
+          Map this Cambusa product to Mealie foods and recipes to discover available recipes and ingredient links.
+        </p>
+
+        <!-- Linked Foods -->
+        <div class="mealie-subgroup">
+          <div class="mealie-subgroup-header">
+            <h5>Linked Foods</h5>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openLinkFoodModal()">
+              + Link Food
+            </button>
+          </div>
+          @if (inheritedFoods().length > 0) {
+            <div class="inherited-mealie-section mb-2">
+              <span class="field-hint d-block mb-1">Inherited from parent products:</span>
+              <div class="mealie-chips">
+                @for (food of inheritedFoods(); track food.id) {
+                  <div class="mealie-chip inherited" title="Inherited from parent product">
+                    <span class="chip-name">🥗 {{ food.name }}</span>
+                    <span class="inherited-badge">Inherited</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @if (linkedFoods().length === 0) {
+            <p class="field-hint">No direct Mealie foods linked yet.</p>
+          } @else {
+            <div class="mealie-chips">
+              @for (food of linkedFoods(); track food.id; let i = $index) {
+                <div class="mealie-chip">
+                  <span class="chip-name">🥗 {{ food.name }}</span>
+                  <button type="button" class="btn-remove-chip" (click)="removeLinkedFood(i)" title="Unlink food">✕</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Linked Recipes -->
+        <div class="mealie-subgroup mt-3">
+          <div class="mealie-subgroup-header">
+            <h5>Linked Recipes</h5>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openLinkRecipeModal()">
+              + Link Recipe
+            </button>
+          </div>
+          @if (inheritedRecipes().length > 0) {
+            <div class="inherited-mealie-section mb-2">
+              <span class="field-hint d-block mb-1">Inherited from parent products:</span>
+              <div class="mealie-chips">
+                @for (rec of inheritedRecipes(); track rec.id) {
+                  <div class="mealie-chip inherited" title="Inherited from parent product">
+                    <span class="chip-name">📖 {{ rec.name }}</span>
+                    <span class="inherited-badge">Inherited</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @if (linkedRecipes().length === 0) {
+            <p class="field-hint">No direct Mealie recipes linked yet.</p>
+          } @else {
+            <div class="mealie-chips">
+              @for (rec of linkedRecipes(); track rec.id; let i = $index) {
+                <div class="mealie-chip">
+                  <span class="chip-name">📖 {{ rec.name }}</span>
+                  <button type="button" class="btn-remove-chip" (click)="removeLinkedRecipe(i)" title="Unlink recipe">✕</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </app-collapsible-section>
+    }
   </div>
 
   <!-- Modal Footer -->

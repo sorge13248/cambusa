@@ -381,6 +381,83 @@ textarea {
   width: 110px;
 }
 
+/* Mealie Integration Section */
+.mealie-subgroup {
+  margin-bottom: 12px;
+
+  .mealie-subgroup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+
+    h5 {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+  }
+
+  .inherited-mealie-section {
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    border: 1px dashed var(--border, rgba(255, 255, 255, 0.15));
+  }
+
+  .mealie-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .mealie-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border, #334155);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+
+    &.inherited {
+      opacity: 0.85;
+      background: rgba(148, 163, 184, 0.12);
+      border-style: dashed;
+    }
+
+    .inherited-badge {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: rgba(148, 163, 184, 0.25);
+      color: var(--text-secondary, #94a3b8);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .chip-name {
+      font-weight: 500;
+    }
+
+    .btn-remove-chip {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0 2px;
+      line-height: 1;
+
+      &:hover {
+        color: #ef4444;
+      }
+    }
+  }
+}
+
 .modal-footer {
   padding: 14px 20px;
   border-top: 1px solid var(--border, #334155);

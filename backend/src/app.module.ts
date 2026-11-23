@@ -15,6 +15,7 @@ import { StockController } from './controllers/stock.controller.js';
 import { SyncController } from './controllers/sync.controller.js';
 import { ProfileController } from './controllers/profile.controller.js';
 import { NextController } from './controllers/next.controller.js';
+import { MealieController } from './controllers/mealie.controller.js';
 import {
   ApiKey,
   Household,
@@ -45,6 +46,7 @@ import { UsersService } from './services/users.service.js';
 import { ProfileService } from './services/profile.service.js';
 import { NextService } from './services/next.service.js';
 import { MailService } from './services/mail.service.js';
+import { MealieService } from './services/mealie.service.js';
 
 const ENTITIES = [
   User,
@@ -95,6 +97,7 @@ const ENTITIES = [
     SyncController,
     ProfileController,
     NextController,
+    MealieController,
   ],
   providers: [
     UsersService,
@@ -108,6 +111,7 @@ const ENTITIES = [
     ProfileService,
     NextService,
     MailService,
+    MealieService,
     BearerJwtGuard,
     HouseholdMemberGuard,
   ],

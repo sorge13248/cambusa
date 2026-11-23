@@ -1,0 +1,135 @@
+<div class="mealie-link-shell" role="dialog" aria-modal="true">
+  <!-- Modal Header -->
+  <div class="modal-header">
+    <div class="header-title">
+      <h3>{{ modalTitle() }}</h3>
+      @if (lastCachedAt()) {
+        <span class="cache-badge" title="Data is cached for 4 hours">
+          Cached at {{ lastCachedAt() }}
+        </span>
+      }
+    </div>
+    <div class="header-actions">
+      <button
+        type="button"
+        class="btn-refresh"
+        [disabled]="isLoading() || isRefreshing()"
+        (click)="loadItems(true)"
+        title="Force refresh data directly from Mealie"
+      >
+        <span class="refresh-icon" [class.spinning]="isRefreshing()">🔄</span>
+        {{ isRefreshing() ? 'Refreshing...' : 'Force Refresh' }}
+      </button>
+      <button type="button" class="modal-close-btn" (click)="cancel()">×</button>
+    </div>
+  </div>
+
+  <!-- Modal Body -->
+  <div class="modal-body">
+    @if (error()) {
+      <div class="alert-error" role="alert">
+        ⚠️ {{ error() }}
+      </div>
+    }
+
+    <!-- Search Input -->
+    <div class="search-box">
+      <div class="search-input-wrapper">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          class="form-input"
+          [placeholder]="inputPlaceholder()"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          [disabled]="isLoading()"
+          autofocus
+        />
+        @if (searchQuery()) {
+          <button type="button" class="btn-clear" (click)="searchQuery.set('')">✕</button>
+        }
+      </div>
+    </div>
+
+    <!-- Active Selections Preview Chips -->
+    @if (selectedCount() > 0) {
+      <div class="selection-preview">
+        <div class="selection-header">
+          <span class="selection-tag">Selected ({{ selectedCount() }}):</span>
+          <button type="button" class="btn-clear-all" (click)="clearSelection()">Clear all</button>
+        </div>
+        <div class="selected-chips">
+          @for (sel of selectedItemsList(); track sel.id) {
+            <div class="selected-chip">
+              <span>{{ isFoodMode() ? '🥗' : '📖' }} {{ sel.name }}</span>
+              <button type="button" class="btn-remove-chip" (click)="deselectItem(sel.id)" title="Deselect">✕</button>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Items List / Autocomplete Results -->
+    <div class="results-container">
+      @if (isLoading()) {
+        <div class="loading-state">
+          <span class="spinner">⏳</span> Loading Mealie {{ isFoodMode() ? 'foods' : 'recipes' }}...
+        </div>
+      } @else if (filteredItems().length === 0) {
+        <div class="empty-state">
+          <p>No Mealie {{ isFoodMode() ? 'foods' : 'recipes' }} match "<em>{{ searchQuery() }}</em>".</p>
+          <button type="button" class="btn btn-secondary btn-sm" (click)="loadItems(true)">
+            Force Refresh from Mealie
+          </button>
+        </div>
+      } @else {
+        <div class="items-list" role="listbox">
+          @for (item of filteredItems(); track item.id) {
+            <div
+              class="item-row"
+              role="option"
+              [attr.aria-selected]="item.isSelected"
+              [class.selected]="item.isSelected"
+              [class.disabled]="item.isAlreadyLinked"
+              (click)="toggleItem(item)"
+            >
+              <div class="item-checkbox">
+                <input
+                  type="checkbox"
+                  [checked]="item.isSelected"
+                  [disabled]="item.isAlreadyLinked"
+                  tabindex="-1"
+                />
+              </div>
+              <div class="item-main">
+                <span class="item-icon">{{ isFoodMode() ? '🥗' : '📖' }}</span>
+                <span class="item-name">{{ item.name }}</span>
+                @if (item.subLabel) {
+                  <span class="item-sub">{{ item.subLabel }}</span>
+                }
+              </div>
+              <div class="item-status">
+                @if (item.isAlreadyLinked) {
+                  <span class="already-badge">Already linked</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Modal Footer -->
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="cancel()">Cancel</button>
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="selectedCount() === 0"
+      (click)="confirm()"
+    >
+      Link Selected ({{ selectedCount() }})
+    </button>
+  </div>
+</div>

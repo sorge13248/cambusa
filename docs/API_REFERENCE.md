@@ -200,7 +200,7 @@ All errors follow standard RFC 7807 JSON schemas:
 ### `GET /api/stock`
 - **Query Params**:
   - `locationId` (optional): Filter by location.
-  - `dueSoonDays` (optional): Filter items expiring within `N` days.
+  - `dueSoonDays` (optional): Threshold in days for marking stock items with `due_soon` urgency. If omitted, automatically resolves from the authenticated user's configured Next scan horizon (`nextExpiringDays`), defaulting to 5 days.
   - `sort`: Default is `bestBeforeDate ASC`.
 - **Description**: Returns all pantry inventory items with computed `urgency` flags (`expired`, `due_soon`, `approaching`, `good`, `none`), `productPictureFileNames`, and `daysUntilExpiration`.
 
@@ -455,7 +455,100 @@ All errors follow standard RFC 7807 JSON schemas:
 
 ---
 
-## 13. Offline Synchronization (`/api/sync`)
+## 14. Mealie Integration (`/api/mealie`)
+
+### `GET /api/mealie/status`
+- **Auth**: Required (`BearerJwtGuard`)
+- **Response**: `200 OK`
+```json
+{
+  "configured": true,
+  "mealieUrl": "https://mealie.home.arpa"
+}
+```
+- **Description**: Returns whether the current authenticated user has configured Mealie credentials (`mealieUrl` and `mealieApiToken`) in their profile settings.
+
+### `GET /api/mealie/foods`
+- **Auth**: Required (`BearerJwtGuard`)
+- **Query Parameters**:
+  - `refresh` (optional): `true` or `1` to bypass the 4-hour cache and fetch fresh data directly from Mealie.
+- **Response**: `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": "food-uuid-1",
+      "name": "Apple",
+      "description": "Fresh fruit"
+    },
+    {
+      "id": "food-uuid-2",
+      "name": "Zucchini",
+      "description": null
+    }
+  ],
+  "cachedAt": "2026-11-23T12:00:00.000Z",
+  "expiresAt": "2026-11-23T16:00:00.000Z"
+}
+```
+- **Description**: Retrieves all foods registered in the user's Mealie instance, sorted alphabetically. Responses are cached in-memory on the backend for 4 hours.
+
+### `GET /api/mealie/recipes`
+- **Auth**: Required (`BearerJwtGuard`)
+- **Query Parameters**:
+  - `refresh` (optional): `true` or `1` to bypass the 4-hour cache.
+- **Response**: `200 OK`
+```json
+{
+  "items": [
+    {
+      "id": "recipe-uuid-1",
+      "slug": "margherita-pizza",
+      "name": "Margherita Pizza",
+      "totalTime": "30 min",
+      "image": "recipe-uuid-1.webp"
+    }
+  ],
+  "cachedAt": "2026-11-23T12:00:00.000Z",
+  "expiresAt": "2026-11-23T16:00:00.000Z"
+}
+```
+- **Description**: Retrieves all recipes registered in the user's Mealie instance, sorted alphabetically with formatted preparation duration. Cached in-memory for 4 hours.
+
+### `GET /api/mealie/products/:productId/recipes`
+- **Auth**: Required (`BearerJwtGuard`, `HouseholdMemberGuard`)
+- **Query Parameters**:
+  - `refresh` (optional): `true` or `1` to force cache invalidation.
+- **Response**: `200 OK`
+```json
+{
+  "configured": true,
+  "mealieUrl": "https://mealie.home.arpa",
+  "recipes": [
+    {
+      "id": "recipe-uuid-1",
+      "slug": "pasta-al-pomodoro",
+      "name": "Pasta al Pomodoro",
+      "totalTime": "20 min",
+      "imageUrl": "/api/mealie/recipes/recipe-uuid-1/image"
+    }
+  ],
+  "foods": [
+    {
+      "id": "food-uuid-1",
+      "name": "Tomato"
+    }
+  ],
+  "cachedAt": "2026-11-23T12:00:00.000Z",
+  "expiresAt": "2026-11-23T16:00:00.000Z"
+}
+```
+- **Description**: Evaluates mapped Mealie foods (`recipeIngredient.food.id IN [...]`) and explicit recipe mappings for the specified product, recursively aggregating mapped foods and recipes inherited from all parent ancestor products. Returns matching recipes with formatted preparation time, proxied image URLs, and all linked food entities. Cached in-memory for 4 hours per product and user, with automatic invalidation upon product modification or when requested via `refresh=true`.
+
+### `GET /api/mealie/recipes/:recipeId/image`
+- **Auth**: Required (`BearerJwtGuard`)
+- **Headers**: `Cache-Control: public, max-age=86400`, `Content-Type: image/webp`
+- **Description**: Proxies recipe thumbnail images from the user's Mealie instance, bypassing browser CORS, mixed-content, and Bearer token restrictions on `<img>` tags.
 
 ### `POST /api/sync`
 - **Body**:

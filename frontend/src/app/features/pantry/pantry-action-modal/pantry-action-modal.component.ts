@@ -3,7 +3,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { Location, Product, QuantityUnit, StockItem, Store } from '../../../core/models.js';
+import { Location, MealieLinkedFood, MealieRecipeSummary, Product, QuantityUnit, StockItem, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { calculateProductTotalStock } from '../../../core/stock-utils.js';
@@ -42,7 +42,7 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
 
   readonly activeAction = signal<ActionType>('none');
   readonly currentStockItems = signal<StockItem[]>([...this.data.stockItems]);
-  private productModified = false;
+  productModified = false;
   private subs = new Subscription();
 
   // Consume state
@@ -58,6 +58,15 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   moveStockItemId = '';
   readonly moveFreezerWarning = signal<boolean>(false);
   readonly recalculatedExpiryInfo = signal<string | null>(null);
+
+  // Mealie Integration state
+  readonly isMealieConfigured = signal<boolean>(false);
+  readonly isLoadingMealie = signal<boolean>(false);
+  readonly isRefreshingMealie = signal<boolean>(false);
+  readonly mealieRecipes = signal<MealieRecipeSummary[]>([]);
+  readonly mealieFoods = signal<MealieLinkedFood[]>([]);
+  readonly mealieUrl = signal<string>('');
+  readonly mealieError = signal<string | null>(null);
 
   readonly productStockItems = computed(() => {
     return this.currentStockItems().filter((s) => s.productId === this.data.product.id);
@@ -112,6 +121,8 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.loadMealieRecipes(false);
+
     this.subs.add(
       this.dialogRef.backdropClick.subscribe(() => {
         this.requestClose();
@@ -175,7 +186,62 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     if (res && typeof res === 'object' && res.product) {
       this.data.product = res.product;
       this.productModified = true;
+      if (this.data.allProducts) {
+        this.data.allProducts = this.data.allProducts.map((p) =>
+          p.id === res.product.id ? res.product : p
+        );
+      }
+      this.mealieFoods.set([...(res.product.mealieFoods || [])]);
+      await this.loadMealieRecipes(true);
     }
+  }
+
+  async loadMealieRecipes(forceRefresh = false): Promise<void> {
+    if (forceRefresh) {
+      this.isRefreshingMealie.set(true);
+    } else {
+      this.isLoadingMealie.set(true);
+    }
+    this.mealieError.set(null);
+
+    if (this.data.product.mealieFoods) {
+      this.mealieFoods.set([...this.data.product.mealieFoods]);
+    } else {
+      this.mealieFoods.set([]);
+    }
+
+    try {
+      const status = await this.api.getMealieStatus();
+      this.isMealieConfigured.set(status.configured);
+      if (status.configured) {
+        this.mealieUrl.set(status.mealieUrl || '');
+        const res = await this.api.getProductMealieRecipes(this.data.product.id, forceRefresh);
+        this.mealieRecipes.set(res.recipes || []);
+        this.mealieFoods.set(res.foods || []);
+        if (res.mealieUrl) {
+          this.mealieUrl.set(res.mealieUrl);
+        }
+      }
+    } catch (err: any) {
+      this.mealieError.set(err?.error?.message || err?.message || 'Failed to load Mealie recipes');
+    } finally {
+      this.isLoadingMealie.set(false);
+      this.isRefreshingMealie.set(false);
+    }
+  }
+
+  getMealieFoodUrl(foodId: string): string {
+    const base = this.mealieUrl().replace(/\/$/, '');
+    return `${base}/g/home?foods=${encodeURIComponent(foodId)}`;
+  }
+
+  getMealieRecipeUrl(slug: string): string {
+    const base = this.mealieUrl().replace(/\/$/, '');
+    return `${base}/g/home/r/${encodeURIComponent(slug)}`;
+  }
+
+  openRecipe(slug: string): void {
+    window.open(this.getMealieRecipeUrl(slug), '_blank', 'noopener,noreferrer');
   }
 
   openEditStockItem(item: StockItem): void {

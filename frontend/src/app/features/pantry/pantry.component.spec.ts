@@ -31,6 +31,11 @@ describe('PantryComponent', () => {
     saveFilter: vi.fn().mockResolvedValue({ id: 'f1', name: 'Test', filterConfig: '{}' }),
     consumeStock: vi.fn().mockResolvedValue({ consumed: true }),
     adjustDate: vi.fn().mockResolvedValue({ id: 's1' }),
+    getProfile: vi.fn().mockResolvedValue({
+      user: { id: 'u1', displayName: 'Test User' },
+      settings: { nextExpiringDays: 7 },
+      apiKeys: [],
+    }),
   };
 
   const mockAuthService = {
@@ -119,5 +124,63 @@ describe('PantryComponent', () => {
         }),
       }),
     );
+  });
+
+  it('should load user configured expiring soon days from profile settings (/next configuration)', () => {
+    expect(mockApiService.getProfile).toHaveBeenCalled();
+    expect(component.expiringSoonDays()).toBe(7);
+  });
+
+  it('should clear all filters immediately when clearAllFilters is called', () => {
+    component.searchQuery.set('pasta');
+    component.selectedGroupId = 'g1';
+    component.selectedLocationId = 'l1';
+    component.selectedStatus = 'due';
+    component.sortBy = 'amount';
+    component.currentPage.set(2);
+    component.applyLocalFilters();
+
+    expect(component.hasActiveFilters()).toBe(true);
+
+    component.clearAllFilters();
+
+    expect(component.searchQuery()).toBe('');
+    expect(component.selectedGroupId).toBe('');
+    expect(component.selectedLocationId).toBe('');
+    expect(component.selectedStatus).toBe('all');
+    expect(component.sortBy).toBe('bestBeforeDate');
+    expect(component.currentPage()).toBe(1);
+    expect(component.hasActiveFilters()).toBe(false);
+  });
+
+  it('should filter expiring soon items dynamically according to configured scan horizon', () => {
+    const now = new Date();
+    const in5Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 5);
+    const in12Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 12);
+    const date5Str = `${in5Days.getFullYear()}-${String(in5Days.getMonth() + 1).padStart(2, '0')}-${String(in5Days.getDate()).padStart(2, '0')}`;
+    const date12Str = `${in12Days.getFullYear()}-${String(in12Days.getMonth() + 1).padStart(2, '0')}-${String(in12Days.getDate()).padStart(2, '0')}`;
+
+    component.products.set([
+      { id: 'p1', name: 'Milk' } as any,
+      { id: 'p2', name: 'Rice' } as any,
+    ]);
+    component.stock.set([
+      { id: 's1', productId: 'p1', productName: 'Milk', amount: 1, bestBeforeDate: date5Str } as any,
+      { id: 's2', productId: 'p2', productName: 'Rice', amount: 2, bestBeforeDate: date12Str } as any,
+    ]);
+
+    // When configured with 7 days (default from mock)
+    component.expiringSoonDays.set(7);
+    component.selectedStatus = 'due';
+    component.applyLocalFilters();
+
+    expect(component.filteredStock().length).toBe(1);
+    expect(component.filteredStock()[0].productName).toBe('Milk');
+
+    // When scan horizon is widened to 15 days
+    component.expiringSoonDays.set(15);
+    component.applyLocalFilters();
+
+    expect(component.filteredStock().length).toBe(2);
   });
 });

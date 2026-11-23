@@ -71,6 +71,8 @@ export class PantryComponent implements OnInit, OnDestroy {
   selectedStatus = 'all';
   sortBy = 'bestBeforeDate';
   readonly searchQuery = signal<string>('');
+  readonly expiringSoonDays = signal<number>(5);
+  readonly hasActiveFilters = signal<boolean>(false);
 
   // Pagination state
   readonly currentPage = signal<number>(1);
@@ -125,7 +127,7 @@ export class PantryComponent implements OnInit, OnDestroy {
   async loadData() {
     this.isLoading.set(true);
     try {
-      const [items, prods, locs, groups, stores, units, filters] = await Promise.all([
+      const [items, prods, locs, groups, stores, units, filters, profile] = await Promise.all([
         this.api.getStock(),
         this.api.getProducts(true),
         this.api.getLocations(),
@@ -133,7 +135,12 @@ export class PantryComponent implements OnInit, OnDestroy {
         this.api.getStores(),
         this.api.getUnits(),
         this.api.getSavedFilters(),
+        this.api.getProfile().catch(() => null),
       ]);
+
+      if (profile?.settings?.nextExpiringDays) {
+        this.expiringSoonDays.set(profile.settings.nextExpiringDays);
+      }
 
       this.stock.set(items);
       this.products.set(prods);
@@ -150,8 +157,19 @@ export class PantryComponent implements OnInit, OnDestroy {
   }
 
   async loadStock() {
-    const items = await this.api.getStock();
+    const items = await this.api.getStock(this.expiringSoonDays());
     this.stock.set(items);
+    this.applyLocalFilters();
+  }
+
+  clearAllFilters() {
+    this.searchQuery.set('');
+    this.selectedGroupId = '';
+    this.selectedLocationId = '';
+    this.selectedStatus = 'all';
+    this.sortBy = 'bestBeforeDate';
+    this.currentPage.set(1);
+    this.syncQueryParams();
     this.applyLocalFilters();
   }
 
@@ -203,6 +221,15 @@ export class PantryComponent implements OnInit, OnDestroy {
   applyLocalFilters() {
     const allStock = this.stock();
     const query = this.searchQuery().trim().toLowerCase();
+    const expDays = this.expiringSoonDays();
+
+    this.hasActiveFilters.set(
+      this.searchQuery().trim().length > 0 ||
+      this.selectedGroupId !== '' ||
+      this.selectedLocationId !== '' ||
+      this.selectedStatus !== 'all' ||
+      this.sortBy !== 'bestBeforeDate'
+    );
 
     // 1. Group stock items by productId so each product has exactly one card in pantry
     const groupedMap = new Map<string, StockItem[]>();
@@ -214,6 +241,18 @@ export class PantryComponent implements OnInit, OnDestroy {
 
     const prodMap = new Map(this.products().map((p) => [p.id, p]));
     let cardItems: PantryCardItem[] = [];
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${d}`;
+
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() + expDays);
+    const ty = target.getFullYear();
+    const tm = String(target.getMonth() + 1).padStart(2, '0');
+    const td = String(target.getDate()).padStart(2, '0');
+    const targetStr = `${ty}-${tm}-${td}`;
 
     for (const [productId, batches] of groupedMap.entries()) {
       const prod = prodMap.get(productId);
@@ -227,6 +266,23 @@ export class PantryComponent implements OnInit, OnDestroy {
       });
 
       const primary = sortedBatches[0];
+
+      // Update urgency on each batch according to user's Next expiration horizon
+      for (const b of batches) {
+        if (!b.bestBeforeDate || b.bestBeforeDate.startsWith('2999')) {
+          b.urgency = 'none';
+        } else {
+          const bbd = b.bestBeforeDate.slice(0, 10);
+          if (bbd < todayStr) {
+            b.urgency = 'expired';
+          } else if (bbd <= targetStr) {
+            b.urgency = 'due_soon';
+          } else {
+            b.urgency = 'good';
+          }
+        }
+      }
+
       const hasExpired = batches.some((b) => b.urgency === 'expired');
       const hasDueSoon = batches.some((b) => b.urgency === 'due_soon');
       const overallUrgency = hasExpired ? 'expired' : hasDueSoon ? 'due_soon' : 'ok';
@@ -327,10 +383,12 @@ export class PantryComponent implements OnInit, OnDestroy {
   }
 
   getUrgencyLabel(item: PantryCardItem | StockItem): string|null {
-    if (!item.bestBeforeDate) return null;
+    if (!item.bestBeforeDate || item.bestBeforeDate.startsWith('2999')) return null;
     const now = new Date();
-    const exp = new Date(item.bestBeforeDate);
-    const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 3600 * 24));
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const expParts = item.bestBeforeDate.slice(0, 10).split('-');
+    const exp = new Date(Number(expParts[0]), Number(expParts[1]) - 1, Number(expParts[2]));
+    const diffDays = Math.round((exp.getTime() - today.getTime()) / (1000 * 3600 * 24));
 
     if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
     if (diffDays === 0) return 'Expires today';

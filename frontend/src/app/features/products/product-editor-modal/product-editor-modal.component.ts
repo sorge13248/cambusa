@@ -6,6 +6,8 @@ import { CdkDragDrop, CdkDropList, CdkDrag, CdkDragHandle, moveItemInArray } fro
 import { firstValueFrom, Subscription } from 'rxjs';
 import {
   Location,
+  MealieLinkedFood,
+  MealieLinkedRecipe,
   Product,
   ProductGroup,
   QuantityUnit,
@@ -15,6 +17,7 @@ import { ApiService } from '../../../core/api.service.js';
 import { CollapsibleSectionComponent } from '../../../shared/components/collapsible-section/collapsible-section.component.js';
 import { AutocompleteDirective, AutocompleteOption } from '../../../shared/directives/autocomplete.directive.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
+import { MealieLinkModalComponent, MealieLinkModalResult } from '../mealie-link-modal/mealie-link-modal.component.js';
 
 export interface ProductEditorModalData {
   product?: Product | null;
@@ -64,15 +67,81 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
     quantity: false,
     barcodes: false,
     stores: false,
+    mealie: false,
   };
 
   allExpanded = signal<boolean>(false);
   isParentValid = true;
 
+  readonly isMealieConfigured = signal<boolean>(false);
+  readonly linkedFoods = signal<MealieLinkedFood[]>([]);
+  readonly linkedRecipes = signal<MealieLinkedRecipe[]>([]);
+  readonly selectedParentId = signal<string | null>(null);
+
+  readonly inheritedFoods = computed(() => {
+    const parentId = this.selectedParentId();
+    if (!parentId || !this.data.allProducts) return [];
+    const foods: MealieLinkedFood[] = [];
+    const visited = new Set<string>();
+    let currId: string | null | undefined = parentId;
+    const productsMap = new Map<string, Product>(this.data.allProducts.map((p) => [p.id, p]));
+
+    while (currId && !visited.has(currId)) {
+      visited.add(currId);
+      const parent = productsMap.get(currId);
+      if (!parent) break;
+      if (parent.mealieFoods && Array.isArray(parent.mealieFoods)) {
+        for (const f of parent.mealieFoods) {
+          if (!foods.some((item) => item.id === f.id)) {
+            foods.push(f);
+          }
+        }
+      }
+      currId = parent.parentProductId;
+    }
+    return foods;
+  });
+
+  readonly inheritedRecipes = computed(() => {
+    const parentId = this.selectedParentId();
+    if (!parentId || !this.data.allProducts) return [];
+    const recipes: MealieLinkedRecipe[] = [];
+    const visited = new Set<string>();
+    let currId: string | null | undefined = parentId;
+    const productsMap = new Map<string, Product>(this.data.allProducts.map((p) => [p.id, p]));
+
+    while (currId && !visited.has(currId)) {
+      visited.add(currId);
+      const parent = productsMap.get(currId);
+      if (!parent) break;
+      if (parent.mealieRecipes && Array.isArray(parent.mealieRecipes)) {
+        for (const r of parent.mealieRecipes) {
+          if (!recipes.some((item) => item.id === r.id)) {
+            recipes.push(r);
+          }
+        }
+      }
+      currId = parent.parentProductId;
+    }
+    return recipes;
+  });
+
+  readonly mealieBadge = computed(() => {
+    const directCount = this.linkedFoods().length + this.linkedRecipes().length;
+    const inheritedCount = this.inheritedFoods().length + this.inheritedRecipes().length;
+    const total = directCount + inheritedCount;
+    if (total === 0) return '';
+    if (inheritedCount > 0) {
+      return `${directCount} linked (+${inheritedCount} inherited)`;
+    }
+    return `${directCount} linked`;
+  });
+
   get selectedParentProductId(): string | null {
-    return this.formProduct.parentProductId ?? null;
+    return this.selectedParentId();
   }
   set selectedParentProductId(val: string | null) {
+    this.selectedParentId.set(val);
     this.formProduct.parentProductId = val;
   }
 
@@ -108,8 +177,14 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.initStoreConfigs();
 
+    this.api
+      .getMealieStatus()
+      .then((st) => this.isMealieConfigured.set(st.configured))
+      .catch(() => this.isMealieConfigured.set(false));
+
     if (this.data.product) {
       const p = this.data.product;
+      this.selectedParentId.set(p.parentProductId || null);
       this.formProduct = {
         name: p.name,
         description: p.description || '',
@@ -133,6 +208,14 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
 
       if (p.barcodes && Array.isArray(p.barcodes)) {
         this.barcodes.set([...p.barcodes]);
+      }
+
+      if (p.mealieFoods && Array.isArray(p.mealieFoods)) {
+        this.linkedFoods.set([...p.mealieFoods]);
+      }
+
+      if (p.mealieRecipes && Array.isArray(p.mealieRecipes)) {
+        this.linkedRecipes.set([...p.mealieRecipes]);
       }
 
       if (p.pictureFileNames && Array.isArray(p.pictureFileNames)) {
@@ -186,6 +269,8 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
       barcodes: this.barcodes(),
       photos: this.photos().map((p) => ({ fileName: p.fileName, isNew: p.isNew })),
       storeConfigs: this.storeConfigs,
+      mealieFoods: this.linkedFoods(),
+      mealieRecipes: this.linkedRecipes(),
     });
   }
 
@@ -223,6 +308,63 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
     this.sections.quantity = nextState;
     this.sections.barcodes = nextState;
     this.sections.stores = nextState;
+    this.sections.mealie = nextState;
+  }
+
+  async openLinkFoodModal(): Promise<void> {
+    const inheritedIds = this.inheritedFoods().map((f) => f.id);
+    const alreadyLinkedIds = [...new Set([...this.linkedFoods().map((f) => f.id), ...inheritedIds])];
+    const dialogRef = this.dialog.open<MealieLinkModalResult[] | null>(MealieLinkModalComponent, {
+      data: {
+        mode: 'food',
+        alreadyLinkedIds,
+      },
+    });
+
+    const res = await firstValueFrom(dialogRef.closed);
+    if (Array.isArray(res) && res.length > 0) {
+      const existingIds = new Set(this.linkedFoods().map((f) => f.id));
+      const additions = res
+        .filter((r) => !existingIds.has(r.id))
+        .map((r) => ({ id: r.id, name: r.name }));
+      if (additions.length > 0) {
+        this.linkedFoods.set([...this.linkedFoods(), ...additions]);
+      }
+    }
+  }
+
+  async openLinkRecipeModal(): Promise<void> {
+    const inheritedIds = this.inheritedRecipes().map((r) => r.id);
+    const alreadyLinkedIds = [...new Set([...this.linkedRecipes().map((r) => r.id), ...inheritedIds])];
+    const dialogRef = this.dialog.open<MealieLinkModalResult[] | null>(MealieLinkModalComponent, {
+      data: {
+        mode: 'recipe',
+        alreadyLinkedIds,
+      },
+    });
+
+    const res = await firstValueFrom(dialogRef.closed);
+    if (Array.isArray(res) && res.length > 0) {
+      const existingIds = new Set(this.linkedRecipes().map((r) => r.id));
+      const additions = res
+        .filter((r) => !existingIds.has(r.id))
+        .map((r) => ({ id: r.id, slug: r.slug || r.id, name: r.name }));
+      if (additions.length > 0) {
+        this.linkedRecipes.set([...this.linkedRecipes(), ...additions]);
+      }
+    }
+  }
+
+  removeLinkedFood(index: number): void {
+    const list = [...this.linkedFoods()];
+    list.splice(index, 1);
+    this.linkedFoods.set(list);
+  }
+
+  removeLinkedRecipe(index: number): void {
+    const list = [...this.linkedRecipes()];
+    list.splice(index, 1);
+    this.linkedRecipes.set(list);
   }
 
   onPhotoDrop(event: CdkDragDrop<PhotoItem[]>) {
@@ -278,6 +420,8 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
       const payload: Partial<Product> = {
         ...this.formProduct,
         barcodes: this.barcodes(),
+        mealieFoods: this.linkedFoods(),
+        mealieRecipes: this.linkedRecipes(),
       };
 
       let productId = this.data.product?.id;
