@@ -23,9 +23,17 @@ describe('PantryQuickConsumeModalComponent', () => {
       settings: { quickConsumeTimerSeconds: 10 },
     }),
     getStock: vi.fn().mockResolvedValue([
-      { id: 's1', productId: 'p1', amount: 2, bestBeforeDate: '2026-10-01' },
+      { id: 's1', productId: 'p1', amount: 2, bestBeforeDate: '2026-10-01', locationId: 'l1' },
     ]),
-    openStock: vi.fn().mockResolvedValue({}),
+    consumeStock: vi.fn().mockResolvedValue({ consumed: true }),
+    addStock: vi.fn().mockResolvedValue({}),
+    openStock: vi.fn().mockResolvedValue({
+      openedStockItem: { id: 's1-opened', isOpen: true },
+      originalStockItem: { id: 's1', amount: 1 },
+      split: true,
+      originalDate: '2026-10-01',
+      originalLocationId: 'l1',
+    }),
     revertOpen: vi.fn().mockResolvedValue({}),
   };
 
@@ -35,7 +43,7 @@ describe('PantryQuickConsumeModalComponent', () => {
 
   const mockDialog = {
     open: vi.fn().mockReturnValue({
-      closed: of(true),
+      closed: of('consume'),
     }),
   };
 
@@ -68,11 +76,62 @@ describe('PantryQuickConsumeModalComponent', () => {
     expect(component.isScannerOpen()).toBe(false);
   });
 
-  it('should process barcode and open stock on confirmation', async () => {
+  it('should process barcode and consume stock on confirmation', async () => {
+    mockDialog.open.mockReturnValueOnce({ closed: of('consume') });
+    await component.onBarcodeScanned('123456');
+    expect(mockApiService.getStock).toHaveBeenCalled();
+    expect(mockDialog.open).toHaveBeenCalled();
+    expect(mockApiService.consumeStock).toHaveBeenCalledWith('s1', 1);
+    expect(mockUndoService.register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Consumed 1x Coffee',
+      }),
+    );
+  });
+
+  it('should mark stock as open when markAsOpen action is selected', async () => {
+    mockDialog.open.mockReturnValueOnce({ closed: of('open') });
     await component.onBarcodeScanned('123456');
     expect(mockApiService.getStock).toHaveBeenCalled();
     expect(mockDialog.open).toHaveBeenCalled();
     expect(mockApiService.openStock).toHaveBeenCalledWith('s1', 1);
-    expect(mockUndoService.register).toHaveBeenCalled();
+    expect(mockUndoService.register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Opened 1x Coffee',
+      }),
+    );
+  });
+
+  it('should ignore concurrent barcode scans and product selections while processing or confirm modal is active', async () => {
+    // Return a dialog whose closed observable does not resolve immediately
+    let closeSubject: (val: string) => void = () => {};
+    const pendingClosedPromise = new Promise<string>((resolve) => {
+      closeSubject = resolve;
+    });
+
+    mockDialog.open.mockReturnValueOnce({
+      closed: {
+        subscribe: (obs: any) => {
+          pendingClosedPromise.then((v) => {
+            if (typeof obs === 'function') obs(v);
+            else if (obs?.next) obs.next(v);
+          });
+          return { unsubscribe: () => {} };
+        },
+      },
+    });
+
+    // Start processing first scan
+    const firstScanPromise = component.onBarcodeScanned('123456');
+
+    // Attempt concurrent scan with same or another barcode while active
+    await component.onBarcodeScanned('123456');
+    await component.onProductSelected('p1');
+
+    expect(mockDialog.open).toHaveBeenCalledTimes(1);
+
+    // Resolve first dialog
+    closeSubject('consume');
+    await firstScanPromise;
   });
 });

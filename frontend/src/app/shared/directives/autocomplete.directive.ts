@@ -198,8 +198,10 @@ export class AutocompleteDirective implements OnInit, OnChanges, OnDestroy {
     const matched = this.options.find((o) => o.label.toLowerCase() === text.toLowerCase());
     if (matched) {
       this.el.nativeElement.value = matched.label;
-      this.selectedId = matched.id;
-      this.selectedIdChange.emit(matched.id);
+      if (this.selectedId !== matched.id) {
+        this.selectedId = matched.id;
+        this.selectedIdChange.emit(matched.id);
+      }
       this.validityChange.emit(true);
     } else {
       this.selectedId = null;

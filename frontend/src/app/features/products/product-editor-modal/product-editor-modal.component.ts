@@ -254,6 +254,22 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
             };
           }
         }
+      } else if (typeof this.api.getProductStores === 'function') {
+        this.api
+          .getProductStores(p.id)
+          .then((storesList) => {
+            for (const ps of storesList) {
+              if (this.storeConfigs[ps.storeId]) {
+                this.storeConfigs[ps.storeId] = {
+                  aisle: ps.aisle || '',
+                  aisleOrder: ps.aisleOrder ?? null,
+                  averagePrice: ps.averagePrice ?? null,
+                };
+              }
+            }
+            this.initialSnapshot = this.snapshot();
+          })
+          .catch(() => {});
       }
     } else if (this.data.initialName) {
       this.formProduct.name = this.data.initialName;
@@ -328,9 +344,9 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
     }
   }
 
-  candidateParents(): AutocompleteOption[] {
+  readonly candidateParents = computed<AutocompleteOption[]>(() => {
     const currentId = this.data.product?.id;
-    let list = this.data.allProducts;
+    let list = this.data.allProducts || [];
     if (currentId) {
       list = list.filter((p) => p.id !== currentId && !p.ancestors?.some((a) => a.id === currentId));
     }
@@ -339,7 +355,7 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
       label: p.hierarchyPath || p.name,
       subLabel: p.hierarchyPath ? p.name : undefined,
     }));
-  }
+  });
 
   toggleAllSections() {
     const nextState = !this.allExpanded();

@@ -8,9 +8,9 @@
 
       @if (auth.isAuthenticated()) {
         <nav class="nav-links">
-          <a routerLink="/pantry" routerLinkActive="active" class="nav-item">Pantry</a>
-          <a routerLink="/shopping" routerLinkActive="active" class="nav-item">Shopping List</a>
-          <a routerLink="/products" routerLinkActive="active" class="nav-item">Products</a>
+          <a routerLink="/pantry" routerLinkActive="active" class="nav-item"><svg lucideBoxes [size]="16"></svg>Pantry</a>
+          <a routerLink="/shopping" routerLinkActive="active" class="nav-item"><svg lucideShoppingCart [size]="16"></svg>Shopping List</a>
+          <a routerLink="/products" routerLinkActive="active" class="nav-item"><svg lucideTag [size]="16"></svg>Products</a>
         </nav>
 
         <nav class="mobile-quick-nav" aria-label="Mobile Quick Navigation">
@@ -28,6 +28,21 @@
     </div>
 
     <div class="navbar-right">
+      @if (pwaUpdate.updateAvailable()) {
+        <button
+          type="button"
+          class="update-pill-btn"
+          (click)="pwaUpdate.promptUpdate()"
+          title="New version available"
+          aria-label="A new version of Cambusa is available. Click to update."
+        >
+          <svg class="update-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          </svg>
+          <span class="update-pill-text">Update Available</span>
+        </button>
+      }
+
       @if (auth.isAuthenticated()) {
         <!-- Sync Indicator -->
         <app-sync-indicator></app-sync-indicator>

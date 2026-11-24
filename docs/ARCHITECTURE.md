@@ -25,10 +25,10 @@ Cambusa follows a modern decoupled architecture packaged in a single, lightweigh
 │   └──────────────────────┬───────────────────────────┬─────────────┘   │
 │                          │                           │                 │
 │                          ▼                           ▼                 │
-│               ┌───────────────────────┐   ┌────────────────────┐       │
-│               │  OfflineStorageService│   │  Service Worker    │       │
-│               │     (IndexedDB)       │   │     (sw.js)        │       │
-│               └──────────┬────────────┘   └────────────────────┘       │
+│               ┌───────────────────────┐   ┌────────────────────────────┐       │
+│               │  OfflineStorageService│   │ Service Worker (sw.js) &   │       │
+│               │     (IndexedDB)       │   │ PwaUpdateService / Modal   │       │
+│               └──────────┬────────────┘   └────────────────────────────┘       │
 └──────────────────────────┼─────────────────────────────────────────────┘
                            │ HTTPS / WSS / REST
                            │ Cookies: cambusa_at, cambusa_it (HttpOnly)
@@ -106,13 +106,15 @@ Every household in Cambusa acts as an autonomous data boundary (tenant).
 - **Household-Level Default Lists**: Each household can define a default shopping list (`isDefault: true`). Creating or updating a list as default automatically unsets prior defaults for that household. Navigating to `/shopping` without a query parameter automatically selects and renders the default list.
 - **Card Metadata & Safe Mutation**: Shopping cards feature inline quantities and notes, full-width two-column layout for product group badges and current pantry stock counts, and deletion confirmation modal protection.
 
-### 2.5 Offline-First Resilience & Navbar Sync Architecture
-- The web app operates fully offline using IndexedDB (`cambusa_offline_v1`) and a custom Cache-First Service Worker (`sw.js`).
-- Local mutations are queued and synchronized bi-directionally with the backend via the `/api/sync` engine upon network reconnection.
+### 2.6 Offline-First Resilience, Update Engine & Navbar Sync Architecture
+- **Zero Direct API Mutations**: The entire frontend operates strictly offline-first. Mutation methods across `ApiService` (`addStock`, `consumeStock`, `openStock`, `adjustDate`, `transferStock`, `updateStockItem`, `deleteStockItem`, `addShoppingItem`, `updateShoppingItem`, `toggleShoppingItemDone`, `deleteShoppingItem`, `createProduct`, `updateProduct`, `deleteProduct`, `createShoppingList`, etc.) write directly to local IndexedDB stores (`products`, `stock`, `shopping_items`, `shopping_lists`) and local in-memory signal state first. No direct REST mutation calls are made across domain flows.
+- **Background Synchronization Pipeline**: Each local write enqueues a task to the `sync_queue` store and triggers `SyncService.sync()` in the background. The sync engine flushes pending changes and deletions via `POST /api/sync`, receives server deltas and tombstones, updates local stores, and notifies components.
+- The web app operates fully offline using IndexedDB (`cambusa_offline_v1`) and a custom Service Worker (`sw.js`) implementing SPA navigation fallback and Stale-While-Revalidate caching for static chunks and assets.
+- `PwaUpdateService` continuously monitors service worker updates (every 20 minutes, tab visibility, online events) and prompts the user via `UpdateModalComponent` with a persistent topbar update badge.
 - Animated sync indicator in the header displays connectivity status, pending changes count, relative sync timestamp, and server download recovery via CDK Dialog.
 - Conflict resolution uses Last-Write-Wins (LWW) timestamp comparisons, and entity deletions are tracked with `SyncTombstone` entries.
 
-### 2.6 10-Second Reversible Actions (Undo System) & Unified Global Toasts
+### 2.7 10-Second Reversible Actions (Undo System) & Unified Global Toasts
 - Every stock-altering mutation (consumption, purchasing, opening batches, location transfer, and quick expiration date adjustments) registers an inverse compensation closure with `UndoService`.
 - A persistent bottom-center popover (`UndoToastComponent`) renders immediately with action details, a smooth 60fps CSS animation countdown progress bar, and an "Undo" trigger.
 - **Top-Level Body Attachment & Maximum Stacking Context**: `UndoToastComponent` attaches its host DOM element directly to `document.body` and executes a dynamic `bringToFront()` effect whenever actions or toasts update, re-appending its host as the very last child of `document.body`. Combined with `display: block; position: fixed; inset: 0; pointer-events: none; z-index: 2147483647 !important;`, the overlay floats strictly on top of all `.cdk-overlay-backdrop` blur layers, dialog modals, and menus.
@@ -136,7 +138,8 @@ Every household in Cambusa acts as an autonomous data boundary (tenant).
   - `NumberStepperComponent`: Reusable parameterizable quantity stepper component with increment (`+`) and decrement (`-`) buttons, optional unit display, disabled states, and native browser spin arrow suppression (`-webkit-appearance: none; -moz-appearance: textfield;`), adhering strictly to the 4-file standalone structure. Integrated across inventory consumption, purchase restock, room transfer, shopping item addition/edition, and individual batch modification.
   - `ConfirmModalComponent`: Reusable confirmation dialog for critical deletions and unsaved modification safeguards without redundant divider lines.
   - `QuickActionsFooterComponent`: Fixed bottom-centered quick actions toolbar present on Home, Pantry, and Products views, providing single-tap access to Quick Consume and continuous Quick Purchase flows.
-  - `PantryQuickConsumeModalComponent` & `QuickConsumeConfirmModalComponent`: Camera-driven barcode scanning workflow for rapid pantry consumption. Scans an item, automatically resolves the earliest expiring batch in stock, and triggers a confirmation dialog featuring an auto-approving countdown timer (configurable per user via `quickConsumeTimerSeconds`, default 10s) and 10-second reversible compensation closure via `UndoService`.
+  - `PantryQuickConsumeModalComponent` & `QuickConsumeConfirmModalComponent`: Camera-driven barcode scanning workflow for rapid pantry consumption. Features concurrency locking (`isScanningLocked` on `BarcodeScannerComponent` and active modal reference tracking on `PantryQuickConsumeModalComponent`) preventing multi-frame duplicate modal triggers, barcode detection anti-bounce cooldown (4 seconds), and autocomplete blur deduplication. Scans an item or accepts an autocomplete selection, automatically resolves the earliest expiring batch in stock, and triggers a confirmation dialog featuring an auto-approving countdown timer (configurable per user via `quickConsumeTimerSeconds`, default 10s) wrapped in `NgZone` to ensure reliable automatic closure upon timeout, an immediate "Mark as Open" button to mark the item opened without waiting for the timer, and 10-second reversible compensation closure via `UndoService`.
+  - `CambusaTitleStrategy`: Custom Angular `TitleStrategy` ensuring unified, brand-aligned page titles (`<Route Title> — Cambusa`) across all application routes (`Dashboard`, `Pantry`, `Shopping List`, `Products Catalog`, `Households`, `Profile & Settings`, `Sign In`), falling back gracefully to `Cambusa — Smart Home Pantry & Grocery Management`.
   - `BackNavigationService`: Intercepts browser back actions (including Android swipe-back gestures) using history state push/pop tracking. Collapsible sections register with the service so pressing Back closes any expanded collapsibles first. If none are open, it closes the topmost open modal dialog in Last-In-First-Out (LIFO) order, only navigating browser history once all overlays and accordion panels are closed. Angular CDK Dialog is configured with `DEFAULT_DIALOG_CONFIG` (`hasBackdrop: true, closeOnNavigation: false`) to guarantee backdrop creation across all dialog instances while safeguarding dialog overlays against unexpected popstate disposal, and `OVERLAY_DEFAULT_CONFIG` (`usePopover: false`) to disable native popover Top Layer promotion, ensuring CSS `backdrop-filter: blur(...)` correctly defocuses the application behind modal backdrops and preserving top-level stacking contexts for `UndoToastComponent`.
 
 ### 2.8 Pantry & Catalog State Synchronization & Search Architecture
@@ -147,8 +150,9 @@ Every household in Cambusa acts as an autonomous data boundary (tenant).
   - Specific stock batches can be modified directly via `StockItemEditorModalComponent`, accessible through `✏️ Edit` buttons on every batch list (in `ProductStockModalComponent`, `PantryActionModalComponent`, and single-batch pantry cards), updating expiration dates, storage locations, purchase prices, purchase notes, batch quantities, and opened states with 10-second undo protection (`UndoService`).
 - **Universal Floating Action Buttons (FAB)**:
   - Primary inventory and catalog creation actions (`+ Add Item` and `💾 Save Current View` in Pantry, `+ Add Product` in Products, and `+ Add Item` in Shopping List) are anchored as universal Floating Action Buttons (FAB) at the bottom-right of the viewport for rapid, one-thumb access across all screen sizes. When `QuickActionsFooterComponent` is mounted, FAB containers automatically elevate (`bottom: 84px` desktop, `bottom: 74px` mobile) to eliminate overlap with the bottom toolbar.
-- **URL & Browser History Synchronization & Instant Filter Reset**:
+- **URL & Browser History Synchronization, Debounced Search & Instant Filter Reset**:
   - Filter criteria (`group`, `location`, `status`, `sort`), text search query (`q`), and active pagination index (`page`) are bi-directionally synchronized with Angular's `ActivatedRoute` and `Router` query parameters across both Pantry and Products Catalog pages.
+  - Text search fields debounce query parameter synchronization by 1 second (1000ms) to prevent polluting browser history with single-character navigation entries, while updating in-memory signals and local filtering results immediately. Explicit clear-search actions and non-text dropdown filters synchronize query parameters immediately without debounce.
   - An instant filter reset button (`Reset Filters` / `Clear Filters`) allows one-click clearing of all search terms and category/location/status/sorting filters, resetting pagination and clearing query parameters from the browser URL.
   - The "Expiring Soon" status filter dynamically reads the user's configured scan horizon (`nextExpiringDays` from the `/next` engine user profile configuration) and reflects the active threshold in the select dropdown label (`Expiring Soon (≤ Nd)`).
   - Synchronous query param restoration avoids overwriting requested page numbers on page reload while asynchronous data fetches complete.
@@ -201,9 +205,15 @@ Every household in Cambusa acts as an autonomous data boundary (tenant).
   - **Two-Column Attention Feed**:
     - Dispatches expired and expiring items into two equal-width parallel columns: "Expired Products" (Column 1) and "Expiring Soon" (Column 2).
     - Removes manual filter buttons and the quick action sidebar, dedicating the full dashboard width to urgent inventory feeds.
+    - Each feed card renders the product photo thumbnail (or package icon fallback) alongside quantity, location, best-before date, and urgency/opened badges, matching the Pantry card styling.
     - Clicking any feed card opens `PantryActionModalComponent` with direct action support.
-  - **Instant Undo Reflection**:
-    - Listens to `UndoService.onUndoExecuted` signal events to automatically reload and recompute dashboard metrics immediately upon undoing a stock action.
+  - **Optimistic State Updates (`applyOptimisticAction`)**:
+    - When inventory operations (`consume`, `open`, `adjustDate`, `move`, `purchase`) are triggered from pantry action modals or the quick actions footer, the dashboard modifies its `nextData` signal state in place immediately.
+    - Total inventory volume, unique product counts, expired/expiring counts, and item lists update with zero latency without triggering API requests or showing loading spinners.
+  - **Zero-Network Snapshot Undo Stack**:
+    - On every user action, a deep copy of the active `NextResponseDto` state is saved into `undoSnapshotStack`.
+    - When `UndoService.onUndoExecuted` fires, the previous dashboard snapshot is popped and restored directly into the `nextData` signal, giving instantaneous 100% network-free undo reflection without reloading data from the server.
+    - If a state refresh is needed outside the snapshot stack, `computeNextDataLocally` derives the full dashboard state deterministically from local IndexedDB data.
 - **Next Engine Feed (`/api/next`)**:
   - Designed for high-frequency dashboard queries and external hardware/software integrations (Home Assistant sensors, e-ink wall displays, CLI scripts).
   - Dual authentication: accepts browser session cookies or machine-to-machine API tokens (`X-API-Key` or `Authorization: Bearer cambusa_ak_...`).
@@ -301,6 +311,6 @@ Every household in Cambusa acts as an autonomous data boundary (tenant).
 | **UI Components & Dialogs** | Angular CDK | v22.x (`@angular/cdk/dialog`, `@angular/cdk/drag-drop`) |
 | **Barcode & QR Scanner** | WebRTC + ZXing | `navigator.mediaDevices.getUserMedia`, native `BarcodeDetector` + `@zxing/browser` fallback |
 | **Local Storage** | IndexedDB | `cambusa_offline_v1` via `OfflineStorageService` |
-| **Caching & PWA** | Service Worker | Cache-First for static assets; Network-First for dynamic API |
+| **Caching & PWA** | Service Worker | Stale-While-Revalidate for static assets; SPA navigation fallback to precached `/index.html`; `PwaUpdateService` with update modal |
 | **Reverse Proxy** | Nginx | Reverse proxy for NestJS API and static asset server |
 | **Process Supervision** | Supervisord | Unified container supervisor managing Nginx and NestJS |

@@ -259,94 +259,94 @@
           </div>
         </div>
       }
+    </div>
 
-      <!-- Mealie Integration Section (Visible only when Mealie is configured and product has associated recipes or foods) -->
-      @if (hasMealieAssociations()) {
-        <div class="mealie-pantry-card">
-          <div class="mealie-card-header">
-            <div class="header-left">
-              <h5><svg lucideUtensils [size]="15"></svg> Mealie Recipes &amp; Foods</h5>
-              @if (mealieRecipes().length > 0) {
-                <span class="badge-count">{{ mealieRecipes().length }} recipes</span>
-              }
-            </div>
-            <button
-              type="button"
-              class="btn-refresh-mealie"
-              [disabled]="isLoadingMealie() || isRefreshingMealie()"
-              (click)="loadMealieRecipes(true)"
-              title="Force refresh recipes directly from Mealie"
-              aria-label="Force refresh recipes directly from Mealie"
-            >
-              <span class="refresh-icon" [class.spinning]="isRefreshingMealie()">
-                <svg lucideRotateCw [size]="15"></svg>
-              </span>
-            </button>
+    <!-- Mealie Integration Section (Visible only when Mealie is configured and product has associated recipes or foods) -->
+    @if (hasMealieAssociations()) {
+      <div class="mealie-pantry-card">
+        <div class="mealie-card-header">
+          <div class="header-left">
+            <h5><svg lucideUtensils [size]="15"></svg> Mealie Recipes &amp; Foods</h5>
+            @if (mealieRecipes().length > 0) {
+              <span class="badge-count">{{ mealieRecipes().length }} recipes</span>
+            }
           </div>
+          <button
+            type="button"
+            class="btn-refresh-mealie"
+            [disabled]="isLoadingMealie() || isRefreshingMealie()"
+            (click)="loadMealieRecipes(true)"
+            title="Force refresh recipes directly from Mealie"
+            aria-label="Force refresh recipes directly from Mealie"
+          >
+            <span class="refresh-icon" [class.spinning]="isRefreshingMealie()">
+              <svg lucideRotateCw [size]="15"></svg>
+            </span>
+          </button>
+        </div>
 
-          @if (isLoadingMealie()) {
-            <div class="mealie-loading">
-              <span class="spinner">⏳</span> Checking Mealie recipes...
-            </div>
-          } @else if (mealieError()) {
-            <div class="mealie-alert-error">
-              <svg lucideAlertCircle [size]="14"></svg> {{ mealieError() }}
-            </div>
-          } @else {
-            <!-- Recipes Subsection: max 3 per row -->
-            <div class="mealie-recipes-section">
-              <span class="section-label">Recipes</span>
-              @if (mealieRecipes().length === 0) {
-                <p class="empty-hint">No recipes found for this product on Mealie.</p>
-              } @else {
-                <div class="recipes-grid">
-                  @for (recipe of mealieRecipes(); track recipe.id) {
-                    <div
-                      class="recipe-card"
-                      (click)="openRecipe(recipe.slug)"
-                      title="Open recipe on Mealie in a new tab"
-                    >
-                      <div class="recipe-thumb-box">
-                        @if (recipe.imageUrl) {
-                          <img [src]="recipe.imageUrl" [alt]="recipe.name" class="recipe-img" loading="lazy" />
-                        } @else {
-                          <div class="recipe-placeholder"><svg lucideUtensils [size]="24"></svg></div>
-                        }
-                      </div>
-                      <div class="recipe-meta">
-                        <span class="recipe-title">{{ recipe.name }}</span>
-                        @if (recipe.totalTime) {
-                          <span class="recipe-time"><svg lucideClock [size]="12"></svg> {{ recipe.totalTime }}</span>
-                        }
-                      </div>
+        @if (isLoadingMealie()) {
+          <div class="mealie-loading">
+            <span class="spinner">⏳</span> Checking Mealie recipes...
+          </div>
+        } @else if (mealieError()) {
+          <div class="mealie-alert-error">
+            <svg lucideAlertCircle [size]="14"></svg> {{ mealieError() }}
+          </div>
+        } @else {
+          <!-- Recipes Subsection: max 3 per row -->
+          <div class="mealie-recipes-section">
+            <span class="section-label">Recipes</span>
+            @if (mealieRecipes().length === 0) {
+              <p class="empty-hint">No recipes found for this product on Mealie.</p>
+            } @else {
+              <div class="recipes-grid">
+                @for (recipe of mealieRecipes(); track recipe.id) {
+                  <div
+                    class="recipe-card"
+                    (click)="openRecipe(recipe.slug)"
+                    title="Open recipe on Mealie in a new tab"
+                  >
+                    <div class="recipe-thumb-box">
+                      @if (recipe.imageUrl) {
+                        <img [src]="recipe.imageUrl" [alt]="recipe.name" class="recipe-img" loading="lazy" />
+                      } @else {
+                        <div class="recipe-placeholder"><svg lucideUtensils [size]="24"></svg></div>
+                      }
                     </div>
-                  }
-                </div>
-              }
-            </div>
-
-            <!-- Foods Subsection: links to ENDPOINT/g/home?foods=UUID -->
-            @if (mealieFoods().length > 0) {
-              <div class="mealie-foods-section">
-                <span class="section-label">Foods</span>
-                <div class="foods-chips-row">
-                  @for (food of mealieFoods(); track food.id) {
-                    <a
-                      [href]="getMealieFoodUrl(food.id)"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="food-link-pill"
-                      title="View all recipes for this food on Mealie"
-                    >
-                      <svg lucideUtensils [size]="12"></svg> {{ food.name }} ↗
-                    </a>
-                  }
-                </div>
+                    <div class="recipe-meta">
+                      <span class="recipe-title">{{ recipe.name }}</span>
+                      @if (recipe.totalTime) {
+                        <span class="recipe-time"><svg lucideClock [size]="12"></svg> {{ recipe.totalTime }}</span>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
             }
+          </div>
+
+          <!-- Foods Subsection: links to ENDPOINT/g/home?foods=UUID -->
+          @if (mealieFoods().length > 0) {
+            <div class="mealie-foods-section">
+              <span class="section-label">Foods</span>
+              <div class="foods-chips-row">
+                @for (food of mealieFoods(); track food.id) {
+                  <a
+                    [href]="getMealieFoodUrl(food.id)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="food-link-pill"
+                    title="View all recipes for this food on Mealie"
+                  >
+                    <svg lucideUtensils [size]="12"></svg> {{ food.name }} ↗
+                  </a>
+                }
+              </div>
+            </div>
           }
-        </div>
+        }
+      </div>
       }
-    </div>
   </div>
 </div>

@@ -21,7 +21,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         !request.url.startsWith('/api/auth/refresh')
       ) {
         const authService = injector.get(AuthService);
-        if (authService.isAuthenticated()) {
+        if (authService.isAuthenticated() || authService.hasCachedUser()) {
           return from(authService.silentRefresh()).pipe(
             switchMap((refreshed) => {
               if (refreshed) {

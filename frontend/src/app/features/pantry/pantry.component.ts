@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, OnInit, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dialog } from '@angular/cdk/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -113,12 +113,14 @@ export class PantryComponent implements OnInit, OnDestroy {
   newFilterName = '';
 
   private subs = new Subscription();
+  private lastLoadedHouseholdId: string | null = null;
 
   constructor() {
     effect(() => {
       const hhId = this.auth.activeHouseholdId();
-      if (hhId) {
-        this.loadData();
+      if (hhId && hhId !== this.lastLoadedHouseholdId) {
+        this.lastLoadedHouseholdId = hhId;
+        untracked(() => this.loadData());
       }
     });
   }
@@ -126,6 +128,7 @@ export class PantryComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.subs.add(
       this.route.queryParams.subscribe((params) => {
+        this.cancelSearchDebounce();
         this.selectedGroupId = params['group'] || '';
         this.selectedLocationId = params['location'] || '';
         this.selectedStatus = params['status'] || 'all';
@@ -140,10 +143,15 @@ export class PantryComponent implements OnInit, OnDestroy {
       }),
     );
 
-    this.loadData();
+    const hhId = this.auth.activeHouseholdId();
+    if (hhId && hhId !== this.lastLoadedHouseholdId) {
+      this.lastLoadedHouseholdId = hhId;
+      this.loadData();
+    }
   }
 
   ngOnDestroy() {
+    this.cancelSearchDebounce();
     this.subs.unsubscribe();
   }
 
@@ -186,6 +194,7 @@ export class PantryComponent implements OnInit, OnDestroy {
   }
 
   clearAllFilters() {
+    this.cancelSearchDebounce();
     this.searchQuery.set('');
     this.selectedGroupId = '';
     this.selectedLocationId = '';
@@ -197,6 +206,7 @@ export class PantryComponent implements OnInit, OnDestroy {
   }
 
   onFilterChange() {
+    this.cancelSearchDebounce();
     this.currentPage.set(1);
     this.syncQueryParams();
     this.applyLocalFilters();
@@ -205,11 +215,12 @@ export class PantryComponent implements OnInit, OnDestroy {
   onSearchChange(val: string) {
     this.searchQuery.set(val);
     this.currentPage.set(1);
-    this.syncQueryParams();
     this.applyLocalFilters();
+    this.debounceSyncQueryParams(1000);
   }
 
   clearSearch() {
+    this.cancelSearchDebounce();
     this.searchQuery.set('');
     this.currentPage.set(1);
     this.syncQueryParams();
@@ -218,9 +229,27 @@ export class PantryComponent implements OnInit, OnDestroy {
 
   goToPage(p: number) {
     if (p < 1 || p > this.totalPages()) return;
+    this.cancelSearchDebounce();
     this.currentPage.set(p);
     this.syncQueryParams();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private debounceSyncQueryParams(delayMs = 1000): void {
+    this.cancelSearchDebounce();
+    this.searchDebounceTimer = setTimeout(() => {
+      this.searchDebounceTimer = null;
+      this.syncQueryParams();
+    }, delayMs);
+  }
+
+  private cancelSearchDebounce(): void {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
   }
 
   syncQueryParams() {
@@ -264,6 +293,8 @@ export class PantryComponent implements OnInit, OnDestroy {
     }
 
     const prodMap = new Map(this.products().map((p) => [p.id, p]));
+    const unitMap = new Map(this.units().map((u) => [u.id, u]));
+    const locMap = new Map(this.locations().map((l) => [l.id, l]));
     let cardItems: PantryCardItem[] = [];
 
     const now = new Date();
@@ -313,8 +344,13 @@ export class PantryComponent implements OnInit, OnDestroy {
       const isOpen = batches.some((b) => b.isOpen);
       const openedCount = batches.filter((b) => b.isOpen).reduce((sum, b) => sum + (b.amount || 1), 0);
 
+      const unit = prod?.quStockId ? unitMap.get(prod.quStockId) : undefined;
       const uniqueLocations = Array.from(
-        new Set(batches.map((b) => b.locationName).filter((l): l is string => !!l)),
+        new Set(
+          batches
+            .map((b) => b.locationName || (b.locationId ? locMap.get(b.locationId)?.name : null))
+            .filter((l): l is string => !!l),
+        ),
       );
       const locationIds = Array.from(
         new Set(batches.map((b) => b.locationId).filter((l): l is string => !!l)),
@@ -323,11 +359,11 @@ export class PantryComponent implements OnInit, OnDestroy {
       cardItems.push({
         id: productId,
         productId,
-        productName: prod?.name || primary.productName,
+        productName: prod?.name || primary.productName || 'Unknown Product',
         productPictureFileName: (prod?.pictureFileNames && prod.pictureFileNames[0]) || primary.productPictureFileName,
         productGroupId: prod?.productGroupId || primary.productGroupId,
         totalAmount,
-        quName: primary.quName,
+        quName: primary.quName || unit?.name || null,
         bestBeforeDate: primary.bestBeforeDate,
         urgency: overallUrgency,
         isOpen,
@@ -421,6 +457,19 @@ export class PantryComponent implements OnInit, OnDestroy {
     return `${diffDays}d left`;
   }
 
+  private resolveItemDisplay(item: PantryCardItem | StockItem, batch?: StockItem): { productName: string; quName: string | null } {
+    const productId = batch?.productId || item.productId;
+    const prod = productId ? this.products().find((p) => p.id === productId) : undefined;
+    const unit = prod?.quStockId ? this.units().find((u) => u.id === prod.quStockId) : undefined;
+    const cardProductName = 'productName' in item ? item.productName : undefined;
+    const cardQuName = 'quName' in item ? item.quName : undefined;
+
+    return {
+      productName: prod?.name || batch?.productName || cardProductName || 'Item',
+      quName: batch?.quName || cardQuName || unit?.name || null,
+    };
+  }
+
   async adjustStockDate(item: PantryCardItem | StockItem, newDate: string | null) {
     const targetItem = 'primaryStockItem' in item ? item.primaryStockItem : item;
     const previousDate = targetItem.bestBeforeDate;
@@ -428,8 +477,9 @@ export class PantryComponent implements OnInit, OnDestroy {
     targetItem.bestBeforeDate = newDate;
     this.applyLocalFilters();
 
+    const { productName } = this.resolveItemDisplay(item, targetItem);
     this.undoService.register({
-      description: `Changed expiry of ${targetItem.productName} to ${newDate || 'Never'}`,
+      description: `Changed expiry of ${productName} to ${newDate || 'Never'}`,
       onUndo: async () => {
         await this.api.adjustDate(targetItem.id, { explicitDate: previousDate || undefined });
         targetItem.bestBeforeDate = previousDate;
@@ -466,8 +516,9 @@ export class PantryComponent implements OnInit, OnDestroy {
     const result = await this.api.openStock(targetBatch.id, 1);
     await this.loadStock();
 
+    const { productName, quName } = this.resolveItemDisplay(item, targetBatch);
     this.undoService.register({
-      description: `Opened 1 ${targetBatch.quName || 'unit'} of ${targetBatch.productName}`,
+      description: `Opened 1 ${quName || 'unit'} of ${productName}`,
       onUndo: async () => {
         await this.api.revertOpen({
           openedStockItemId: result.openedStockItem.id,
@@ -487,8 +538,9 @@ export class PantryComponent implements OnInit, OnDestroy {
     await this.api.consumeStock(targetItem.id, amount);
     await this.loadStock();
 
+    const { productName, quName } = this.resolveItemDisplay(item, targetItem);
     this.undoService.register({
-      description: `Consumed ${amount} ${targetItem.quName || 'units'} of ${targetItem.productName}`,
+      description: `Consumed ${amount} ${quName || 'units'} of ${productName}`,
       onUndo: async () => {
         await this.api.addStock({
           productId: targetItem.productId,

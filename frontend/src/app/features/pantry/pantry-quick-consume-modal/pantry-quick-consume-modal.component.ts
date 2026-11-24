@@ -9,7 +9,10 @@ import { UndoService } from '../../../core/undo.service.js';
 import { Product, StockItem } from '../../../core/models.js';
 import { AutocompleteDirective, AutocompleteOption } from '../../../shared/directives/autocomplete.directive.js';
 import { BarcodeScannerComponent } from '../../../shared/components/barcode-scanner/barcode-scanner.component.js';
-import { QuickConsumeConfirmModalComponent } from '../quick-consume-confirm-modal/quick-consume-confirm-modal.component.js';
+import {
+  QuickConsumeConfirmAction,
+  QuickConsumeConfirmModalComponent,
+} from '../quick-consume-confirm-modal/quick-consume-confirm-modal.component.js';
 
 @Component({
   selector: 'app-pantry-quick-consume-modal',
@@ -33,6 +36,9 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly undoService = inject(UndoService);
   private subs = new Subscription();
+  private activeConfirmRef: DialogRef<QuickConsumeConfirmAction> | null = null;
+  private lastProcessedBarcode: string | null = null;
+  private lastProcessedTime = 0;
 
   @ViewChild('productInput') productInputElement?: ElementRef<HTMLInputElement>;
 
@@ -85,6 +91,10 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.activeConfirmRef) {
+      this.activeConfirmRef.close('cancel');
+      this.activeConfirmRef = null;
+    }
     this.subs.unsubscribe();
   }
 
@@ -95,6 +105,17 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
   async onBarcodeScanned(code: string): Promise<void> {
     const val = code.trim();
     if (!val) return;
+
+    // Concurrency guard: if already processing or modal open, ignore new scan events
+    if (this.isProcessing() || this.activeConfirmRef) {
+      return;
+    }
+
+    // Cooldown guard: ignore the same barcode if scanned within 4 seconds
+    const now = Date.now();
+    if (this.lastProcessedBarcode === val && now - this.lastProcessedTime < 4000) {
+      return;
+    }
 
     this.isScannerOpen.set(false);
     this.errorMessage.set(null);
@@ -112,9 +133,18 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
   }
 
   async onProductSelected(id: string | null): Promise<void> {
+    if (!id) {
+      this.selectedProductId.set(null);
+      return;
+    }
+
+    // Concurrency guard: if already processing or modal open, ignore duplicate selection
+    if (this.isProcessing() || this.activeConfirmRef) {
+      return;
+    }
+
     this.selectedProductId.set(id);
     this.errorMessage.set(null);
-    if (!id) return;
 
     const product = this.products().find((p) => p.id === id);
     if (product) {
@@ -123,8 +153,15 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
   }
 
   async processProduct(product: Product): Promise<void> {
+    if (this.isProcessing() || this.activeConfirmRef) {
+      return;
+    }
+
     this.isProcessing.set(true);
     this.errorMessage.set(null);
+
+    // Defocus input to avoid any spurious blur events triggering autocomplete
+    this.productInputElement?.nativeElement.blur();
 
     try {
       const stock = await this.api.getStock();
@@ -146,7 +183,7 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
       const targetBatch = sortedBatches[0];
 
       // Open confirm modal with auto-approve countdown
-      const confirmRef = this.dialog.open<boolean>(QuickConsumeConfirmModalComponent, {
+      const confirmRef = this.dialog.open<QuickConsumeConfirmAction>(QuickConsumeConfirmModalComponent, {
         disableClose: true,
         data: {
           product,
@@ -154,9 +191,26 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
           timerSeconds: this.timerSeconds(),
         },
       });
+      this.activeConfirmRef = confirmRef;
 
-      const confirmed = await firstValueFrom(confirmRef.closed);
-      if (confirmed) {
+      const action = await firstValueFrom(confirmRef.closed);
+      if (action === 'consume') {
+        await this.api.consumeStock(targetBatch.id, 1);
+
+        this.undoService.register({
+          description: `Consumed 1x ${product.name}`,
+          undo: async () => {
+            await this.api.addStock({
+              productId: product.id,
+              amount: 1,
+              locationId: targetBatch.locationId,
+              bestBeforeDate: targetBatch.bestBeforeDate,
+            });
+          },
+        });
+
+        this.errorMessage.set(null);
+      } else if (action === 'open') {
         const openRes = await this.api.openStock(targetBatch.id, 1);
 
         this.undoService.register({
@@ -175,9 +229,13 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
 
         this.errorMessage.set(null);
       }
+
+      this.lastProcessedBarcode = product.barcodes?.[0] || null;
+      this.lastProcessedTime = Date.now();
     } catch (err: any) {
-      this.errorMessage.set(`Failed to open stock: ${err?.message || err}`);
+      this.errorMessage.set(`Failed to process stock: ${err?.message || err}`);
     } finally {
+      this.activeConfirmRef = null;
       this.isProcessing.set(false);
       this.resetFields(true); // reset fields and re-open scanner for next item
     }
@@ -195,6 +253,10 @@ export class PantryQuickConsumeModalComponent implements OnInit, OnDestroy {
   }
 
   close(): void {
+    if (this.activeConfirmRef) {
+      this.activeConfirmRef.close('cancel');
+      this.activeConfirmRef = null;
+    }
     this.dialogRef.close();
   }
 }

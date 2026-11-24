@@ -137,4 +137,16 @@
   gap: 10px;
   border-top: 1px solid var(--border, #334155);
   background-color: rgba(255, 255, 255, 0.02);
+  flex-wrap: wrap;
+
+  .btn-mark-open {
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+
+    &:hover {
+      background-color: rgba(245, 158, 11, 0.18);
+      border-color: #f59e0b;
+      color: #fef3c7;
+    }
+  }
 }

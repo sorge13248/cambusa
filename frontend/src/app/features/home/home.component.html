@@ -103,6 +103,13 @@
                 title="Click to manage stock, consume, move, or adjust expiration"
               >
                 <div class="item-indicator-bar danger-bar"></div>
+                <div class="card-photo">
+                  @if (item.productPictureFileName) {
+                    <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+                  } @else {
+                    <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
+                  }
+                </div>
                 <div class="item-main">
                   <div class="item-name-row">
                     <span class="product-name">{{ item.productName }}</span>
@@ -155,6 +162,13 @@
                 title="Click to manage stock, consume, move, or adjust expiration"
               >
                 <div class="item-indicator-bar warning-bar"></div>
+                <div class="card-photo">
+                  @if (item.productPictureFileName) {
+                    <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+                  } @else {
+                    <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
+                  }
+                </div>
                 <div class="item-main">
                   <div class="item-name-row">
                     <span class="product-name">{{ item.productName }}</span>
@@ -183,5 +197,5 @@
     </div>
   }
 
-  <app-quick-actions-footer (stockChanged)="loadDashboardData()"></app-quick-actions-footer>
+  <app-quick-actions-footer (stockChanged)="onQuickStockChanged()"></app-quick-actions-footer>
 </div>

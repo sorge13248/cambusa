@@ -5,7 +5,7 @@
       <span class="header-icon"><svg lucidePencil [size]="18"></svg></span>
       <div class="header-title-box">
         <h3>Edit Stock Batch</h3>
-        <p class="subtitle">Modify expiration, storage location, price, and purchase notes for <strong>{{ data.stockItem.productName }}</strong></p>
+        <p class="subtitle">Modify expiration, storage location, price, and purchase notes for <strong>{{ data.stockItem.productName || data.product?.name }}</strong></p>
       </div>
     </div>
     <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="cancel()" title="Close dialog" aria-label="Close dialog">

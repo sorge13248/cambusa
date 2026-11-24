@@ -57,6 +57,7 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
   private nativeScanTimer: any = null;
   private rotationCanvas: HTMLCanvasElement | null = null;
   private lastScannedTimestamp = 0;
+  private isScanningLocked = false;
   private isDestroyed = false;
 
   async ngOnInit(): Promise<void> {
@@ -109,6 +110,7 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
   async startCamera(): Promise<void> {
     this.stopCamera();
     this.errorMessage.set(null);
+    this.isScanningLocked = false;
 
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       const msg = 'Camera access is not supported by your browser or connection is not secure (HTTPS required).';
@@ -278,6 +280,7 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
    */
   private startDetection(): void {
     this.stopDetection();
+    this.isScanningLocked = false;
 
     if (this.nativeBarcodeDetector) {
       this.runNativeScanLoop();
@@ -454,6 +457,10 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
     const trimmed = code.trim();
     if (!trimmed) return;
 
+    if (this.isScanningLocked && !this.continuous()) {
+      return;
+    }
+
     const now = Date.now();
     if (this.lastScannedCode() === trimmed && now - this.lastScannedTimestamp < this.cooldownMs()) {
       return;
@@ -468,6 +475,7 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
     this.scanned.emit(trimmed);
 
     if (!this.continuous()) {
+      this.isScanningLocked = true;
       this.stopDetection();
     }
   }
@@ -523,6 +531,7 @@ export class BarcodeScannerComponent implements OnInit, AfterViewInit, OnDestroy
    * Emits close event when user clicks the close button.
    */
   onClose(): void {
+    this.isScanningLocked = false;
     this.stopCamera();
     this.close.emit();
   }

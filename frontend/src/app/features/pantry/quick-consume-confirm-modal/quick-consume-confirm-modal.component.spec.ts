@@ -39,13 +39,36 @@ describe('QuickConsumeConfirmModalComponent', () => {
     expect(component.progressPercent()).toBe(100);
   });
 
-  it('should close with true on confirm', () => {
+  it('should close with consume on confirm', () => {
     component.confirm();
-    expect(mockDialogRef.close).toHaveBeenCalledWith(true);
+    expect(mockDialogRef.close).toHaveBeenCalledWith('consume');
   });
 
-  it('should close with false on cancel', () => {
+  it('should close with open on markAsOpen immediately without waiting for timer', () => {
+    component.markAsOpen();
+    expect(mockDialogRef.close).toHaveBeenCalledWith('open');
+  });
+
+  it('should close with cancel on cancel', () => {
     component.cancel();
-    expect(mockDialogRef.close).toHaveBeenCalledWith(false);
+    expect(mockDialogRef.close).toHaveBeenCalledWith('cancel');
+  });
+
+  it('should auto-confirm and close with consume when countdown reaches zero', () => {
+    vi.useFakeTimers();
+    const mockRef = { close: vi.fn() };
+    const customFixture = TestBed.createComponent(QuickConsumeConfirmModalComponent);
+    const customComponent = customFixture.componentInstance;
+    (customComponent as any).dialogRef = mockRef;
+    (customComponent as any).totalSeconds = 2;
+
+    customComponent.ngOnInit();
+    expect(mockRef.close).not.toHaveBeenCalled();
+
+    // Advance timer past totalSeconds
+    vi.advanceTimersByTime(2100);
+    expect(mockRef.close).toHaveBeenCalledWith('consume');
+    customComponent.ngOnDestroy();
+    vi.useRealTimers();
   });
 });

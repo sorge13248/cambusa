@@ -14,6 +14,7 @@ import {
 } from '@lucide/angular';
 import { AuthService } from '../core/auth.service.js';
 import { SyncService } from '../core/sync.service.js';
+import { PwaUpdateService } from '../core/pwa-update.service.js';
 import { BackNavigationService } from '../core/back-navigation.service.js';
 import { SyncIndicatorComponent } from '../shared/components/sync-indicator/sync-indicator.component.js';
 import { UndoToastComponent } from '../shared/components/undo-toast/undo-toast.component.js';
@@ -46,6 +47,7 @@ export class AppShellComponent implements OnInit {
   readonly auth = inject(AuthService);
   readonly sync = inject(SyncService);
   readonly router = inject(Router);
+  readonly pwaUpdate = inject(PwaUpdateService);
   private readonly backNav = inject(BackNavigationService);
 
   readonly isHouseholdMenuOpen = signal<boolean>(false);

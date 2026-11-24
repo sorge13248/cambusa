@@ -155,6 +155,39 @@ export class SyncService {
       }
     }
 
+    if (changes.deletions && changes.deletions.length > 0) {
+      for (const del of changes.deletions) {
+        if (!del.entityId || !del.entityType) continue;
+        const entityType = del.entityType;
+        const id = del.entityId;
+        if (entityType === 'stock' || entityType === 'stock_item') {
+          await this.stockRepository.delete({ id, householdId });
+        } else if (entityType === 'product') {
+          await this.productsRepository.delete({ id, householdId });
+        } else if (entityType === 'shopping_item') {
+          await this.shoppingItemsRepository.delete({ id, householdId });
+        } else if (entityType === 'shopping_list') {
+          await this.shoppingListsRepository.delete({ id, householdId });
+        } else if (entityType === 'unit') {
+          await this.unitsRepository.delete({ id, householdId });
+        } else if (entityType === 'group') {
+          await this.groupsRepository.delete({ id, householdId });
+        } else if (entityType === 'location') {
+          await this.locationsRepository.delete({ id, householdId });
+        } else if (entityType === 'store') {
+          await this.storesRepository.delete({ id, householdId });
+        }
+        await this.tombstonesRepository.save(
+          this.tombstonesRepository.create({
+            householdId,
+            entityType: entityType === 'stock' ? 'stock_item' : entityType,
+            entityId: id,
+            deletedAt: new Date(),
+          }),
+        );
+      }
+    }
+
     // 2. Query Server Changes & Tombstones since lastSyncDate
     const filter = (_entity?: string) => {
       if (!lastSyncDate) return { householdId };

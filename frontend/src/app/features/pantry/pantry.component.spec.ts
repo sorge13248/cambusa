@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { provideRouter } from '@angular/router';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { Router, provideRouter } from '@angular/router';
 import { PantryComponent } from './pantry.component.js';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
@@ -76,6 +76,11 @@ describe('PantryComponent', () => {
     fixture.detectChanges();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
   it('should create and load stock', () => {
     expect(component).toBeTruthy();
     expect(mockApiService.getStock).toHaveBeenCalled();
@@ -104,6 +109,49 @@ describe('PantryComponent', () => {
     component.applyLocalFilters();
     expect(component.totalItems()).toBe(0);
     expect(component.paginatedStock().length).toBe(0);
+  });
+
+  it('should debounce syncQueryParams by 1s when onSearchChange is called', () => {
+    vi.useFakeTimers();
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.onSearchChange('r');
+    component.onSearchChange('ra');
+    component.onSearchChange('ragù');
+
+    expect(component.totalItems()).toBe(1);
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+    expect(navigateSpy).toHaveBeenCalledTimes(1);
+    expect(navigateSpy).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({ q: 'ragù' }),
+      }),
+    );
+  });
+
+  it('should sync queryParams immediately on clearSearch without waiting 1s', () => {
+    vi.useFakeTimers();
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.onSearchChange('ragù');
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    component.clearSearch();
+    expect(navigateSpy).toHaveBeenCalledTimes(1);
+    expect(navigateSpy).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({ q: null }),
+      }),
+    );
   });
 
   it('should open PantryAddItemModalComponent on openAddStockModal', () => {
@@ -212,5 +260,28 @@ describe('PantryComponent', () => {
 
     expect(mockApiService.openStock).toHaveBeenCalledWith('s2', 1);
     expect(mockUndoService.register).toHaveBeenCalled();
+  });
+
+  it('resolves productName and quName from catalogs/products when batch lacks denormalized fields on openOne', async () => {
+    component.products.set([{ id: 'p1', name: 'Olive Oil', quStockId: 'u-bottle' } as any]);
+    component.units.set([{ id: 'u-bottle', name: 'Bottle' } as any]);
+    const rawBatch = { id: 's-raw', productId: 'p1', amount: 2, bestBeforeDate: '2026-12-01', isOpen: false } as any;
+    const item = {
+      id: 'p1',
+      productId: 'p1',
+      productName: 'Olive Oil',
+      batches: [rawBatch],
+      primaryStockItem: rawBatch,
+      totalAmount: 2,
+      isOpen: false,
+    } as any;
+
+    await component.openOne(item);
+
+    expect(mockUndoService.register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Opened 1 Bottle of Olive Oil',
+      }),
+    );
   });
 });

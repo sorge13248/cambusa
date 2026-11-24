@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit, output, signal } from '@angular/core';
+import { Component, effect, inject, OnInit, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dialog } from '@angular/cdk/dialog';
 import {
@@ -11,6 +11,8 @@ import {
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { ApiService } from '../../../../core/api.service.js';
+import { AuthService } from '../../../../core/auth.service.js';
+import { SyncService } from '../../../../core/sync.service.js';
 import { Aisle, Store } from '../../../../core/models.js';
 import { TabItem, TabViewComponent } from '../../../../shared/components/tab-view/tab-view.component.js';
 import {
@@ -48,7 +50,12 @@ export type DomainTab = 'stores' | 'aisles';
 })
 export class ProfileDomainsComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService, { optional: true });
+  private readonly syncService = inject(SyncService, { optional: true });
   private readonly dialog = inject(Dialog);
+
+  private lastLoadedHouseholdId: string | null = null;
+  private lastSyncCount = 0;
 
   readonly activeDomainTab = signal<DomainTab>('stores');
 
@@ -74,8 +81,30 @@ export class ProfileDomainsComponent implements OnInit {
 
   readonly toast = output<{ type: 'success' | 'error'; message: string }>();
 
+  constructor() {
+    effect(() => {
+      const hhId = this.auth?.activeHouseholdId() ?? null;
+      if (hhId && hhId !== this.lastLoadedHouseholdId) {
+        this.lastLoadedHouseholdId = hhId;
+        untracked(() => this.loadStores());
+      }
+    });
+
+    effect(() => {
+      const syncCount = this.syncService?.onSyncCompleted() ?? 0;
+      if (syncCount > 0 && syncCount !== this.lastSyncCount) {
+        this.lastSyncCount = syncCount;
+        untracked(() => this.loadStores());
+      }
+    });
+  }
+
   ngOnInit(): void {
-    this.loadStores();
+    const hhId = this.auth?.activeHouseholdId() ?? null;
+    if (!hhId || hhId !== this.lastLoadedHouseholdId) {
+      this.lastLoadedHouseholdId = hhId;
+      this.loadStores();
+    }
   }
 
   showToast(type: 'success' | 'error', message: string): void {

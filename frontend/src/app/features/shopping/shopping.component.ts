@@ -1,5 +1,5 @@
 import { CommonModule, CurrencyPipe } from '@angular/common';
-import { Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, OnInit, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dialog } from '@angular/cdk/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -90,6 +90,7 @@ export class ShoppingComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
 
   private queryParamSub?: Subscription;
+  private lastLoadedHouseholdId: string | null = null;
 
   readonly shoppingLists = signal<ShoppingList[]>([]);
   readonly selectedListId = signal<string>('');
@@ -103,7 +104,7 @@ export class ShoppingComponent implements OnInit, OnDestroy {
   readonly shoppingListTabs = computed<TabItem[]>(() => {
     return this.shoppingLists().map((l) => ({
       id: l.id,
-      label: l.name + (l.isDefault ? ' ★' : '') + (l.storeId ? ` (${this.getStoreName(l.storeId)})` : ''),
+      label: l.name + (l.isDefault ? ' ★' : ''),
       icon: l.storeId ? '🏬' : '🛒',
       lucideIcon: l.storeId ? 'store' : 'shopping-cart',
     }));
@@ -187,14 +188,19 @@ export class ShoppingComponent implements OnInit, OnDestroy {
   constructor() {
     effect(() => {
       const hhId = this.auth.activeHouseholdId();
-      if (hhId) {
-        this.loadData();
+      if (hhId && hhId !== this.lastLoadedHouseholdId) {
+        this.lastLoadedHouseholdId = hhId;
+        untracked(() => this.loadData());
       }
     });
   }
 
   ngOnInit(): void {
-    this.loadData();
+    const hhId = this.auth.activeHouseholdId();
+    if (hhId && hhId !== this.lastLoadedHouseholdId) {
+      this.lastLoadedHouseholdId = hhId;
+      this.loadData();
+    }
 
     // Listen to queryparam changes (browser back, forward, refresh)
     this.queryParamSub = this.route.queryParamMap.subscribe((params) => {

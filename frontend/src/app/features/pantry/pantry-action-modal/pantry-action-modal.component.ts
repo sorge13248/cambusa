@@ -71,6 +71,7 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   readonly activeAction = signal<ActionType>('none');
   readonly currentStockItems = signal<StockItem[]>([...this.data.stockItems]);
   productModified = false;
+  lastAction: any = null;
   private subs = new Subscription();
 
   // Consume state
@@ -310,6 +311,13 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     await this.api.adjustDate(item.id, { explicitDate: newDate || undefined });
     item.bestBeforeDate = newDate;
     this.productModified = true;
+    this.lastAction = {
+      action: 'adjustDate',
+      stockItemId: item.id,
+      newDate,
+      previousDate,
+      productId: this.data.product.id,
+    };
     this.currentStockItems.update((items) =>
       items.map((s) => (s.id === item.id ? { ...s, bestBeforeDate: newDate } : s)),
     );
@@ -354,6 +362,15 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
           });
         },
       });
+
+      this.dialogRef.close({
+        refreshed: true,
+        action: 'open',
+        stockItemId: targetItem.id,
+        amount,
+        productId: this.data.product.id,
+        updatedProduct: this.productModified ? this.data.product : undefined,
+      });
     } else {
       await this.api.consumeStock(targetItem.id, amount, {
         isSpoiled: this.consumeIsSpoiled,
@@ -371,13 +388,27 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
           });
         },
       });
-    }
 
-    this.dialogRef.close({ refreshed: true, updatedProduct: this.productModified ? this.data.product : undefined });
+      this.dialogRef.close({
+        refreshed: true,
+        action: 'consume',
+        stockItemId: targetItem.id,
+        amount,
+        productId: this.data.product.id,
+        updatedProduct: this.productModified ? this.data.product : undefined,
+      });
+    }
   }
 
   onPurchaseSubmitted(_item: StockItem): void {
-    this.dialogRef.close({ refreshed: true, updatedProduct: this.productModified ? this.data.product : undefined });
+    this.dialogRef.close({
+      refreshed: true,
+      action: 'purchase',
+      stockItem: _item,
+      amount: _item.amount,
+      productId: this.data.product.id,
+      updatedProduct: this.productModified ? this.data.product : undefined,
+    });
   }
 
   async submitMove(): Promise<void> {
@@ -412,7 +443,15 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
       },
     });
 
-    this.dialogRef.close({ refreshed: true, updatedProduct: this.productModified ? this.data.product : undefined });
+    this.dialogRef.close({
+      refreshed: true,
+      action: 'move',
+      stockItemId: this.moveStockItemId || items[0]?.id,
+      locationName: destLoc?.name || 'New Location',
+      amount: this.moveAmount,
+      productId: this.data.product.id,
+      updatedProduct: this.productModified ? this.data.product : undefined,
+    });
   }
 
   async requestClose(): Promise<void> {
@@ -432,6 +471,12 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   }
 
   close(): void {
-    this.dialogRef.close(this.productModified ? { refreshed: true, updatedProduct: this.data.product } : undefined);
+    this.dialogRef.close(
+      this.lastAction
+        ? { refreshed: true, ...this.lastAction, updatedProduct: this.data.product }
+        : this.productModified
+          ? { refreshed: true, updatedProduct: this.data.product }
+          : undefined,
+    );
   }
 }

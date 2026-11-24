@@ -193,6 +193,14 @@ export class AuthController {
     @Req() request: HttpRequest,
     @Res({ passthrough: true }) response: HttpResponse,
   ) {
+    const issuer = process.env.OIDC_ISSUER_URL?.trim();
+    if (!issuer) {
+      // In development when OIDC is not configured, renew dev session cookies
+      response.cookie(COOKIE_ACCESS_TOKEN, 'dev-access-token', this.sessionCookieOptions());
+      response.cookie(COOKIE_ID_TOKEN, 'dev-id-token', this.sessionCookieOptions());
+      return { refreshed: true, expiresIn: 3600 };
+    }
+
     const cookies = parseCookieHeader(request.headers.cookie);
     const refreshToken = cookies[COOKIE_REFRESH_TOKEN];
 

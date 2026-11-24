@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AppShellComponent } from './app-shell.component.js';
 import { AuthService } from '../core/auth.service.js';
 import { SyncService } from '../core/sync.service.js';
+import { PwaUpdateService } from '../core/pwa-update.service.js';
 import { provideRouter } from '@angular/router';
 import { signal } from '@angular/core';
 
@@ -33,13 +34,20 @@ describe('AppShellComponent', () => {
     sync: vi.fn().mockResolvedValue(true),
   };
 
+  const mockPwaUpdateService = {
+    updateAvailable: signal(false),
+    promptUpdate: vi.fn(),
+  };
+
   beforeEach(async () => {
+    mockPwaUpdateService.updateAvailable.set(false);
     await TestBed.configureTestingModule({
       imports: [AppShellComponent],
       providers: [
         provideRouter([]),
         { provide: AuthService, useValue: mockAuthService },
         { provide: SyncService, useValue: mockSyncService },
+        { provide: PwaUpdateService, useValue: mockPwaUpdateService },
       ],
     }).compileComponents();
 
@@ -111,5 +119,23 @@ describe('AppShellComponent', () => {
     const img = fixture.nativeElement.querySelector('.user-avatar-icon img');
     expect(img).toBeTruthy();
     expect(img.getAttribute('src')).toBe('https://avatar.test/pic.png');
+  });
+
+  it('should not display update button when no update is available', () => {
+    mockPwaUpdateService.updateAvailable.set(false);
+    fixture.detectChanges();
+    const btn = fixture.nativeElement.querySelector('.update-pill-btn');
+    expect(btn).toBeNull();
+  });
+
+  it('should display update button and call promptUpdate on click when update is available', () => {
+    mockPwaUpdateService.updateAvailable.set(true);
+    fixture.detectChanges();
+    const btn = fixture.nativeElement.querySelector('.update-pill-btn') as HTMLButtonElement | null;
+    expect(btn).toBeTruthy();
+    expect(btn?.textContent).toContain('Update Available');
+
+    btn?.click();
+    expect(mockPwaUpdateService.promptUpdate).toHaveBeenCalled();
   });
 });

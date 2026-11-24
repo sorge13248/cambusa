@@ -303,6 +303,7 @@ export interface NextItemDto {
   id: string;
   productId: string;
   productName: string;
+  productPictureFileName?: string | null;
   amount: number;
   quantityUnit: string;
   location: string;

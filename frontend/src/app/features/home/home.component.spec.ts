@@ -27,6 +27,7 @@ describe('HomeComponent', () => {
         id: 'item-exp-1',
         productId: 'prod-1',
         productName: 'Organic Milk',
+        productPictureFileName: 'milk.webp',
         amount: 1,
         quantityUnit: 'bottle',
         location: 'Fridge',
@@ -40,6 +41,7 @@ describe('HomeComponent', () => {
         id: 'item-soon-1',
         productId: 'prod-2',
         productName: 'Cheddar Cheese',
+        productPictureFileName: null,
         amount: 2,
         quantityUnit: 'pack',
         location: 'Fridge',
@@ -66,6 +68,7 @@ describe('HomeComponent', () => {
     getProducts: vi.fn().mockResolvedValue([]),
     getGroups: vi.fn().mockResolvedValue([]),
     getProductGroups: vi.fn().mockResolvedValue([]),
+    computeNextDataLocally: vi.fn().mockReturnValue(mockNextData),
   };
 
   const mockAuthService = {
@@ -126,13 +129,58 @@ describe('HomeComponent', () => {
     expect(['Good morning', 'Good afternoon', 'Good evening']).toContain(greeting);
   });
 
-  it('reloads dashboard data when undo is executed', async () => {
+  it('restores dashboard snapshot optimistically when undo is executed without reloading API', async () => {
     await component.ngOnInit();
-    const loadSpy = vi.spyOn(component, 'loadDashboardData');
+    const originalStock = component.nextData()?.summary.totalStockItems;
+
+    component.applyOptimisticAction({
+      action: 'consume',
+      stockItemId: 'item-exp-1',
+      productId: 'prod-1',
+      amount: 1,
+    });
+    expect(component.nextData()?.summary.totalStockItems).not.toBe(originalStock);
+
+    const getNextCalls = mockApiService.getNext.mock.calls.length;
     const undoService = TestBed.inject(UndoService);
     undoService.onUndoExecuted.update((c) => c + 1);
     TestBed.flushEffects();
-    expect(loadSpy).toHaveBeenCalled();
+
+    expect(mockApiService.getNext.mock.calls.length).toBe(getNextCalls);
+    expect(component.nextData()?.summary.totalStockItems).toBe(originalStock);
+  });
+
+  it('updates dashboard optimistically without reloading or calling API when item is consumed', async () => {
+    await component.ngOnInit();
+    const getNextCallsBefore = mockApiService.getNext.mock.calls.length;
+
+    component.applyOptimisticAction({
+      action: 'consume',
+      stockItemId: 'item-exp-1',
+      productId: 'prod-1',
+      amount: 1,
+    });
+
+    expect(mockApiService.getNext.mock.calls.length).toBe(getNextCallsBefore);
+    expect(component.nextData()?.expired.length).toBe(0);
+    expect(component.nextData()?.summary.expiredCount).toBe(0);
+    expect(component.nextData()?.summary.totalStockItems).toBe(37.5);
+  });
+
+  it('updates dashboard optimistically when expiration date is adjusted', async () => {
+    await component.ngOnInit();
+    const getNextCallsBefore = mockApiService.getNext.mock.calls.length;
+
+    component.applyOptimisticAction({
+      action: 'adjustDate',
+      stockItemId: 'item-exp-1',
+      productId: 'prod-1',
+      newDate: '2026-11-25',
+    });
+
+    expect(mockApiService.getNext.mock.calls.length).toBe(getNextCallsBefore);
+    expect(component.nextData()?.expired.length).toBe(0);
+    expect(component.nextData()?.summary.expiredCount).toBe(0);
   });
 
   it('handles API error gracefully', async () => {
@@ -174,5 +222,20 @@ describe('HomeComponent', () => {
     const img = fixture.nativeElement.querySelector('.welcome-avatar img');
     expect(img).toBeTruthy();
     expect(img.getAttribute('src')).toBe('https://avatar.test/alex.webp');
+  });
+
+  it('renders product picture when productPictureFileName is present and fallback icon otherwise', async () => {
+    await component.ngOnInit();
+    fixture.detectChanges();
+
+    const expiredCardImg = fixture.nativeElement.querySelector('.expired-column .card-photo img');
+    expect(expiredCardImg).toBeTruthy();
+    expect(expiredCardImg.getAttribute('src')).toBe('/api/products/pictures/milk.webp');
+    expect(expiredCardImg.getAttribute('alt')).toBe('Organic Milk');
+
+    const expiringCardImg = fixture.nativeElement.querySelector('.expiring-column .card-photo img');
+    const expiringFallback = fixture.nativeElement.querySelector('.expiring-column .card-photo .no-photo-thumb');
+    expect(expiringCardImg).toBeNull();
+    expect(expiringFallback).toBeTruthy();
   });
 });

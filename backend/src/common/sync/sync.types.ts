@@ -22,6 +22,7 @@ export interface SyncPayloadDto {
       locations?: Array<Partial<Location>>;
       stores?: Array<Partial<Store>>;
     };
+    deletions?: Array<{ entityType: string; entityId: string }>;
   };
 }
 

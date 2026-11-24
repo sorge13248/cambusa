@@ -42,8 +42,9 @@ Food waste is costly and frustrating, grocery planning across family members can
 - **Batch & Location Control**: Group inventory into unified product cards while tracking distinct batches across pantries, refrigerators, and freezers.
 - **Freezer Protection**: Guard items with freezer-safety constraints (`cannotBeFrozen`), preventing assignment or movement to freezer locations, filtering out freezer storage options across purchase, move, and edit dialogs, automatically nullifying freeze/thaw shelf life fields on the database, and recalculating expiration dates upon freezing and thawing for freezable goods.
 - **Accurate Actions & Batch Splitting**: Easily record items as **Consumed** (with spoiled waste tracking), **Open 1** (splitting individual units from multi-item batches to track opened shelf life with 10-second undo reversal), **Purchased** (with price and store details), or **Moved** between rooms using parameterizable `NumberStepperComponent` controls.
-- **Quick Pantry Actions Footer (Quick Consume & Quick Purchase)**: Fixed bottom-centered toolbar across Home, Pantry, and Products views. "Quick Purchase" enables high-speed continuous barcode scanning and immediate inventory addition. "Quick Consume" scans barcodes, selects the earliest-expiring batch, and displays a confirmation dialog with an auto-approving countdown timer (default 10s, configurable in profile) before returning directly to camera scanning for the next item.
+- **Quick Pantry Actions Footer (Quick Consume & Quick Purchase)**: Fixed bottom-centered toolbar across Home, Pantry, and Products views. "Quick Purchase" enables high-speed continuous barcode scanning and immediate inventory addition. "Quick Consume" scans barcodes, selects the earliest-expiring batch, and displays a confirmation dialog with an auto-approving countdown timer (default 10s, configurable in profile) to consume the batch (featuring a dedicated "Mark as Open" button to open the item immediately without waiting for the timer) before returning directly to camera scanning for the next item.
 - **Universal Floating Action Buttons (FAB)**: Rapid one-thumb access to "+ Add Item" (Pantry and Shopping), "+ Add Product" (Catalog), and "Save View" via bottom-right floating action buttons across desktop and mobile, automatically elevated when the quick actions toolbar is active.
+- **Dynamic Route Titles**: Every application view dynamically synchronizes the browser tab title (`<Page Name> — Cambusa`) through a centralized `CambusaTitleStrategy`.
 - **Instant Search & Filters**: Search catalog names and descriptions in real time, filter by category or storage location, and save your favorite view presets.
 - **Lucide Vector Iconography**: Crisp, theme-aligned vector icons from `@lucide/angular` replacing generic system emojis across navigation, dialogs, buttons, and status indicators.
 - **Mobile-Optimized Experience**: Full-screen square-edge modals on mobile with unified secondary-styled close buttons matching modal header action buttons, responsive store aisle card layout, barcode scan icon-only controls on mobile viewports, centered confirmation dialogs, and two-column shopping card metadata.
@@ -71,12 +72,14 @@ Food waste is costly and frustrating, grocery planning across family members can
 
 ### ⚡ Accident-Proof 10-Second Undo
 - Tapped "Consume" or "Purchased" by mistake? Cambusa gives you a persistent 10-second countdown toast on every inventory mutation.
-- A single click reverses the entire operation cleanly without manual database corrections.
+- A single click reverses the entire operation cleanly without manual database corrections, instantly restoring dashboard state via snapshot undo without network requests.
 
-### 📶 Offline-First PWA Resilience
-- Built from the ground up as an offline-first Progressive Web Application.
-- Works offline via client-side IndexedDB storage and Cache-First Service Workers.
-- Transparent bi-directional synchronization with Last-Write-Wins (LWW) conflict resolution and tombstone deletion tracking once your device reconnects.
+### 📶 Offline-First PWA Resilience & Local Mutation Pipeline
+- Built from the ground up as a pure offline-first Progressive Web Application: all user mutations across inventory, shopping lists, and products write directly to IndexedDB before background synchronization, eliminating direct REST mutation calls.
+- Works seamlessly offline via client-side IndexedDB storage (`cambusa_offline_v1`), SPA navigation fallback, and Stale-While-Revalidate Service Worker caching.
+- Optimistic dashboard updates modify UI state in-place with zero loading flicker or API overhead.
+- Automated version check with interactive update modal prompting users to reload when a new release is available, alongside a persistent topbar update badge.
+- Transparent bi-directional synchronization via `POST /api/sync` with Last-Write-Wins (LWW) conflict resolution and tombstone deletion tracking once your device reconnects.
 
 ### 📷 In-Browser Barcode & QR Code Scanner
 - **Direct Web-Embedded Viewfinder**: Scans barcodes and QR codes directly within the web page via WebRTC, bypassing external OS camera apps or file chooser popups.

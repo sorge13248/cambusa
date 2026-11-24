@@ -113,8 +113,9 @@ export class StockItemEditorModalComponent {
       const updated = await this.api.updateStockItem(this.data.stockItem.id, patchData);
 
       // Register undo closure according to 10-second reversible mutation rule
+      const productName = this.data.stockItem.productName || this.data.product?.name || 'Item';
       this.undoService.register(
-        `Updated batch for "${this.data.stockItem.productName}"`,
+        `Updated batch for "${productName}"`,
         async () => {
           await this.api.updateStockItem(oldItem.id, {
             amount: oldItem.amount,

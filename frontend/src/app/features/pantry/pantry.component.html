@@ -20,7 +20,7 @@
             placeholder="Search title or description..."
           />
           @if (searchQuery().trim()) {
-            <button class="btn-clear-search" (click)="onSearchChange('')" aria-label="Clear search">
+            <button class="btn-clear-search" (click)="clearSearch()" aria-label="Clear search">
               <svg lucideX [size]="14"></svg>
             </button>
           }

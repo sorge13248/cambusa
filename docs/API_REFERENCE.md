@@ -443,6 +443,7 @@ All errors follow standard RFC 7807 JSON schemas:
       "id": "stock-uuid-1",
       "productId": "prod-uuid-1",
       "productName": "Whole Milk",
+      "productPictureFileName": "prod-uuid-1-0.webp",
       "amount": 1,
       "quantityUnit": "Bottle",
       "location": "Kitchen Refrigerator",
@@ -456,6 +457,7 @@ All errors follow standard RFC 7807 JSON schemas:
       "id": "stock-uuid-2",
       "productId": "prod-uuid-2",
       "productName": "Greek Yogurt",
+      "productPictureFileName": null,
       "amount": 2,
       "quantityUnit": "Cup",
       "location": "Kitchen Refrigerator",
@@ -580,7 +582,13 @@ All errors follow standard RFC 7807 JSON schemas:
     "stock": [],
     "shoppingListItems": [],
     "shoppingLists": []
-  }
+  },
+  "deletions": [
+    {
+      "entityType": "stock",
+      "entityId": "item-uuid"
+    }
+  ]
 }
 ```
 - **Response**:

@@ -1,6 +1,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { AuthService } from './core/auth.service.js';
 import { SyncService } from './core/sync.service.js';
+import { PwaUpdateService } from './core/pwa-update.service.js';
 import { AppShellComponent } from './layout/app-shell.component.js';
 
 @Component({
@@ -13,8 +14,10 @@ import { AppShellComponent } from './layout/app-shell.component.js';
 export class App implements OnInit {
   private auth = inject(AuthService);
   private sync = inject(SyncService);
+  private pwaUpdate = inject(PwaUpdateService);
 
   async ngOnInit(): Promise<void> {
+    this.pwaUpdate.init();
     try {
       await this.auth.init();
       if (this.auth.isAuthenticated()) {

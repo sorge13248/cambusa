@@ -6,6 +6,8 @@ import { Component } from '@angular/core';
 import { appConfig } from './app.config.js';
 import { DEFAULT_DIALOG_CONFIG, Dialog } from '@angular/cdk/dialog';
 import { OVERLAY_DEFAULT_CONFIG } from '@angular/cdk/overlay';
+import { TitleStrategy } from '@angular/router';
+import { CambusaTitleStrategy } from './core/title-strategy.js';
 
 @Component({
   standalone: true,
@@ -33,6 +35,15 @@ describe('AppConfig', () => {
 
     expect(overlayProvider).toBeDefined();
     expect(overlayProvider.useValue).toEqual({ usePopover: false });
+  });
+
+  it('should provide TitleStrategy with CambusaTitleStrategy', () => {
+    const titleProvider = appConfig.providers.find(
+      (p: any) => p && p.provide === TitleStrategy
+    ) as any;
+
+    expect(titleProvider).toBeDefined();
+    expect(titleProvider.useClass).toBe(CambusaTitleStrategy);
   });
 
   it('should open dialog with standard DOM overlay container and backdrop without popover attribute', () => {

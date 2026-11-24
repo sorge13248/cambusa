@@ -85,7 +85,9 @@ describe('PantryActionModalComponent', () => {
 
   it('should close dialog when purchase is submitted', () => {
     component.onPurchaseSubmitted({ id: 's-purchase' } as any);
-    expect(mockDialogRef.close).toHaveBeenCalledWith({ refreshed: true, updatedProduct: undefined });
+    expect(mockDialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ refreshed: true, updatedProduct: undefined }),
+    );
   });
 
   it('should update productModified and currentStockItems on quick date change', async () => {
