@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { compareByName } from './sorting.utils.js';
 import {
   Location,
   NextResponseDto,
@@ -431,30 +432,37 @@ export class OfflineStorageService {
     const cached = await this.getMeta(key);
     if (cached) {
       return {
-        units: cached.units || [],
-        groups: cached.groups || [],
-        locations: cached.locations || [],
-        stores: cached.stores || [],
+        units: [...(cached.units || [])].sort(compareByName),
+        groups: [...(cached.groups || [])].sort(compareByName),
+        locations: [...(cached.locations || [])].sort(compareByName),
+        stores: [...(cached.stores || [])].sort(compareByName),
       };
     }
-    return (
-      this.memoryStore.catalogs.get(key) ?? {
-        units: [],
-        groups: [],
-        locations: [],
-        stores: [],
-      }
-    );
+    const mem = this.memoryStore.catalogs.get(key);
+    if (mem) {
+      return {
+        units: [...mem.units].sort(compareByName),
+        groups: [...mem.groups].sort(compareByName),
+        locations: [...mem.locations].sort(compareByName),
+        stores: [...mem.stores].sort(compareByName),
+      };
+    }
+    return {
+      units: [],
+      groups: [],
+      locations: [],
+      stores: [],
+    };
   }
 
-  private mergeCatalogList<T extends { id: string }>(
+  private mergeCatalogList<T extends { id: string; name?: string | null }>(
     existing: T[],
     incoming: T[] | undefined,
     replace: boolean,
   ): T[] {
-    if (!incoming) return existing;
-    if (replace) return [...incoming];
-    if (incoming.length === 0) return existing;
+    if (!incoming) return [...existing].sort(compareByName);
+    if (replace) return [...incoming].sort(compareByName);
+    if (incoming.length === 0) return [...existing].sort(compareByName);
 
     const map = new Map<string, T>();
     for (const item of existing) {
@@ -464,7 +472,7 @@ export class OfflineStorageService {
       const prev = map.get(item.id);
       map.set(item.id, prev ? { ...prev, ...item } : item);
     }
-    return Array.from(map.values());
+    return Array.from(map.values()).sort(compareByName);
   }
 
   async saveCatalogs(

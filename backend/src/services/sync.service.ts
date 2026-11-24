@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThan, Repository } from 'typeorm';
+import { compareByName } from '../common/sorting.utils.js';
 import { SyncPayloadDto, SyncResponseDto } from '../common/sync/sync.types.js';
 import {
   Location,
@@ -201,10 +202,10 @@ export class SyncService {
       where: filter('shopping_list'),
       order: { sortOrder: 'ASC', isDefault: 'DESC', name: 'ASC' },
     });
-    const serverUnits = await this.unitsRepository.find({ where: filter('unit') });
-    const serverGroups = await this.groupsRepository.find({ where: filter('group') });
-    const serverLocations = await this.locationsRepository.find({ where: filter('location') });
-    const serverStores = await this.storesRepository.find({ where: filter('store') });
+    const serverUnits = (await this.unitsRepository.find({ where: filter('unit') })).sort(compareByName);
+    const serverGroups = (await this.groupsRepository.find({ where: filter('group') })).sort(compareByName);
+    const serverLocations = (await this.locationsRepository.find({ where: filter('location') })).sort(compareByName);
+    const serverStores = (await this.storesRepository.find({ where: filter('store') })).sort(compareByName);
 
     const tombstones = lastSyncDate
       ? await this.tombstonesRepository.find({

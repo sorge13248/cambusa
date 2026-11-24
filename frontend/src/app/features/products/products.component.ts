@@ -16,6 +16,7 @@ import {
 } from '@lucide/angular';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
+import { compareByName } from '../../core/sorting.utils.js';
 import { SyncService } from '../../core/sync.service.js';
 import {
   Location,
@@ -156,10 +157,10 @@ export class ProductsComponent implements OnInit, OnDestroy {
       ]);
 
       this.products.set(prods);
-      this.productGroups.set(groups);
-      this.locations.set(locs);
-      this.units.set(units);
-      this.stores.set(stores);
+      this.productGroups.set([...groups].sort(compareByName));
+      this.locations.set([...locs].sort(compareByName));
+      this.units.set([...units].sort(compareByName));
+      this.stores.set([...stores].sort(compareByName));
 
       this.applyFilter();
     } finally {

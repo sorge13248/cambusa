@@ -5,6 +5,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { LucideX } from '@lucide/angular';
 import { ShoppingList, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName } from '../../../core/sorting.utils.js';
 
 export interface ShoppingListModalData {
   shoppingList?: ShoppingList | null;
@@ -27,6 +28,10 @@ export class ShoppingListModalComponent implements OnInit {
   storeId: string | null = null;
   isDefault = false;
   readonly isSaving = signal<boolean>(false);
+
+  get sortedStores(): Store[] {
+    return [...(this.data.stores || [])].sort(compareByName);
+  }
 
   ngOnInit() {
     if (this.data.shoppingList) {

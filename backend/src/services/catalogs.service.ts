@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { compareByName, compareByNumericOrder } from '../common/sorting.utils.js';
 import { Aisle, Location, ProductGroup, QuantityUnit, Store, SyncTombstone } from '../entities/index.js';
 
 @Injectable()
@@ -22,10 +23,11 @@ export class CatalogsService {
 
   // Quantity Units
   async getUnits(householdId: string): Promise<QuantityUnit[]> {
-    return this.unitsRepository.find({
+    const units = await this.unitsRepository.find({
       where: { householdId, active: true },
       order: { name: 'ASC' },
     });
+    return units.sort(compareByName);
   }
 
   async createUnit(householdId: string, data: Partial<QuantityUnit>): Promise<QuantityUnit> {
@@ -51,10 +53,11 @@ export class CatalogsService {
 
   // Product Groups
   async getGroups(householdId: string): Promise<ProductGroup[]> {
-    return this.groupsRepository.find({
+    const groups = await this.groupsRepository.find({
       where: { householdId, active: true },
       order: { name: 'ASC' },
     });
+    return groups.sort(compareByName);
   }
 
   async createGroup(householdId: string, data: Partial<ProductGroup>): Promise<ProductGroup> {
@@ -80,10 +83,11 @@ export class CatalogsService {
 
   // Locations
   async getLocations(householdId: string): Promise<Location[]> {
-    return this.locationsRepository.find({
+    const locations = await this.locationsRepository.find({
       where: { householdId, active: true },
       order: { name: 'ASC' },
     });
+    return locations.sort(compareByName);
   }
 
   async createLocation(householdId: string, data: Partial<Location>): Promise<Location> {
@@ -109,10 +113,11 @@ export class CatalogsService {
 
   // Stores
   async getStores(householdId: string): Promise<Store[]> {
-    return this.storesRepository.find({
+    const stores = await this.storesRepository.find({
       where: { householdId, active: true },
       order: { name: 'ASC' },
     });
+    return stores.sort(compareByName);
   }
 
   async createStore(householdId: string, data: Partial<Store>): Promise<Store> {
@@ -142,17 +147,19 @@ export class CatalogsService {
     if (storeId) {
       where.storeId = storeId;
     }
-    return this.aislesRepository.find({
+    const aisles = await this.aislesRepository.find({
       where,
       order: { sortOrder: 'ASC', name: 'ASC' },
     });
+    return aisles.sort(compareByNumericOrder);
   }
 
   async getStoreAisles(storeId: string, householdId: string): Promise<Aisle[]> {
-    return this.aislesRepository.find({
+    const aisles = await this.aislesRepository.find({
       where: { storeId, householdId },
       order: { sortOrder: 'ASC', name: 'ASC' },
     });
+    return aisles.sort(compareByNumericOrder);
   }
 
   async createAisle(

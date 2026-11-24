@@ -29,6 +29,7 @@ import {
   ProfileDataDto,
 } from './models.js';
 import { OfflineStorageService } from './offline-storage.service.js';
+import { compareByName, compareByNumericOrder } from './sorting.utils.js';
 import { SyncService } from './sync.service.js';
 
 @Injectable({ providedIn: 'root' })
@@ -159,23 +160,24 @@ export class ApiService {
       const cat = await this.storage.getCatalogs(hhId);
       if (isHydrated && cat[key].length > 0) {
         this.syncService.sync().catch(() => {});
-        return cat[key] as any;
+        return [...cat[key]].sort(compareByName) as any;
       }
       await this.syncService.sync().catch(() => {});
       const ref = await this.storage.getCatalogs(hhId);
       const nowHydrated = await this.syncService.isHouseholdHydrated(hhId);
       if (nowHydrated || (!isOnline && ref[key].length > 0)) {
-        return ref[key] as any;
+        return [...ref[key]].sort(compareByName) as any;
       }
     }
     try {
       const items = await firstValueFrom(this.http.get<any[]>(endpoint, this.options));
-      await this.storage.saveCatalogs(hhId || 'default', { [key]: items }, { replace: true });
-      return items as any;
+      const sorted = [...items].sort(compareByName);
+      await this.storage.saveCatalogs(hhId || 'default', { [key]: sorted }, { replace: true });
+      return sorted as any;
     } catch {
       if (hhId) {
         const fallback = await this.storage.getCatalogs(hhId);
-        return fallback[key] as any;
+        return [...fallback[key]].sort(compareByName) as any;
       }
       return [] as any;
     }
@@ -324,22 +326,24 @@ export class ApiService {
     try {
       const params = storeId ? `?storeId=${encodeURIComponent(storeId)}` : '';
       const remote = await firstValueFrom(this.http.get<Aisle[]>(`/api/catalogs/aisles${params}`, this.options));
+      const sortedRemote = [...remote].sort(compareByNumericOrder);
       if (!storeId) {
-        await this.storage.setMeta(cacheKey, remote);
+        await this.storage.setMeta(cacheKey, sortedRemote);
       } else {
         const existing = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
         if (Array.isArray(existing)) {
-          const merged = [...existing.filter((a) => a.storeId !== storeId), ...remote];
+          const merged = [...existing.filter((a) => a.storeId !== storeId), ...sortedRemote].sort(compareByNumericOrder);
           await this.storage.setMeta(cacheKey, merged);
         } else {
-          await this.storage.setMeta(cacheKey, remote);
+          await this.storage.setMeta(cacheKey, sortedRemote);
         }
       }
-      return remote;
+      return sortedRemote;
     } catch {
       const cached = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
       if (Array.isArray(cached)) {
-        return storeId ? cached.filter((a) => a.storeId === storeId) : cached;
+        const list = storeId ? cached.filter((a) => a.storeId === storeId) : cached;
+        return [...list].sort(compareByNumericOrder);
       }
       return [];
     }
@@ -352,34 +356,71 @@ export class ApiService {
       const remote = await firstValueFrom(
         this.http.get<Aisle[]>(`/api/catalogs/stores/${storeId}/aisles`, this.options),
       );
+      const sortedRemote = [...remote].sort(compareByNumericOrder);
       const existing = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
-      const merged = Array.isArray(existing)
-        ? [...existing.filter((a) => a.storeId !== storeId), ...remote]
-        : remote;
+      const merged = (Array.isArray(existing)
+        ? [...existing.filter((a) => a.storeId !== storeId), ...sortedRemote]
+        : sortedRemote
+      ).sort(compareByNumericOrder);
       await this.storage.setMeta(cacheKey, merged);
-      return remote;
+      return sortedRemote;
     } catch {
       const cached = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
-      return Array.isArray(cached) ? cached.filter((a) => a.storeId === storeId) : [];
+      return Array.isArray(cached)
+        ? cached.filter((a) => a.storeId === storeId).sort(compareByNumericOrder)
+        : [];
     }
   }
 
-  createAisle(storeId: string, data: { name: string; sortOrder?: number }): Promise<Aisle> {
-    return firstValueFrom(this.http.post<Aisle>(`/api/catalogs/stores/${storeId}/aisles`, data, this.options));
+  async createAisle(storeId: string, data: { name: string; sortOrder?: number }): Promise<Aisle> {
+    const created = await firstValueFrom(
+      this.http.post<Aisle>(`/api/catalogs/stores/${storeId}/aisles`, data, this.options),
+    );
+    const hhId = this.activeHouseholdId() || 'default';
+    const cacheKey = `aisles_${hhId}`;
+    const existing = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
+    if (Array.isArray(existing)) {
+      const merged = [...existing.filter((a) => a.id !== created.id), created].sort(compareByNumericOrder);
+      await this.storage.setMeta(cacheKey, merged);
+    }
+    return created;
   }
 
-  updateAisle(id: string, data: { name?: string; sortOrder?: number }): Promise<Aisle> {
-    return firstValueFrom(this.http.put<Aisle>(`/api/catalogs/aisles/${id}`, data, this.options));
+  async updateAisle(id: string, data: { name?: string; sortOrder?: number }): Promise<Aisle> {
+    const updated = await firstValueFrom(this.http.put<Aisle>(`/api/catalogs/aisles/${id}`, data, this.options));
+    const hhId = this.activeHouseholdId() || 'default';
+    const cacheKey = `aisles_${hhId}`;
+    const existing = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
+    if (Array.isArray(existing)) {
+      const merged = existing.map((a) => (a.id === id ? updated : a)).sort(compareByNumericOrder);
+      await this.storage.setMeta(cacheKey, merged);
+    }
+    return updated;
   }
 
-  deleteAisle(id: string): Promise<void> {
-    return firstValueFrom(this.http.delete<void>(`/api/catalogs/aisles/${id}`, this.options));
+  async deleteAisle(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete<void>(`/api/catalogs/aisles/${id}`, this.options));
+    const hhId = this.activeHouseholdId() || 'default';
+    const cacheKey = `aisles_${hhId}`;
+    const existing = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
+    if (Array.isArray(existing)) {
+      await this.storage.setMeta(cacheKey, existing.filter((a) => a.id !== id));
+    }
   }
 
-  reorderStoreAisles(storeId: string, aisleIds: string[]): Promise<Aisle[]> {
-    return firstValueFrom(
+  async reorderStoreAisles(storeId: string, aisleIds: string[]): Promise<Aisle[]> {
+    const reordered = await firstValueFrom(
       this.http.post<Aisle[]>(`/api/catalogs/stores/${storeId}/aisles/reorder`, { aisleIds }, this.options),
     );
+    const sorted = [...reordered].sort(compareByNumericOrder);
+    const hhId = this.activeHouseholdId() || 'default';
+    const cacheKey = `aisles_${hhId}`;
+    const existing = (await this.storage.getMeta(cacheKey)) as Aisle[] | null;
+    if (Array.isArray(existing)) {
+      const merged = [...existing.filter((a) => a.storeId !== storeId), ...sorted].sort(compareByNumericOrder);
+      await this.storage.setMeta(cacheKey, merged);
+    }
+    return sorted;
   }
 
   // Product Store

@@ -6,6 +6,7 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { LucideCamera, LucidePackage, LucideSparkles, LucideX } from '@lucide/angular';
 import { Product, ShoppingListItem, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName } from '../../../core/sorting.utils.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
 import { LocalDatePipe } from '../../../shared/pipes/local-date.pipe.js';
 import { BarcodeScannerComponent } from '../../../shared/components/barcode-scanner/barcode-scanner.component.js';
@@ -58,6 +59,10 @@ export class ShoppingAddModalComponent implements OnInit, AfterViewInit, OnDestr
 
   readonly earliestExpDate = signal<string | null>(null);
   readonly isSaving = signal<boolean>(false);
+
+  get sortedStores(): Store[] {
+    return [...(this.data.stores || [])].sort(compareByName);
+  }
 
   private initialSnapshot = '';
   private subs = new Subscription();

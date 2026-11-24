@@ -3,6 +3,7 @@ import { Component, EventEmitter, inject, Input, OnChanges, OnInit, Output, Simp
 import { FormsModule } from '@angular/forms';
 import { Location, Product, QuantityUnit, StockItem, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName } from '../../../core/sorting.utils.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { CdkDatepickerComponent } from '../../../shared/components/datepicker/cdk-datepicker.component.js';
 import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
@@ -41,10 +42,14 @@ export class StockPurchaseFormComponent implements OnInit, OnChanges {
   isSubmitting = false;
 
   get availableLocations(): Location[] {
-    if (this.product?.cannotBeFrozen) {
-      return (this.locations || []).filter((l) => !l.isFreezer);
-    }
-    return this.locations || [];
+    const base = this.product?.cannotBeFrozen
+      ? (this.locations || []).filter((l) => !l.isFreezer)
+      : [...(this.locations || [])];
+    return base.sort(compareByName);
+  }
+
+  get sortedStores(): Store[] {
+    return [...(this.stores || [])].sort(compareByName);
   }
 
   get stockUnitName(): string {

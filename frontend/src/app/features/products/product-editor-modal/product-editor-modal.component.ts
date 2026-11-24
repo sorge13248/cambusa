@@ -16,6 +16,7 @@ import {
   Aisle,
 } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName, compareByNumericOrder } from '../../../core/sorting.utils.js';
 import { CollapsibleSectionComponent } from '../../../shared/components/collapsible-section/collapsible-section.component.js';
 import { AutocompleteDirective, AutocompleteOption } from '../../../shared/directives/autocomplete.directive.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
@@ -329,6 +330,9 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
           if (!grouped[a.storeId]) grouped[a.storeId] = [];
           grouped[a.storeId].push(a);
         }
+        for (const storeId of Object.keys(grouped)) {
+          grouped[storeId].sort(compareByNumericOrder);
+        }
         this.storeAisles.set(grouped);
       })
       .catch(() => {});
@@ -483,11 +487,23 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
     this.barcodes.set(list);
   }
 
+  sortedProductGroups(): ProductGroup[] {
+    return [...(this.data.productGroups || [])].sort(compareByName);
+  }
+
+  sortedStores(): Store[] {
+    return [...(this.data.stores || [])].sort(compareByName);
+  }
+
+  sortedUnits(): QuantityUnit[] {
+    return [...(this.data.units || [])].sort(compareByName);
+  }
+
   availableLocations(): Location[] {
-    if (this.formProduct.cannotBeFrozen) {
-      return (this.data.locations || []).filter((l) => !l.isFreezer);
-    }
-    return this.data.locations || [];
+    const base = this.formProduct.cannotBeFrozen
+      ? (this.data.locations || []).filter((l) => !l.isFreezer)
+      : [...(this.data.locations || [])];
+    return base.sort(compareByName);
   }
 
   onCannotBeFrozenChange(checked: boolean): void {

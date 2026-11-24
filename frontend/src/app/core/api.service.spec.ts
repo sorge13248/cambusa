@@ -208,4 +208,22 @@ describe('ApiService', () => {
     expect(nextData.expired[0].productPictureFileName).toBe('milk.webp');
     expect(nextData.expiringSoon[0].productPictureFileName).toBeNull();
   });
+
+  it('returns aisles sorted numerically by user-defined sortOrder', async () => {
+    api.activeHouseholdId.set('hh-aisles');
+
+    const promise = api.getStoreAisles('store-1');
+    await new Promise((r) => setTimeout(r, 0));
+
+    const req = httpMock.expectOne('/api/catalogs/stores/store-1/aisles');
+    expect(req.request.method).toBe('GET');
+    req.flush([
+      { id: 'a10', householdId: 'hh-aisles', storeId: 'store-1', name: 'Frozen', sortOrder: 10 },
+      { id: 'a2', householdId: 'hh-aisles', storeId: 'store-1', name: 'Bakery', sortOrder: 2 },
+      { id: 'a1', householdId: 'hh-aisles', storeId: 'store-1', name: 'Produce', sortOrder: 1 },
+    ]);
+
+    const aisles = await promise;
+    expect(aisles.map((a) => a.sortOrder)).toEqual([1, 2, 10]);
+  });
 });

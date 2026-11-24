@@ -12,6 +12,7 @@ import {
 } from '@angular/cdk/drag-drop';
 import { ApiService } from '../../../../core/api.service.js';
 import { AuthService } from '../../../../core/auth.service.js';
+import { compareByName, compareByNumericOrder } from '../../../../core/sorting.utils.js';
 import { SyncService } from '../../../../core/sync.service.js';
 import { Aisle, Store } from '../../../../core/models.js';
 import { TabItem, TabViewComponent } from '../../../../shared/components/tab-view/tab-view.component.js';
@@ -113,7 +114,7 @@ export class ProfileDomainsComponent implements OnInit {
 
   async loadStores(): Promise<void> {
     try {
-      const list = await this.api.getStores();
+      const list = [...(await this.api.getStores())].sort(compareByName);
       this.stores.set(list);
       if (list.length > 0) {
         if (!this.selectedAisleStoreId() || !list.some((s) => s.id === this.selectedAisleStoreId())) {
@@ -209,7 +210,7 @@ export class ProfileDomainsComponent implements OnInit {
   async loadStoreAisles(storeId: string): Promise<void> {
     this.isLoadingAisles.set(true);
     try {
-      const aisles = await this.api.getStoreAisles(storeId);
+      const aisles = [...(await this.api.getStoreAisles(storeId))].sort(compareByNumericOrder);
       this.currentStoreAisles.set(aisles);
     } catch {
       this.currentStoreAisles.set([]);
@@ -225,7 +226,7 @@ export class ProfileDomainsComponent implements OnInit {
 
     try {
       const created = await this.api.createAisle(storeId, { name });
-      this.currentStoreAisles.update((list) => [...list, created]);
+      this.currentStoreAisles.update((list) => [...list, created].sort(compareByNumericOrder));
       this.newAisleName.set('');
       this.showToast('success', `Aisle "${created.name}" created`);
     } catch {
@@ -253,7 +254,7 @@ export class ProfileDomainsComponent implements OnInit {
     try {
       const updated = await this.api.updateAisle(aisle.id, { name });
       this.currentStoreAisles.update((list) =>
-        list.map((a) => (a.id === aisle.id ? { ...a, name: updated.name } : a)),
+        list.map((a) => (a.id === aisle.id ? { ...a, ...updated } : a)).sort(compareByNumericOrder),
       );
       this.cancelAisleEdit();
       this.showToast('success', 'Aisle renamed');

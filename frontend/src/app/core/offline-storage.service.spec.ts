@@ -150,4 +150,35 @@ describe('OfflineStorageService', () => {
     const afterDelete = await service.getCatalogs('hh-1');
     expect(afterDelete.locations.map((l) => l.id)).toEqual(['l2']);
   });
+
+  it('always returns units, groups, locations, and stores sorted alphabetically by name', async () => {
+    await service.saveCatalogs(
+      'hh-sort',
+      {
+        units: [
+          { id: 'u2', householdId: 'hh-sort', name: 'Piece', namePlural: 'Pieces', description: null, active: true },
+          { id: 'u1', householdId: 'hh-sort', name: 'bag', namePlural: 'bags', description: null, active: true },
+        ],
+        groups: [
+          { id: 'g2', householdId: 'hh-sort', name: 'Snacks', description: null, active: true },
+          { id: 'g1', householdId: 'hh-sort', name: 'bakery', description: null, active: true },
+        ],
+        locations: [
+          { id: 'l2', householdId: 'hh-sort', name: 'Pantry', description: null, isFreezer: false, active: true },
+          { id: 'l1', householdId: 'hh-sort', name: 'cellar', description: null, isFreezer: false, active: true },
+        ],
+        stores: [
+          { id: 's2', householdId: 'hh-sort', name: 'Esselunga', description: null, active: true },
+          { id: 's1', householdId: 'hh-sort', name: 'aldi', description: null, active: true },
+        ],
+      },
+      { replace: true },
+    );
+
+    const cat = await service.getCatalogs('hh-sort');
+    expect(cat.units.map((u) => u.name)).toEqual(['bag', 'Piece']);
+    expect(cat.groups.map((g) => g.name)).toEqual(['bakery', 'Snacks']);
+    expect(cat.locations.map((l) => l.name)).toEqual(['cellar', 'Pantry']);
+    expect(cat.stores.map((s) => s.name)).toEqual(['aldi', 'Esselunga']);
+  });
 });

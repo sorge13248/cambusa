@@ -279,20 +279,24 @@ export class ShoppingListService {
       };
     });
 
-    // Sort by aisle order, then aisle, then custom sortOrder, then productName
+    // Sort by aisle order (numeric, nulls last), then aisle, then custom sortOrder, then productName
     return enriched.sort((a, b) => {
       // Completed items go below pending items
       if (a.done !== b.done) {
         return a.done ? 1 : -1;
       }
 
-      if (a.aisleOrder !== null && b.aisleOrder !== null && a.aisleOrder !== b.aisleOrder) {
-        return a.aisleOrder - b.aisleOrder;
+      const aOrder = a.aisleOrder !== null && a.aisleOrder !== undefined ? Number(a.aisleOrder) : Number.MAX_SAFE_INTEGER;
+      const bOrder = b.aisleOrder !== null && b.aisleOrder !== undefined ? Number(b.aisleOrder) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
       }
 
       if (a.aisle && b.aisle && a.aisle !== b.aisle) {
-        return a.aisle.localeCompare(b.aisle);
+        return a.aisle.localeCompare(b.aisle, undefined, { sensitivity: 'base' }) || a.aisle.localeCompare(b.aisle);
       }
+      if (a.aisle && !b.aisle) return -1;
+      if (!a.aisle && b.aisle) return 1;
 
       if (a.sortOrder !== b.sortOrder) {
         return a.sortOrder - b.sortOrder;

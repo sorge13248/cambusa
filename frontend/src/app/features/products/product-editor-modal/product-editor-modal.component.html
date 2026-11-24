@@ -63,7 +63,7 @@
         <label>Product Group / Category</label>
         <select [(ngModel)]="formProduct.productGroupId">
           <option [ngValue]="null">None</option>
-          @for (g of data.productGroups; track g.id) {
+          @for (g of sortedProductGroups(); track g.id) {
             <option [value]="g.id">{{ g.name }}</option>
           }
         </select>
@@ -202,7 +202,7 @@
         <label>Default Store</label>
         <select [(ngModel)]="formProduct.defaultStoreId">
           <option [ngValue]="null">No default store</option>
-          @for (s of data.stores; track s.id) {
+          @for (s of sortedStores(); track s.id) {
             <option [value]="s.id">{{ s.name }}</option>
           }
         </select>
@@ -308,7 +308,7 @@
           <label>Quantity Unit</label>
           <select [(ngModel)]="formProduct.quStockId">
             <option [ngValue]="null">None (Units)</option>
-            @for (u of data.units; track u.id) {
+            @for (u of sortedUnits(); track u.id) {
               <option [value]="u.id">{{ u.name }}</option>
             }
           </select>
@@ -409,7 +409,7 @@
         Configure store-specific supermarket aisles and prices for optimized shopping list routes.
       </p>
 
-      @for (store of data.stores; track store.id) {
+      @for (store of sortedStores(); track store.id) {
         <div class="store-row-editor">
           <span class="store-name-label">{{ store.name }}</span>
           @if ((storeAisles()[store.id]?.length || 0) > 0) {

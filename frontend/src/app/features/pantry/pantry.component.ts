@@ -6,6 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
+import { compareByName } from '../../core/sorting.utils.js';
 import { UndoService } from '../../core/undo.service.js';
 import { calculateProductTotalStock } from '../../core/stock-utils.js';
 import {
@@ -175,10 +176,10 @@ export class PantryComponent implements OnInit, OnDestroy {
 
       this.stock.set(items);
       this.products.set(prods);
-      this.locations.set(locs);
-      this.productGroups.set(groups);
-      this.stores.set(stores);
-      this.units.set(units);
+      this.locations.set([...locs].sort(compareByName));
+      this.productGroups.set([...groups].sort(compareByName));
+      this.stores.set([...stores].sort(compareByName));
+      this.units.set([...units].sort(compareByName));
       this.savedFilters.set(filters);
 
       this.applyLocalFilters();

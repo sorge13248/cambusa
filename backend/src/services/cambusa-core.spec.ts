@@ -23,6 +23,7 @@ import { HouseholdsService } from './households.service.js';
 import { ProductsService } from './products.service.js';
 import { ShoppingListService } from './shopping-list.service.js';
 import { StockService } from './stock.service.js';
+import { SyncService } from './sync.service.js';
 import { UsersService } from './users.service.js';
 
 describe('Cambusa Core Business Logic & Invariants', () => {
@@ -33,6 +34,7 @@ describe('Cambusa Core Business Logic & Invariants', () => {
   let productsService: ProductsService;
   let stockService: StockService;
   let shoppingListService: ShoppingListService;
+  let syncService: SyncService;
 
   beforeEach(async () => {
     dataSource = new DataSource({
@@ -94,6 +96,17 @@ describe('Cambusa Core Business Logic & Invariants', () => {
       storeRepo,
       unitRepo,
       groupRepo,
+      tombstoneRepo,
+    );
+    syncService = new SyncService(
+      productRepo,
+      stockRepo,
+      shoppingItemRepo,
+      shoppingListRepo,
+      unitRepo,
+      groupRepo,
+      locationRepo,
+      storeRepo,
       tombstoneRepo,
     );
   });
@@ -692,5 +705,55 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     // Original restored to 3
     const restoredOrig = await dataSource.getRepository(StockItem).findOne({ where: { id: stock.id } });
     expect(restoredOrig?.amount).toBe(3);
+  });
+
+  it('15. Sorts product groups, locations, stores, and quantity units alphabetically by name, and aisles numerically by user-defined sortOrder', async () => {
+    const user = await usersService.ensureUser({ id: 'u15', subject: 'sub-u15', email: 'u15@example.com', displayName: 'User 15' });
+    const hh = await householdsService.getDefaultHousehold(user.id);
+    expect(hh).toBeTruthy();
+
+    await catalogsService.createGroup(hh!.id, { name: 'Snacks' });
+    await catalogsService.createGroup(hh!.id, { name: 'bakery' });
+    await catalogsService.createGroup(hh!.id, { name: 'Dairy' });
+    const groups = await catalogsService.getGroups(hh!.id);
+    expect(groups.map((g) => g.name)).toEqual(['bakery', 'Dairy', 'Snacks']);
+
+    await catalogsService.createLocation(hh!.id, { name: 'Pantry' });
+    await catalogsService.createLocation(hh!.id, { name: 'cellar' });
+    await catalogsService.createLocation(hh!.id, { name: 'Fridge' });
+    const locations = await catalogsService.getLocations(hh!.id);
+    expect(locations.map((l) => l.name)).toEqual(['cellar', 'Fridge', 'Pantry']);
+
+    const storeZ = await catalogsService.createStore(hh!.id, { name: 'Zeta Market' });
+    await catalogsService.createStore(hh!.id, { name: 'aldi' });
+    await catalogsService.createStore(hh!.id, { name: 'Coop' });
+    const stores = await catalogsService.getStores(hh!.id);
+    expect(stores.map((s) => s.name)).toEqual(['aldi', 'Coop', 'Zeta Market']);
+
+    await catalogsService.createUnit(hh!.id, { name: 'Piece' });
+    await catalogsService.createUnit(hh!.id, { name: 'bag' });
+    await catalogsService.createUnit(hh!.id, { name: 'Kilogram' });
+    const units = await catalogsService.getUnits(hh!.id);
+    expect(units.map((u) => u.name)).toEqual(['bag', 'Kilogram', 'Piece']);
+
+    // Aisles sorted numerically by sortOrder (1, 2, 10 - not lexicographic '1', '10', '2')
+    await catalogsService.createAisle(storeZ.id, hh!.id, { name: 'Aisle Ten', sortOrder: 10 });
+    await catalogsService.createAisle(storeZ.id, hh!.id, { name: 'Aisle Two', sortOrder: 2 });
+    await catalogsService.createAisle(storeZ.id, hh!.id, { name: 'Aisle One', sortOrder: 1 });
+    const storeAisles = await catalogsService.getStoreAisles(storeZ.id, hh!.id);
+    expect(storeAisles.map((a) => [a.sortOrder, a.name])).toEqual([
+      [1, 'Aisle One'],
+      [2, 'Aisle Two'],
+      [10, 'Aisle Ten'],
+    ]);
+
+    const allAisles = await catalogsService.getAisles(hh!.id, storeZ.id);
+    expect(allAisles.map((a) => a.sortOrder)).toEqual([1, 2, 10]);
+
+    const syncRes = await syncService.sync(hh!.id, { lastSyncAt: null });
+    expect(syncRes.serverChanges.catalogs.groups.map((g) => g.name)).toEqual(['bakery', 'Dairy', 'Snacks']);
+    expect(syncRes.serverChanges.catalogs.locations.map((l) => l.name)).toEqual(['cellar', 'Fridge', 'Pantry']);
+    expect(syncRes.serverChanges.catalogs.stores.map((s) => s.name)).toEqual(['aldi', 'Coop', 'Zeta Market']);
+    expect(syncRes.serverChanges.catalogs.units.map((u) => u.name)).toEqual(['bag', 'Kilogram', 'Piece']);
   });
 });

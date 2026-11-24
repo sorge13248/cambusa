@@ -29,6 +29,7 @@ import {
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
 import { OfflineStorageService } from '../../core/offline-storage.service.js';
+import { compareByName } from '../../core/sorting.utils.js';
 import { SyncService } from '../../core/sync.service.js';
 import {
   MissingProduct,
@@ -125,6 +126,9 @@ export class ShoppingComponent implements OnInit, OnDestroy {
             order: item.aisleOrder ?? 9999,
             items: [],
           });
+        } else if (item.aisleOrder !== null && item.aisleOrder !== undefined) {
+          const existingGroup = groupMap.get(aisleName)!;
+          existingGroup.order = Math.min(existingGroup.order, item.aisleOrder);
         }
         groupMap.get(aisleName)!.items.push(item);
       } else {
@@ -271,8 +275,8 @@ export class ShoppingComponent implements OnInit, OnDestroy {
 
       this.shoppingLists.set(lists);
       this.products.set(prods);
-      this.productGroups.set(pGroups);
-      this.stores.set(stores);
+      this.productGroups.set([...pGroups].sort(compareByName));
+      this.stores.set([...stores].sort(compareByName));
       this.missingProducts.set(missing);
 
       if (lists.length > 0) {

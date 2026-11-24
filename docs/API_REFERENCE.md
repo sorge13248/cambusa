@@ -127,18 +127,20 @@ All errors follow standard RFC 7807 JSON schemas:
 
 ## 5. Catalogs (`/api/catalogs`)
 
-- `GET /api/catalogs/units`: List quantity units for household.
+All catalog list endpoints for quantity units, product groups, locations, and stores are consistently sorted alphabetically by `name` (case-insensitive). Store aisles are sorted numerically by the user-defined `sortOrder` ascending (with alphabetical `name` tie-breaker).
+
+- `GET /api/catalogs/units`: List quantity units for household, sorted alphabetically by `name`.
 - `POST /api/catalogs/units`: Create quantity unit.
-- `GET /api/catalogs/groups`: List categories / product groups.
+- `GET /api/catalogs/groups`: List categories / product groups, sorted alphabetically by `name`.
 - `POST /api/catalogs/groups`: Create product group.
-- `GET /api/catalogs/locations`: List storage locations (e.g. Fridge, Pantry, Freezer with `isFreezer` flag).
+- `GET /api/catalogs/locations`: List storage locations (e.g. Fridge, Pantry, Freezer with `isFreezer` flag), sorted alphabetically by `name`.
 - `POST /api/catalogs/locations`: Create storage location.
-- `GET /api/catalogs/stores`: List stores / supermarkets.
+- `GET /api/catalogs/stores`: List stores / supermarkets, sorted alphabetically by `name`.
 - `POST /api/catalogs/stores`: Create store.
 - `PUT /api/catalogs/stores/:id`: Update store details.
 - `DELETE /api/catalogs/stores/:id`: Delete store and associated aisles.
-- `GET /api/catalogs/aisles`: List all aisles for the active household.
-- `GET /api/catalogs/stores/:storeId/aisles`: List aisles for a specific store, ordered by `sortOrder`.
+- `GET /api/catalogs/aisles`: List all aisles for the active household, sorted numerically by `sortOrder`.
+- `GET /api/catalogs/stores/:storeId/aisles`: List aisles for a specific store, sorted numerically by `sortOrder`.
 - `POST /api/catalogs/stores/:storeId/aisles`: Create an aisle in a store (`{ name: string }`).
 - `PUT /api/catalogs/aisles/:id`: Update aisle details (`{ name?: string, sortOrder?: number }`).
 - `DELETE /api/catalogs/aisles/:id`: Delete an aisle and record a deletion tombstone.

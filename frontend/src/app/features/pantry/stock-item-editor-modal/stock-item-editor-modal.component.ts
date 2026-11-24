@@ -5,6 +5,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { LucideAlertTriangle, LucidePencil, LucideX } from '@lucide/angular';
 import { Location, Product, StockItem } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName } from '../../../core/sorting.utils.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { CdkDatepickerComponent } from '../../../shared/components/datepicker/cdk-datepicker.component.js';
 import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
@@ -52,10 +53,10 @@ export class StockItemEditorModalComponent {
   });
 
   readonly availableLocations = computed(() => {
-    if (this.cannotFreeze()) {
-      return this.data.locations.filter((l) => !l.isFreezer);
-    }
-    return this.data.locations;
+    const base = this.cannotFreeze()
+      ? this.data.locations.filter((l) => !l.isFreezer)
+      : [...this.data.locations];
+    return base.sort(compareByName);
   });
 
   readonly selectedLocation = computed(() => {

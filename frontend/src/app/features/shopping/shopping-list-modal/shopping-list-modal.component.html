@@ -22,7 +22,7 @@
       <label>Associated Store (Optional)</label>
       <select [(ngModel)]="storeId">
         <option [ngValue]="null">No specific store (General list)</option>
-        @for (s of data.stores; track s.id) {
+        @for (s of sortedStores; track s.id) {
           <option [value]="s.id">{{ s.name }}</option>
         }
       </select>

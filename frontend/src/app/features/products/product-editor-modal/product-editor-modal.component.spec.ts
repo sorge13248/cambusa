@@ -185,4 +185,38 @@ describe('ProductEditorModalComponent', () => {
     expect(component.formProduct.defaultLocationId).toBeNull();
     expect(component.formProduct.openLocationId).toBeNull();
   });
+
+  it('should sort product groups, locations, stores, and units alphabetically and store aisles numerically', async () => {
+    component.data.productGroups = [
+      { id: 'g2', name: 'Snacks' } as any,
+      { id: 'g1', name: 'bakery' } as any,
+    ];
+    component.data.locations = [
+      { id: 'l2', name: 'Pantry', isFreezer: false } as any,
+      { id: 'l1', name: 'cellar', isFreezer: false } as any,
+    ];
+    component.data.stores = [
+      { id: 's2', name: 'Coop' } as any,
+      { id: 's1', name: 'aldi' } as any,
+    ];
+    component.data.units = [
+      { id: 'u2', name: 'Piece' } as any,
+      { id: 'u1', name: 'bag' } as any,
+    ];
+
+    expect(component.sortedProductGroups().map((g) => g.name)).toEqual(['bakery', 'Snacks']);
+    expect(component.availableLocations().map((l) => l.name)).toEqual(['cellar', 'Pantry']);
+    expect(component.sortedStores().map((s) => s.name)).toEqual(['aldi', 'Coop']);
+    expect(component.sortedUnits().map((u) => u.name)).toEqual(['bag', 'Piece']);
+
+    mockApiService.getAisles.mockResolvedValueOnce([
+      { id: 'a10', storeId: 's1', name: 'Frozen', sortOrder: 10 },
+      { id: 'a2', storeId: 's1', name: 'Bakery', sortOrder: 2 },
+      { id: 'a1', storeId: 's1', name: 'Produce', sortOrder: 1 },
+    ]);
+    component.ngOnInit();
+    await fixture.whenStable();
+    await Promise.resolve();
+    expect(component.storeAisles()['s1'].map((a) => a.sortOrder)).toEqual([1, 2, 10]);
+  });
 });

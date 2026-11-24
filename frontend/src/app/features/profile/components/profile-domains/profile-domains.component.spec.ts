@@ -95,4 +95,22 @@ describe('ProfileDomainsComponent', () => {
 
     expect(apiService.deleteStore).toHaveBeenCalledWith('s1');
   });
+
+  it('sorts stores alphabetically and aisles numerically by sortOrder', async () => {
+    vi.spyOn(apiService, 'getStores').mockResolvedValue([
+      { id: 's2', name: 'Zeta', description: null, householdId: 'h1', active: true } as any,
+      { id: 's1', name: 'aldi', description: null, householdId: 'h1', active: true } as any,
+    ]);
+    vi.spyOn(apiService, 'getStoreAisles').mockResolvedValue([
+      { id: 'a10', storeId: 's1', name: 'Ten', sortOrder: 10, householdId: 'h1' } as any,
+      { id: 'a2', storeId: 's1', name: 'Two', sortOrder: 2, householdId: 'h1' } as any,
+      { id: 'a1', storeId: 's1', name: 'One', sortOrder: 1, householdId: 'h1' } as any,
+    ]);
+
+    await component.loadStores();
+    expect(component.stores().map((s) => s.name)).toEqual(['aldi', 'Zeta']);
+
+    await component.loadStoreAisles('s1');
+    expect(component.currentStoreAisles().map((a) => a.sortOrder)).toEqual([1, 2, 10]);
+  });
 });

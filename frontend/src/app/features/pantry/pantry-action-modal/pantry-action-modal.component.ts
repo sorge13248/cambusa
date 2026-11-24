@@ -16,6 +16,7 @@ import {
 } from '@lucide/angular';
 import { Location, MealieLinkedFood, MealieRecipeSummary, Product, QuantityUnit, StockItem, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName } from '../../../core/sorting.utils.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { calculateProductTotalStock } from '../../../core/stock-utils.js';
 import { QuickDateModifierComponent } from '../../../shared/components/quick-date-modifier/quick-date-modifier.component.js';
@@ -112,14 +113,14 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
 
   readonly availableLocations = computed(() => {
     const locIds = new Set(this.productStockItems().map((s) => s.locationId).filter(Boolean));
-    return this.data.locations.filter((l) => locIds.has(l.id));
+    return this.data.locations.filter((l) => locIds.has(l.id)).sort(compareByName);
   });
 
   readonly moveTargetLocations = computed(() => {
-    if (this.data.product.cannotBeFrozen) {
-      return this.data.locations.filter((l) => !l.isFreezer);
-    }
-    return this.data.locations;
+    const base = this.data.product.cannotBeFrozen
+      ? this.data.locations.filter((l) => !l.isFreezer)
+      : [...this.data.locations];
+    return base.sort(compareByName);
   });
 
   readonly productGroupName = computed(() => {

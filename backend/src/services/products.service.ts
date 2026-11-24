@@ -62,11 +62,24 @@ export class ProductsService {
       stockByProduct.set(item.productId, (stockByProduct.get(item.productId) ?? 0) + item.amount);
     }
 
+    const sortProductStores = (list: ProductStore[]) =>
+      list.sort((a, b) => {
+        const orderA = a.aisleOrder !== null && a.aisleOrder !== undefined ? Number(a.aisleOrder) : Number.MAX_SAFE_INTEGER;
+        const orderB = b.aisleOrder !== null && b.aisleOrder !== undefined ? Number(b.aisleOrder) : Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return (a.aisle ?? '').localeCompare(b.aisle ?? '', undefined, { sensitivity: 'base' });
+      });
+
     const storesByProduct = new Map<string, ProductStore[]>();
     for (const ps of productStores) {
       const list = storesByProduct.get(ps.productId) ?? [];
       list.push(ps);
       storesByProduct.set(ps.productId, list);
+    }
+    for (const list of storesByProduct.values()) {
+      sortProductStores(list);
     }
 
     const productMap = new Map<string, Product>();
@@ -114,9 +127,17 @@ export class ProductsService {
       stockByProduct.set(item.productId, (stockByProduct.get(item.productId) ?? 0) + item.amount);
     }
 
-    const stores = await this.productStoresRepository.find({
+    const rawStores = await this.productStoresRepository.find({
       where: { productId: id, householdId },
       order: { aisleOrder: 'ASC' },
+    });
+    const stores = [...rawStores].sort((a, b) => {
+      const orderA = a.aisleOrder !== null && a.aisleOrder !== undefined ? Number(a.aisleOrder) : Number.MAX_SAFE_INTEGER;
+      const orderB = b.aisleOrder !== null && b.aisleOrder !== undefined ? Number(b.aisleOrder) : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return (a.aisle ?? '').localeCompare(b.aisle ?? '', undefined, { sensitivity: 'base' });
     });
 
     const ancestors = this.resolveAncestors(product.id, productMap);

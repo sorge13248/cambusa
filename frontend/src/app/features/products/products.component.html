@@ -110,14 +110,6 @@
               <span class="stat-label">Min Threshold:</span>
               <span class="stat-val">{{ p.minStockAmount || 0 }}</span>
             </div>
-            @if (p.barcodes && p.barcodes.length > 0) {
-              <div class="stat-pill" title="Barcodes count">
-                <span class="stat-label">
-                  <svg lucideTag [size]="12"></svg>
-                </span>
-                <span class="stat-val">{{ p.barcodes.length }}</span>
-              </div>
-            }
           </div>
 
           <!-- Store Prices Tag Strip -->
