@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { of } from 'rxjs';
+import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { PantryAddItemModalComponent, PantryAddItemModalData } from './pantry-add-item-modal.component.js';
 import { ApiService } from '../../../core/api.service.js';
 import { UndoService } from '../../../core/undo.service.js';
@@ -14,6 +15,12 @@ describe('PantryAddItemModalComponent', () => {
     close: vi.fn(),
     backdropClick: { subscribe: vi.fn() },
     keydownEvents: { subscribe: vi.fn() },
+  };
+
+  const mockDialog = {
+    open: vi.fn().mockReturnValue({
+      closed: of({ product: { id: 'p-created', name: 'Fresh Basil', active: true, householdId: 'h1' } }),
+    }),
   };
 
   const mockApiService = {
@@ -45,6 +52,7 @@ describe('PantryAddItemModalComponent', () => {
       providers: [
         { provide: DIALOG_DATA, useValue: mockData },
         { provide: DialogRef, useValue: mockDialogRef },
+        { provide: Dialog, useValue: mockDialog },
         { provide: ApiService, useValue: mockApiService },
         { provide: UndoService, useValue: mockUndoService },
       ],
@@ -95,5 +103,25 @@ describe('PantryAddItemModalComponent', () => {
   it('should close dialog when close() is invoked', () => {
     component.close();
     expect(mockDialogRef.close).toHaveBeenCalled();
+  });
+
+  it('should open product editor and auto-select newly created product', async () => {
+    await component.openCreateProductModal('Fresh Basil');
+    expect(mockDialog.open).toHaveBeenCalled();
+    expect(component.selectedProductId()).toBe('p-created');
+    expect(component.selectedProduct()?.name).toBe('Fresh Basil');
+  });
+
+  it('should toggle camera scanner and select product on barcode scan', () => {
+    // Add barcode to p1
+    mockProducts[0].barcodes = ['800111222'];
+
+    expect(component.isScannerOpen()).toBe(false);
+    component.toggleScanner();
+    expect(component.isScannerOpen()).toBe(true);
+
+    component.onBarcodeScanned('800111222');
+    expect(component.selectedProductId()).toBe('p1');
+    expect(component.isScannerOpen()).toBe(false);
   });
 });

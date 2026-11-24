@@ -4,6 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { Dialog } from '@angular/cdk/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom, Subscription } from 'rxjs';
+import {
+  LucideChartBar,
+  LucideNetwork,
+  LucidePackage,
+  LucidePencil,
+  LucidePlus,
+  LucideSnowflake,
+  LucideTag,
+  LucideTrash2,
+} from '@lucide/angular';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
 import {
@@ -17,11 +27,24 @@ import { ProductEditorModalComponent } from './product-editor-modal/product-edit
 import { ProductStockModalComponent } from './product-stock-modal/product-stock-modal.component.js';
 import { ProductRelationsModalComponent } from './product-relations-modal/product-relations-modal.component.js';
 import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component.js';
+import { QuickActionsFooterComponent } from '../../shared/components/quick-actions-footer/quick-actions-footer.component.js';
 
 @Component({
   selector: 'app-products',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LucideChartBar,
+    LucideNetwork,
+    LucidePackage,
+    LucidePencil,
+    LucidePlus,
+    LucideSnowflake,
+    LucideTag,
+    LucideTrash2,
+    QuickActionsFooterComponent,
+  ],
   templateUrl: './products.component.html',
   styleUrl: './products.component.scss',
 })
@@ -137,6 +160,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
     if (p < 1 || p > this.totalPages()) return;
     this.currentPage.set(p);
     this.syncQueryParams();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   syncQueryParams() {

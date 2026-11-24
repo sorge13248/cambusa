@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { LucideAlertTriangle } from '@lucide/angular';
 import { AuthService } from '../../core/auth.service.js';
 
 @Component({
   selector: 'app-auth-callback',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideAlertTriangle],
   templateUrl: './callback.component.html',
   styleUrl: './callback.component.scss',
 })

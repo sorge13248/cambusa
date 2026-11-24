@@ -6,7 +6,7 @@
         @if (data.product.pictureFileNames && data.product.pictureFileNames.length > 0) {
           <img [src]="'/api/products/pictures/' + data.product.pictureFileNames[0]" [alt]="data.product.name" />
         } @else {
-          <span class="no-photo-emoji">📦</span>
+          <span class="no-photo-emoji"><svg lucidePackage [size]="20"></svg></span>
         }
       </div>
       <div class="header-title-box">
@@ -14,7 +14,9 @@
         <p class="subtitle">Current inventory batches, locations, and expiration dates</p>
       </div>
     </div>
-    <button type="button" class="modal-close-btn" (click)="close()" title="Close dialog">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="close()" title="Close dialog" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <!-- Modal Body -->
@@ -43,11 +45,6 @@
         <span class="metric-val">{{ data.product.minStockAmount || 0 }}</span>
       </div>
 
-      <div class="metric-card">
-        <span class="metric-label">Batches</span>
-        <span class="metric-val">{{ directStockItems().length }}</span>
-      </div>
-
       @if (expiredCount() > 0) {
         <div class="metric-card danger-card">
           <span class="metric-label">Expired</span>
@@ -65,19 +62,24 @@
 
     <!-- Direct Stock Batches -->
     <div class="section-title-row">
-      <h4>Pantry Batches</h4>
+      <h4>
+        <span>Pantry Batches</span>&nbsp;
+        <span class="badge-count">({{ directStockItems().length }})</span>
+      </h4>
       @if (data.product.cannotBeFrozen) {
-        <span class="badge-nofreeze" title="This product cannot be frozen">❄️ Cannot be frozen</span>
+        <span class="badge-nofreeze" title="This product cannot be frozen">
+          <svg lucideSnowflake [size]="12"></svg> Cannot be frozen
+        </span>
       }
     </div>
 
     @if (isLoading()) {
       <div class="loading-state">
-        <span class="spinner">⏳</span> Loading stock items...
+        Loading stock items...
       </div>
     } @else if (directStockItems().length === 0) {
       <div class="empty-state">
-        <p class="empty-icon">📭</p>
+        <p class="empty-icon"><svg lucidePackage [size]="32"></svg></p>
         <p class="empty-text">No active stock in pantry for this product.</p>
         <p class="empty-hint">Stock records are created upon purchasing or adding items to the pantry.</p>
       </div>
@@ -97,7 +99,7 @@
                 <div class="batch-badges">
                   @if (item.isOpen) {
                     <span class="badge badge-open">
-                      Opened
+                      Opened@if (item.amount >= 2) { ({{ item.amount }})}
                       @if (item.openedDate) {
                         ({{ item.openedDate | localDate }})
                       }
@@ -113,7 +115,7 @@
                   (click)="openEditStockItem(item)"
                   title="Edit this batch (expiration, location, price, notes)"
                 >
-                  ✏️ Edit
+                  <svg lucidePencil [size]="12"></svg> Edit
                 </button>
               </div>
             </div>
@@ -193,7 +195,7 @@
                     (click)="openEditStockItem(item)"
                     title="Edit this batch (expiration, location, price, notes)"
                   >
-                    ✏️ Edit
+                    <svg lucidePencil [size]="12"></svg> Edit
                   </button>
                 </div>
               </div>

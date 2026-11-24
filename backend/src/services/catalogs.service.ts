@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Location, ProductGroup, QuantityUnit, Store, SyncTombstone } from '../entities/index.js';
+import { Aisle, Location, ProductGroup, QuantityUnit, Store, SyncTombstone } from '../entities/index.js';
 
 @Injectable()
 export class CatalogsService {
@@ -14,6 +14,8 @@ export class CatalogsService {
     private readonly locationsRepository: Repository<Location>,
     @InjectRepository(Store)
     private readonly storesRepository: Repository<Store>,
+    @InjectRepository(Aisle)
+    private readonly aislesRepository: Repository<Aisle>,
     @InjectRepository(SyncTombstone)
     private readonly tombstonesRepository: Repository<SyncTombstone>,
   ) {}
@@ -132,5 +134,98 @@ export class CatalogsService {
     await this.tombstonesRepository.save(
       this.tombstonesRepository.create({ householdId, entityType: 'store', entityId: id }),
     );
+  }
+
+  // Aisles
+  async getAisles(householdId: string, storeId?: string): Promise<Aisle[]> {
+    const where: any = { householdId };
+    if (storeId) {
+      where.storeId = storeId;
+    }
+    return this.aislesRepository.find({
+      where,
+      order: { sortOrder: 'ASC', name: 'ASC' },
+    });
+  }
+
+  async getStoreAisles(storeId: string, householdId: string): Promise<Aisle[]> {
+    return this.aislesRepository.find({
+      where: { storeId, householdId },
+      order: { sortOrder: 'ASC', name: 'ASC' },
+    });
+  }
+
+  async createAisle(
+    storeId: string,
+    householdId: string,
+    data: { name: string; sortOrder?: number },
+  ): Promise<Aisle> {
+    const store = await this.storesRepository.findOne({ where: { id: storeId, householdId } });
+    if (!store) throw new NotFoundException('Store not found');
+
+    let order = data.sortOrder;
+    if (order === undefined) {
+      const highest = await this.aislesRepository.findOne({
+        where: { storeId, householdId },
+        order: { sortOrder: 'DESC' },
+      });
+      order = highest ? highest.sortOrder + 1 : 1;
+    }
+
+    const aisle = this.aislesRepository.create({
+      householdId,
+      storeId,
+      name: data.name.trim(),
+      sortOrder: order,
+    });
+    return this.aislesRepository.save(aisle);
+  }
+
+  async updateAisle(
+    id: string,
+    householdId: string,
+    data: { name?: string; sortOrder?: number },
+  ): Promise<Aisle> {
+    const aisle = await this.aislesRepository.findOne({ where: { id, householdId } });
+    if (!aisle) throw new NotFoundException('Aisle not found');
+
+    if (data.name !== undefined) aisle.name = data.name.trim();
+    if (data.sortOrder !== undefined) aisle.sortOrder = data.sortOrder;
+
+    return this.aislesRepository.save(aisle);
+  }
+
+  async deleteAisle(id: string, householdId: string): Promise<void> {
+    const aisle = await this.aislesRepository.findOne({ where: { id, householdId } });
+    if (!aisle) throw new NotFoundException('Aisle not found');
+
+    await this.aislesRepository.delete({ id, householdId });
+    await this.tombstonesRepository.save(
+      this.tombstonesRepository.create({ householdId, entityType: 'aisle', entityId: id }),
+    );
+  }
+
+  async reorderStoreAisles(storeId: string, householdId: string, aisleIds: string[]): Promise<Aisle[]> {
+    const store = await this.storesRepository.findOne({ where: { id: storeId, householdId } });
+    if (!store) throw new NotFoundException('Store not found');
+
+    const aisles = await this.aislesRepository.find({ where: { storeId, householdId } });
+    const aisleMap = new Map(aisles.map((a) => [a.id, a]));
+
+    const updated: Aisle[] = [];
+    for (let i = 0; i < aisleIds.length; i++) {
+      const id = aisleIds[i];
+      const aisle = aisleMap.get(id);
+      if (aisle) {
+        aisle.sortOrder = i + 1;
+        updated.push(aisle);
+      }
+    }
+
+    if (updated.length > 0) {
+      await this.aislesRepository.save(updated);
+    }
+
+    return this.getStoreAisles(storeId, householdId);
   }
 }

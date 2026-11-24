@@ -11,7 +11,18 @@
           <a routerLink="/pantry" routerLinkActive="active" class="nav-item">Pantry</a>
           <a routerLink="/shopping" routerLinkActive="active" class="nav-item">Shopping List</a>
           <a routerLink="/products" routerLinkActive="active" class="nav-item">Products</a>
-          <a routerLink="/stores" routerLinkActive="active" class="nav-item">Stores</a>
+        </nav>
+
+        <nav class="mobile-quick-nav" aria-label="Mobile Quick Navigation">
+          <a routerLink="/pantry" routerLinkActive="active" class="quick-nav-btn" title="Pantry">
+            <svg lucideBoxes [size]="18"></svg>
+          </a>
+          <a routerLink="/shopping" routerLinkActive="active" class="quick-nav-btn" title="Shopping List">
+            <svg lucideShoppingCart [size]="18"></svg>
+          </a>
+          <a routerLink="/products" routerLinkActive="active" class="quick-nav-btn" title="Products">
+            <svg lucideTag [size]="18"></svg>
+          </a>
         </nav>
       }
     </div>
@@ -24,7 +35,7 @@
         <!-- Household Switcher Dropdown (Desktop) -->
         <div class="household-dropdown-container">
           <button class="household-trigger btn btn-secondary btn-sm" (click)="toggleHouseholdMenu($event)">
-            <span class="hh-icon">🏠</span>
+            <svg lucideHouse [size]="16" class="hh-icon"></svg>
             <span class="hh-name">{{ auth.activeHousehold()?.name || 'Select Household' }}</span>
             <span class="arrow-down">▾</span>
             @if (auth.pendingInvitationsCount() > 0) {
@@ -41,14 +52,18 @@
                   [class.selected]="hh.id === auth.activeHouseholdId()"
                   (click)="selectHousehold(hh.id)"
                 >
-                  <span class="check">{{ hh.id === auth.activeHouseholdId() ? '✓' : '' }}</span>
+                  <span class="check">
+                    @if (hh.id === auth.activeHouseholdId()) {
+                      <svg lucideCheck [size]="14"></svg>
+                    }
+                  </span>
                   <span class="item-name">{{ hh.name }}</span>
                   <span class="item-role">{{ hh.role }}</span>
                 </button>
               }
               <div class="dropdown-divider"></div>
               <a routerLink="/households" class="dropdown-item manage-link" (click)="closeHouseholdMenu()">
-                <span>⚙️ Manage Households</span>
+                <span><svg lucideSettings [size]="14"></svg> Manage Households</span>
                 @if (auth.pendingInvitationsCount() > 0) {
                   <span class="badge badge-due-soon">{{ auth.pendingInvitationsCount() }} pending</span>
                 }
@@ -70,6 +85,7 @@
             <span class="user-name">{{ auth.currentUser()?.displayName }}</span>
           </a>
           <button class="btn btn-secondary btn-sm" (click)="auth.logout()" title="Logout">
+            <svg lucideLogOut [size]="14"></svg>
             Logout
           </button>
         </div>
@@ -108,33 +124,31 @@
           <img src="/favicon.svg" alt="Cambusa" class="brand-logo-img" />
           <span class="brand-name">Cambusa</span>
         </div>
-        <button type="button" class="mobile-drawer-close" (click)="closeMobileMenu()" aria-label="Close menu">✕</button>
+        <button type="button" class="mobile-drawer-close" (click)="closeMobileMenu()" aria-label="Close menu">
+          <svg lucideX [size]="20"></svg>
+        </button>
       </div>
 
       <nav class="mobile-nav-links">
         <a routerLink="/home" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
-          <span class="nav-icon">📊</span>
+          <span class="nav-icon"><svg lucideLayoutDashboard [size]="18"></svg></span>
           <span class="nav-text">Home</span>
         </a>
         <a routerLink="/pantry" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
-          <span class="nav-icon">🥫</span>
+          <span class="nav-icon"><svg lucideBoxes [size]="18"></svg></span>
           <span class="nav-text">Pantry</span>
         </a>
         <a routerLink="/shopping" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
-          <span class="nav-icon">🛒</span>
+          <span class="nav-icon"><svg lucideShoppingCart [size]="18"></svg></span>
           <span class="nav-text">Shopping List</span>
         </a>
         <a routerLink="/products" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
-          <span class="nav-icon">🏷️</span>
+          <span class="nav-icon"><svg lucideTag [size]="18"></svg></span>
           <span class="nav-text">Products</span>
         </a>
-        <a routerLink="/stores" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
-          <span class="nav-icon">🏪</span>
-          <span class="nav-text">Stores</span>
-        </a>
         <a routerLink="/profile" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
-          <span class="nav-icon">⚙️</span>
-          <span class="nav-text">Profile & Next</span>
+          <span class="nav-icon"><svg lucideSettings [size]="18"></svg></span>
+          <span class="nav-text">Profile</span>
         </a>
       </nav>
 
@@ -149,7 +163,13 @@
               [class.selected]="hh.id === auth.activeHouseholdId()"
               (click)="selectHousehold(hh.id); closeMobileMenu()"
             >
-              <span class="hh-status-icon">{{ hh.id === auth.activeHouseholdId() ? '✓' : '🏠' }}</span>
+              <span class="hh-status-icon">
+                @if (hh.id === auth.activeHouseholdId()) {
+                  <svg lucideCheck [size]="16"></svg>
+                } @else {
+                  <svg lucideHouse [size]="16"></svg>
+                }
+              </span>
               <div class="mobile-hh-details">
                 <span class="mobile-hh-name">{{ hh.name }}</span>
                 <span class="mobile-hh-role">{{ hh.role }}</span>
@@ -158,7 +178,7 @@
           }
         </div>
         <a routerLink="/households" class="mobile-manage-hh" (click)="closeMobileMenu()">
-          <span>⚙️ Manage Households</span>
+          <span><svg lucideSettings [size]="14"></svg> Manage Households</span>
           @if (auth.pendingInvitationsCount() > 0) {
             <span class="badge badge-due-soon">{{ auth.pendingInvitationsCount() }}</span>
           }
@@ -177,6 +197,7 @@
           <span class="mobile-user-name">{{ auth.currentUser()?.displayName }}</span>
         </a>
         <button class="btn btn-secondary btn-sm mobile-logout-btn" (click)="auth.logout(); closeMobileMenu()">
+          <svg lucideLogOut [size]="14"></svg>
           Logout
         </button>
       </div>

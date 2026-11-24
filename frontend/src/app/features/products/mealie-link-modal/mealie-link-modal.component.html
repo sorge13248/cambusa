@@ -16,11 +16,15 @@
         [disabled]="isLoading() || isRefreshing()"
         (click)="loadItems(true)"
         title="Force refresh data directly from Mealie"
+        aria-label="Force refresh data directly from Mealie"
       >
-        <span class="refresh-icon" [class.spinning]="isRefreshing()">🔄</span>
-        {{ isRefreshing() ? 'Refreshing...' : 'Force Refresh' }}
+        <span class="refresh-icon" [class.spinning]="isRefreshing()">
+          <svg lucideRotateCw [size]="15"></svg>
+        </span>
       </button>
-      <button type="button" class="modal-close-btn" (click)="cancel()">×</button>
+      <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="cancel()" aria-label="Close dialog">
+        <svg lucideX [size]="14"></svg>
+      </button>
     </div>
   </div>
 
@@ -28,14 +32,16 @@
   <div class="modal-body">
     @if (error()) {
       <div class="alert-error" role="alert">
-        ⚠️ {{ error() }}
+        <svg lucideAlertTriangle [size]="16"></svg> {{ error() }}
       </div>
     }
 
     <!-- Search Input -->
     <div class="search-box">
       <div class="search-input-wrapper">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon">
+          <svg lucideSearch [size]="14"></svg>
+        </span>
         <input
           type="text"
           class="form-input"
@@ -46,7 +52,9 @@
           autofocus
         />
         @if (searchQuery()) {
-          <button type="button" class="btn-clear" (click)="searchQuery.set('')">✕</button>
+          <button type="button" class="btn-clear" (click)="searchQuery.set('')" aria-label="Clear search">
+            <svg lucideX [size]="12"></svg>
+          </button>
         }
       </div>
     </div>
@@ -61,8 +69,17 @@
         <div class="selected-chips">
           @for (sel of selectedItemsList(); track sel.id) {
             <div class="selected-chip">
-              <span>{{ isFoodMode() ? '🥗' : '📖' }} {{ sel.name }}</span>
-              <button type="button" class="btn-remove-chip" (click)="deselectItem(sel.id)" title="Deselect">✕</button>
+              <span>
+                @if (isFoodMode()) {
+                  <svg lucideUtensils [size]="14"></svg>
+                } @else {
+                  <svg lucideBookOpen [size]="14"></svg>
+                }
+                {{ sel.name }}
+              </span>
+              <button type="button" class="btn-remove-chip" (click)="deselectItem(sel.id)" title="Deselect" aria-label="Deselect">
+                <svg lucideX [size]="12"></svg>
+              </button>
             </div>
           }
         </div>
@@ -73,7 +90,7 @@
     <div class="results-container">
       @if (isLoading()) {
         <div class="loading-state">
-          <span class="spinner">⏳</span> Loading Mealie {{ isFoodMode() ? 'foods' : 'recipes' }}...
+          Loading Mealie {{ isFoodMode() ? 'foods' : 'recipes' }}...
         </div>
       } @else if (filteredItems().length === 0) {
         <div class="empty-state">
@@ -102,7 +119,13 @@
                 />
               </div>
               <div class="item-main">
-                <span class="item-icon">{{ isFoodMode() ? '🥗' : '📖' }}</span>
+                <span class="item-icon">
+                  @if (isFoodMode()) {
+                    <svg lucideUtensils [size]="14"></svg>
+                  } @else {
+                    <svg lucideBookOpen [size]="14"></svg>
+                  }
+                </span>
                 <span class="item-name">{{ item.name }}</span>
                 @if (item.subLabel) {
                   <span class="item-sub">{{ item.subLabel }}</span>

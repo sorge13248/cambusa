@@ -2,13 +2,15 @@
   <!-- Modal Header -->
   <div class="modal-header">
     <div class="header-left">
-      <span class="header-icon">✏️</span>
+      <span class="header-icon"><svg lucidePencil [size]="18"></svg></span>
       <div class="header-title-box">
         <h3>Edit Stock Batch</h3>
         <p class="subtitle">Modify expiration, storage location, price, and purchase notes for <strong>{{ data.stockItem.productName }}</strong></p>
       </div>
     </div>
-    <button type="button" class="modal-close-btn" (click)="cancel()" title="Close dialog">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="cancel()" title="Close dialog" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <!-- Modal Body -->
@@ -20,44 +22,28 @@
     }
 
     <form class="edit-stock-form" (ngSubmit)="save()">
-      <!-- Amount Row -->
-      <div class="form-row">
-        <div class="form-group flex-1">
-          <label>Quantity in Batch *</label>
-          <div class="amount-stepper">
-            <button type="button" class="stepper-btn" (click)="adjustAmount(-1)">-</button>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              [(ngModel)]="amount"
-              name="amount"
-              required
-            />
-            <button type="button" class="stepper-btn" (click)="adjustAmount(1)">+</button>
-          </div>
-          @if (data.stockItem.quName) {
-            <span class="field-hint">Unit: {{ data.stockItem.quName }}</span>
-          }
-        </div>
+      <!-- Amount & Location Rows -->
+      <div class="form-group">
+        <label>Quantity in Batch *</label>
+        <app-number-stepper [(value)]="amount" [min]="1" [unit]="data.stockItem.quName" ariaLabel="Quantity in Batch"></app-number-stepper>
+      </div>
 
-        <div class="form-group flex-1">
-          <label>Storage Location</label>
-          <select [ngModel]="locationId()" (ngModelChange)="locationId.set($event)" name="locationId">
-            <option value="">No location assigned</option>
-            @for (loc of data.locations; track loc.id) {
-              <option [value]="loc.id">
-                {{ loc.name }}{{ loc.isFreezer ? ' ❄️ (Freezer)' : '' }}
-              </option>
-            }
-          </select>
-        </div>
+      <div class="form-group">
+        <label>Storage Location</label>
+        <select [ngModel]="locationId()" (ngModelChange)="locationId.set($event)" name="locationId">
+          <option value="">No location assigned</option>
+          @for (loc of availableLocations(); track loc.id) {
+            <option [value]="loc.id">
+              {{ loc.name }}{{ loc.isFreezer ? ' ❄️ (Freezer)' : '' }}
+            </option>
+          }
+        </select>
       </div>
 
       <!-- Freezer warning alert if applicable -->
       @if (freezerWarning()) {
         <div class="freezer-alert" role="alert">
-          ⚠️ Warning: This product is marked as "Cannot be frozen" and cannot be stored in a freezer location.
+          <svg lucideAlertTriangle [size]="14"></svg> Warning: This product is marked as "Cannot be frozen" and cannot be stored in a freezer location.
         </div>
       }
 
@@ -70,42 +56,40 @@
         ></app-cdk-datepicker>
       </div>
 
-      <!-- Price & Opened Status Row -->
-      <div class="form-row">
-        <div class="form-group flex-1">
-          <label>Price Paid (&euro;)</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            [(ngModel)]="price"
-            name="price"
-          />
-        </div>
+      <!-- Price & Opened Status Rows -->
+      <div class="form-group">
+        <label>Price Paid (&euro;)</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="0.00"
+          [(ngModel)]="price"
+          name="price"
+        />
+      </div>
 
-        <div class="form-group flex-1 open-status-group">
-          <label>Opened Status</label>
-          <label class="checkbox-label">
+      <div class="form-group open-status-group">
+        <label>Opened Status</label>
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            [(ngModel)]="isOpen"
+            name="isOpen"
+            (ngModelChange)="onToggleOpen()"
+          />
+          <span>Batch is currently opened</span>
+        </label>
+        @if (isOpen) {
+          <div class="opened-date-sub">
+            <label class="sub-label">Date opened:</label>
             <input
-              type="checkbox"
-              [(ngModel)]="isOpen"
-              name="isOpen"
-              (ngModelChange)="onToggleOpen()"
+              type="date"
+              [(ngModel)]="openedDate"
+              name="openedDate"
             />
-            <span>Batch is currently opened</span>
-          </label>
-          @if (isOpen) {
-            <div class="opened-date-sub">
-              <label class="sub-label">Date opened:</label>
-              <input
-                type="date"
-                [(ngModel)]="openedDate"
-                name="openedDate"
-              />
-            </div>
-          }
-        </div>
+          </div>
+        }
       </div>
 
       <!-- Purchase Notes -->

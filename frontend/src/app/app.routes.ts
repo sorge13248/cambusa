@@ -38,8 +38,7 @@ export const routes: Routes = [
   },
   {
     path: 'stores',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/stores/stores.component.js').then((m) => m.StoresComponent)
+    redirectTo: 'profile'
   },
   {
     path: 'households',

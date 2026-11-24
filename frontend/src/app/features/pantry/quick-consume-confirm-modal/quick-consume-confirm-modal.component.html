@@ -1,0 +1,64 @@
+<div class="confirm-modal-shell" role="dialog" aria-modal="true">
+  <!-- Modal Header -->
+  <div class="modal-header">
+    <div class="header-left">
+      <span class="header-icon"><svg lucideUtensils [size]="20"></svg></span>
+      <div class="header-title-box">
+        <h3>Confirm Quick Open</h3>
+        <p class="subtitle">Auto-approving in {{ remainingSeconds() }}s</p>
+      </div>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="cancel()" title="Cancel" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
+  </div>
+
+  <!-- Countdown Progress Bar -->
+  <div class="countdown-bar-wrapper">
+    <div
+      class="countdown-bar-fill"
+      [style.width.%]="progressPercent()"
+    ></div>
+  </div>
+
+  <!-- Modal Body -->
+  <div class="modal-body">
+    <p class="confirm-question">
+      Do you want to confirm opening <strong>{{ data.product.name }}</strong>?
+    </p>
+
+    <div class="batch-preview-card">
+      <div class="batch-preview-row">
+        <span class="preview-label">Location:</span>
+        <span class="preview-value">{{ data.stockItem.locationName || 'Default storage' }}</span>
+      </div>
+      <div class="batch-preview-row">
+        <span class="preview-label">Expiration:</span>
+        <span class="preview-value">
+          {{ data.stockItem.bestBeforeDate ? (data.stockItem.bestBeforeDate | localDate) : 'Never expires' }}
+        </span>
+      </div>
+      @if (data.stockItem.amount) {
+        <div class="batch-preview-row">
+          <span class="preview-label">Quantity:</span>
+          <span class="preview-value">{{ data.stockItem.amount }}x</span>
+        </div>
+      }
+    </div>
+
+    <div class="timer-countdown-display">
+      <svg lucideClock [size]="16" class="timer-icon"></svg>
+      <span>Auto-confirming in <strong>{{ remainingSeconds() }}s</strong>...</span>
+    </div>
+  </div>
+
+  <!-- Modal Footer -->
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" (click)="cancel()">
+      <svg lucideX [size]="15"></svg> Cancel
+    </button>
+    <button type="button" class="btn btn-primary" (click)="confirm()">
+      <svg lucideCheck [size]="15"></svg> Confirm Open
+    </button>
+  </div>
+</div>

@@ -4,7 +4,7 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { Repository } from 'typeorm';
-import { Product, ProductStore, StockItem, SyncTombstone } from '../entities/index.js';
+import { Location, Product, ProductStore, StockItem, SyncTombstone } from '../entities/index.js';
 import { resolveUploadsDir } from '../load-env.js';
 import { MealieService } from './mealie.service.js';
 
@@ -29,6 +29,9 @@ export class ProductsService {
     private readonly stockRepository: Repository<StockItem>,
     @InjectRepository(SyncTombstone)
     private readonly tombstonesRepository: Repository<SyncTombstone>,
+    @Optional()
+    @InjectRepository(Location)
+    private readonly locationsRepository?: Repository<Location>,
     @Optional()
     private readonly mealieService?: MealieService,
   ) {
@@ -136,6 +139,29 @@ export class ProductsService {
       await this.validateParentProduct(data.parentProductId, null, householdId);
     }
 
+    if (data.cannotBeFrozen) {
+      data.defaultBestBeforeDaysAfterFreezing = null;
+      data.defaultBestBeforeDaysAfterThawing = null;
+
+      if (data.defaultLocationId && this.locationsRepository) {
+        const defLoc = await this.locationsRepository.findOne({
+          where: { id: data.defaultLocationId, householdId },
+        });
+        if (defLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set default location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+
+      if (data.openLocationId && this.locationsRepository) {
+        const openLoc = await this.locationsRepository.findOne({
+          where: { id: data.openLocationId, householdId },
+        });
+        if (openLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set open location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+    }
+
     const product = this.productsRepository.create({
       ...data,
       householdId,
@@ -150,6 +176,46 @@ export class ProductsService {
     if (data.parentProductId !== undefined && data.parentProductId !== product.parentProductId) {
       if (data.parentProductId) {
         await this.validateParentProduct(data.parentProductId, id, householdId);
+      }
+    }
+
+    const cannotBeFrozen = data.cannotBeFrozen !== undefined ? !!data.cannotBeFrozen : product.cannotBeFrozen;
+    if (cannotBeFrozen) {
+      data.defaultBestBeforeDaysAfterFreezing = null;
+      data.defaultBestBeforeDaysAfterThawing = null;
+      product.defaultBestBeforeDaysAfterFreezing = null;
+      product.defaultBestBeforeDaysAfterThawing = null;
+
+      const targetDefLocId = data.defaultLocationId !== undefined ? data.defaultLocationId : product.defaultLocationId;
+      if (targetDefLocId && this.locationsRepository) {
+        const defLoc = await this.locationsRepository.findOne({
+          where: { id: targetDefLocId, householdId },
+        });
+        if (defLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set default location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+
+      const targetOpenLocId = data.openLocationId !== undefined ? data.openLocationId : product.openLocationId;
+      if (targetOpenLocId && this.locationsRepository) {
+        const openLoc = await this.locationsRepository.findOne({
+          where: { id: targetOpenLocId, householdId },
+        });
+        if (openLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set open location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+
+      if (this.locationsRepository) {
+        const existingStock = await this.stockRepository.find({ where: { productId: id, householdId } });
+        for (const s of existingStock) {
+          if (s.locationId) {
+            const loc = await this.locationsRepository.findOne({ where: { id: s.locationId, householdId } });
+            if (loc?.isFreezer) {
+              throw new BadRequestException('Cannot mark product as cannot be frozen while items exist in a freezer location');
+            }
+          }
+        }
       }
     }
 

@@ -96,6 +96,11 @@ describe('StockItemEditorModalComponent', () => {
     expect(component.freezerWarning()).toBe(true);
   });
 
+  it('should filter out freezer locations from availableLocations when product cannot be frozen', () => {
+    expect(component.cannotFreeze()).toBe(true);
+    expect(component.availableLocations().map((l) => l.id)).toEqual(['loc1']);
+  });
+
   it('should save updated stock item, register undo, and close modal', async () => {
     component.locationId.set('loc1');
     component.amount = 3;

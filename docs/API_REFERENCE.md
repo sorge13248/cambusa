@@ -135,6 +135,14 @@ All errors follow standard RFC 7807 JSON schemas:
 - `POST /api/catalogs/locations`: Create storage location.
 - `GET /api/catalogs/stores`: List stores / supermarkets.
 - `POST /api/catalogs/stores`: Create store.
+- `PUT /api/catalogs/stores/:id`: Update store details.
+- `DELETE /api/catalogs/stores/:id`: Delete store and associated aisles.
+- `GET /api/catalogs/aisles`: List all aisles for the active household.
+- `GET /api/catalogs/stores/:storeId/aisles`: List aisles for a specific store, ordered by `sortOrder`.
+- `POST /api/catalogs/stores/:storeId/aisles`: Create an aisle in a store (`{ name: string }`).
+- `PUT /api/catalogs/aisles/:id`: Update aisle details (`{ name?: string, sortOrder?: number }`).
+- `DELETE /api/catalogs/aisles/:id`: Delete an aisle and record a deletion tombstone.
+- `POST /api/catalogs/stores/:storeId/aisles/reorder`: Reorder aisles via drag-and-drop (`{ aisleIds: string[] }`).
 
 ---
 
@@ -175,9 +183,10 @@ All errors follow standard RFC 7807 JSON schemas:
   "parentProductId": "parent-product-uuid"
 }
 ```
+- **Description**: Creates a new catalog product. If `cannotBeFrozen: true`, `defaultBestBeforeDaysAfterFreezing` and `defaultBestBeforeDaysAfterThawing` are forced to `null`, and assigning `defaultLocationId` or `openLocationId` to a freezer location (`isFreezer: true`) is rejected with `400 Bad Request`.
 
 ### `PUT /api/products/:id`
-- **Description**: Updates product metadata. Rejects cyclic parent relationships.
+- **Description**: Updates product metadata. Rejects cyclic parent relationships. If `cannotBeFrozen: true`, `defaultBestBeforeDaysAfterFreezing` and `defaultBestBeforeDaysAfterThawing` are forced to `null`, setting `defaultLocationId` or `openLocationId` to a freezer location is rejected with `400 Bad Request`, and enabling `cannotBeFrozen` while existing stock items are stored in a freezer location is rejected with `400 Bad Request`.
 
 ### `DELETE /api/products/:id`
 - **Description**: Deletes product, associated picture files, and writes record to `sync_tombstones`.
@@ -219,9 +228,10 @@ All errors follow standard RFC 7807 JSON schemas:
   "note": "On sale"
 }
 ```
+- **Description**: Adds inventory to the pantry. If the product has `cannotBeFrozen: true`, specifying a freezer location (or resolving a default freezer location) is rejected with `400 Bad Request`.
 
 ### `PUT /api/stock/:id`
-- **Description**: Updates attributes of a specific stock inventory batch (quantity, expiration date, storage location, purchase price, notes, and opened state).
+- **Description**: Updates attributes of a specific stock inventory batch (quantity, expiration date, storage location, purchase price, notes, and opened state). Rejects assignment to a freezer location if the product is marked as `cannotBeFrozen: true` with `400 Bad Request`.
 - **Body**:
 ```json
 {
@@ -268,6 +278,10 @@ All errors follow standard RFC 7807 JSON schemas:
 - **Body**: `{ "name": "Weekly Groceries", "storeId": "store-uuid" }`
 - **Description**: Creates a new shopping list with optional store association.
 
+### `POST /api/shopping-list/reorder`
+- **Body**: `{ "listIds": ["list-uuid-1", "list-uuid-2"] }`
+- **Description**: Reorders shopping lists within the active household by updating their sequential `sortOrder` values.
+
 ### `PUT /api/shopping-list/lists/:id`
 - **Body**: `{ "name": "Updated Name", "storeId": "store-uuid" }`
 - **Description**: Updates list name and associated store.
@@ -278,8 +292,7 @@ All errors follow standard RFC 7807 JSON schemas:
 ### `GET /api/shopping-list/items`
 - **Query Params**:
   - `shoppingListId` (optional): Filter by target shopping list.
-  - `storeId` (optional): Sorts and groups items according to the store's aisle order (`aisleOrder ASC, aisle ASC`).
-- **Description**: Returns shopping items with linked product stock information, photo thumbnails, earliest expiration dates, store pricing, and aisle details.
+- **Description**: Returns shopping items with linked product stock information, photo thumbnails, earliest expiration dates, store pricing, and aisle details. Store aisles are resolved strictly when that store is associated with the shopping list being consulted (`ShoppingList.storeId`). If the shopping list is not associated with any store, store aisles are not used (`aisle` and `aisleOrder` are `null`). Results are sorted by `aisleOrder ASC, aisle ASC, sortOrder ASC, productName ASC`.
 
 ### `POST /api/shopping-list/items`
 - **Body**:
@@ -294,6 +307,10 @@ All errors follow standard RFC 7807 JSON schemas:
 }
 ```
 - **Description**: Adds catalog product or uncataloged custom item (`customName`) to shopping list.
+
+### `POST /api/shopping-list/items/reorder`
+- **Body**: `{ "itemIds": ["item-uuid-1", "item-uuid-2"] }`
+- **Description**: Reorders items within the shopping list by updating their `sortOrder` values according to the submitted ID sequence.
 
 ### `PUT /api/shopping-list/items/:id`
 - **Body**:
@@ -561,7 +578,8 @@ All errors follow standard RFC 7807 JSON schemas:
   "changes": {
     "products": [],
     "stock": [],
-    "shoppingListItems": []
+    "shoppingListItems": [],
+    "shoppingLists": []
   }
 }
 ```
@@ -572,7 +590,8 @@ All errors follow standard RFC 7807 JSON schemas:
   "serverChanges": {
     "products": [],
     "stock": [],
-    "shoppingListItems": []
+    "shoppingListItems": [],
+    "shoppingLists": []
   },
   "tombstones": [
     {

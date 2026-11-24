@@ -47,6 +47,7 @@ describe('ShoppingListModalComponent', () => {
     expect(mockApiService.createShoppingList).toHaveBeenCalledWith({
       name: 'Weekly Market',
       storeId: null,
+      isDefault: false,
     });
     expect(mockDialogRef.close).toHaveBeenCalledWith(true);
   });

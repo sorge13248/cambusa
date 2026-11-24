@@ -15,12 +15,21 @@
 <body>
   <app-root></app-root>
   <script>
-    if ('serviceWorker' in navigator && location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(err => {
-          console.warn('Service worker registration failed:', err);
+    if ('serviceWorker' in navigator) {
+      if (location.port === '4200') {
+        // In local development mode, unregister active service workers to prevent dev chunk caching and corruption
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (const reg of registrations) {
+            reg.unregister();
+          }
         });
-      });
+      } else if (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.warn('Service worker registration failed:', err);
+          });
+        });
+      }
     }
   </script>
 </body>

@@ -148,6 +148,16 @@ export class StockService {
     });
     if (!product) throw new NotFoundException('Product not found in this household');
 
+    const targetLocationId = data.locationId ?? product.defaultLocationId ?? null;
+    if (targetLocationId && product.cannotBeFrozen) {
+      const targetLocation = await this.locationsRepository.findOne({
+        where: { id: targetLocationId, householdId },
+      });
+      if (targetLocation?.isFreezer) {
+        throw new BadRequestException('This product is marked as cannot be frozen');
+      }
+    }
+
     let bestBeforeDate = data.bestBeforeDate ?? null;
     if (!bestBeforeDate && product.defaultBestBeforeDays > 0) {
       const target = new Date();
@@ -162,7 +172,7 @@ export class StockService {
       bestBeforeDate,
       purchasedDate: data.purchasedDate ?? this.formatDate(new Date()),
       price: data.price ?? null,
-      locationId: data.locationId ?? product.defaultLocationId ?? null,
+      locationId: targetLocationId,
       isOpen: data.isOpen ?? false,
       openedDate: data.openedDate ?? null,
       note: data.note ?? null,
@@ -181,8 +191,8 @@ export class StockService {
 
     const now = new Date();
 
-    if (options.explicitDate) {
-      item.bestBeforeDate = options.explicitDate;
+    if (options.explicitDate !== undefined) {
+      item.bestBeforeDate = options.explicitDate ? options.explicitDate : null;
     } else if (options.preset) {
       switch (options.preset) {
         case 'today':
@@ -270,6 +280,133 @@ export class StockService {
       item.openedDate = null;
     }
     return this.stockRepository.save(item);
+  }
+
+  async openStock(
+    id: string,
+    householdId: string,
+    amount = 1,
+  ): Promise<{
+    openedStockItem: StockItem;
+    originalStockItem: StockItem | null;
+    split: boolean;
+    originalDate: string | null;
+    originalLocationId: string | null;
+  }> {
+    const item = await this.stockRepository.findOne({ where: { id, householdId } });
+    if (!item) throw new NotFoundException('Stock item not found');
+
+    const product = await this.productsRepository.findOne({ where: { id: item.productId, householdId } });
+
+    const originalDate = item.bestBeforeDate;
+    const originalLocationId = item.locationId;
+    const effectiveAmount = Math.max(1, amount);
+
+    let openedLocationId = item.locationId;
+    if (product?.moveOnOpen && product.openLocationId) {
+      openedLocationId = product.openLocationId;
+    }
+
+    let openedBestBeforeDate = item.bestBeforeDate;
+    if (product?.defaultBestBeforeDaysAfterOpen && product.defaultBestBeforeDaysAfterOpen > 0) {
+      const target = new Date();
+      target.setDate(target.getDate() + product.defaultBestBeforeDaysAfterOpen);
+      openedBestBeforeDate = this.formatDate(target);
+    }
+
+    const todayStr = this.formatDate(new Date());
+
+    if (item.amount <= effectiveAmount) {
+      item.isOpen = true;
+      item.openedDate = todayStr;
+      item.locationId = openedLocationId;
+      item.bestBeforeDate = openedBestBeforeDate;
+      const saved = await this.stockRepository.save(item);
+      return {
+        openedStockItem: saved,
+        originalStockItem: null,
+        split: false,
+        originalDate,
+        originalLocationId,
+      };
+    }
+
+    // Split batch: decrement original and create a new 1-unit open batch
+    item.amount -= effectiveAmount;
+    const savedOriginal = await this.stockRepository.save(item);
+
+    const newItem = this.stockRepository.create({
+      householdId,
+      productId: item.productId,
+      amount: effectiveAmount,
+      bestBeforeDate: openedBestBeforeDate,
+      purchasedDate: item.purchasedDate,
+      price: item.price,
+      locationId: openedLocationId,
+      note: item.note,
+      isOpen: true,
+      openedDate: todayStr,
+    });
+    const savedOpened = await this.stockRepository.save(newItem);
+
+    return {
+      openedStockItem: savedOpened,
+      originalStockItem: savedOriginal,
+      split: true,
+      originalDate,
+      originalLocationId,
+    };
+  }
+
+  async revertOpen(
+    householdId: string,
+    data: {
+      openedStockItemId: string;
+      originalStockItemId?: string | null;
+      split: boolean;
+      amount?: number;
+      originalDate?: string | null;
+      originalLocationId?: string | null;
+    },
+  ): Promise<{ reverted: boolean }> {
+    const openedItem = await this.stockRepository.findOne({
+      where: { id: data.openedStockItemId, householdId },
+    });
+
+    const amount = data.amount || 1;
+
+    if (data.split) {
+      if (openedItem) {
+        await this.stockRepository.delete({ id: openedItem.id, householdId });
+        await this.tombstonesRepository.save(
+          this.tombstonesRepository.create({
+            householdId,
+            entityType: 'stock_item',
+            entityId: openedItem.id,
+          }),
+        );
+      }
+
+      if (data.originalStockItemId) {
+        const originalItem = await this.stockRepository.findOne({
+          where: { id: data.originalStockItemId, householdId },
+        });
+        if (originalItem) {
+          originalItem.amount += amount;
+          await this.stockRepository.save(originalItem);
+        }
+      }
+      return { reverted: true };
+    }
+
+    if (openedItem) {
+      openedItem.isOpen = false;
+      openedItem.openedDate = null;
+      openedItem.bestBeforeDate = data.originalDate ?? openedItem.bestBeforeDate;
+      openedItem.locationId = data.originalLocationId ?? openedItem.locationId;
+      await this.stockRepository.save(openedItem);
+    }
+    return { reverted: true };
   }
 
   async transferStock(

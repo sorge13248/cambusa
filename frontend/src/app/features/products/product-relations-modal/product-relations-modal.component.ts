@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
+import { LucideBoxes, LucideNetwork, LucidePackage, LucidePencil, LucideTag, LucideX } from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
 import { Location, Product, ProductGroup, QuantityUnit, Store } from '../../../core/models.js';
 import { ProductEditorModalComponent } from '../product-editor-modal/product-editor-modal.component.js';
@@ -18,7 +19,7 @@ export interface ProductRelationsModalData {
 @Component({
   selector: 'app-product-relations-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideBoxes, LucideNetwork, LucidePackage, LucidePencil, LucideTag, LucideX],
   templateUrl: './product-relations-modal.component.html',
   styleUrl: './product-relations-modal.component.scss',
 })

@@ -117,7 +117,6 @@ body {
   background-image: radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.09) 0px, transparent 50%),
                     radial-gradient(at 100% 0%, rgba(56, 189, 248, 0.09) 0px, transparent 50%),
                     radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%);
-  background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.5;
@@ -188,6 +187,18 @@ input:focus, select:focus, textarea:focus {
   background-color: var(--bg-card-hover);
 }
 
+.btn-secondary-outline {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+
+  &:hover {
+    background-color: var(--bg-card-hover);
+    color: var(--text-primary);
+    border-color: var(--border-focus);
+  }
+}
+
 .btn-danger {
   background-color: rgba(239, 68, 68, 0.15);
   color: var(--danger);
@@ -199,9 +210,31 @@ input:focus, select:focus, textarea:focus {
   color: #ffffff;
 }
 
+.btn-danger-outline {
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+
+  &:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #f87171;
+  }
+}
+
 .btn-sm {
   padding: 5px 12px;
   font-size: 0.82rem;
+}
+
+.btn-xs {
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .badge {
@@ -248,19 +281,49 @@ input:focus, select:focus, textarea:focus {
 /* Angular CDK & Dialog Backdrops with Frosted Glass Blur */
 .cdk-overlay-backdrop,
 .modal-backdrop {
-  background-color: rgba(0, 0, 0, 0.55) !important;
-  backdrop-filter: blur(14px) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  background: rgba(0, 0, 0, 0.55) !important;
   -webkit-backdrop-filter: blur(14px) !important;
+  backdrop-filter: blur(14px) !important;
+  pointer-events: auto !important;
+}
+
+.cdk-overlay-backdrop.cdk-overlay-backdrop-showing,
+.modal-backdrop {
   opacity: 1 !important;
 }
 
 @media (prefers-color-scheme: light) {
   .cdk-overlay-backdrop,
   .modal-backdrop {
+    background: rgba(15, 23, 42, 0.28) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+}
+
+.cdk-overlay-popover::backdrop {
+  background-color: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+@media (prefers-color-scheme: light) {
+  .cdk-overlay-popover::backdrop {
     background-color: rgba(15, 23, 42, 0.28) !important;
     backdrop-filter: blur(14px) !important;
     -webkit-backdrop-filter: blur(14px) !important;
   }
+}
+
+.cdk-global-overlay-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .modal-backdrop {
@@ -285,13 +348,20 @@ app-undo-toast {
 
 /* Universal Aero Glass Modals */
 .action-modal-shell,
+.pantry-add-shell,
+.quick-consume-shell,
+.stock-item-editor-shell,
 .product-editor-shell,
+.product-relations-shell,
+.product-stock-shell,
+.mealie-link-shell,
 .shopping-add-shell,
 .list-modal-shell,
 .missing-modal-shell,
 .hh-modal-shell,
 .confirm-modal-shell,
-.modal-content {
+.modal-content,
+.custom-modal {
   background-color: var(--glass-modal-bg) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
@@ -323,10 +393,70 @@ app-undo-toast {
   color: var(--text-primary);
 }
 
-.modal-close {
-  color: var(--text-secondary);
-  font-size: 1.4rem;
-  padding: 4px;
+.modal-close,
+.modal-close-btn {
+  background-color: var(--bg-subtle, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, #334155);
+  color: var(--text-secondary, #94a3b8);
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm, 6px);
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+
+  svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    color: var(--text-primary, #ffffff);
+    background-color: var(--bg-card-hover, rgba(255, 255, 255, 0.12));
+    border-color: var(--border-focus, #38bdf8);
+  }
+}
+
+.modal-header-btn {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  border-radius: var(--radius-sm, 6px) !important;
+
+  svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Hide native browser spinners on number stepper input across all browsers */
+input[type='number'].stepper-input::-webkit-outer-spin-button,
+input[type='number'].stepper-input::-webkit-inner-spin-button,
+.stepper-input::-webkit-outer-spin-button,
+.stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
+  display: none !important;
+}
+.stepper-input {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
 }
 
 .modal-body {
@@ -339,3 +469,329 @@ app-undo-toast {
   gap: 10px;
   padding: 12px 24px 20px;
 }
+
+/* ==========================================================================
+   Universal Floating Action Buttons (FAB)
+   ========================================================================== */
+.fab-container {
+  position: fixed;
+  right: 24px;
+  bottom: 28px;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+  transition: bottom 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &.has-quick-footer {
+    bottom: 84px;
+  }
+
+  .fab-btn {
+    pointer-events: auto;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background-color 0.15s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.2);
+
+    &:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  .fab-primary {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    font-size: 1.5rem;
+    line-height: 1;
+
+    .fab-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  .fab-secondary {
+    width: 44px;
+    height: 44px;
+    background: var(--glass-modal-bg, rgba(30, 41, 59, 0.88));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border, #334155);
+    color: var(--text-primary, #f8fafc);
+    font-size: 1.15rem;
+    line-height: 1;
+
+    &:hover {
+      background: rgba(51, 65, 85, 0.95);
+      border-color: var(--primary, #10b981);
+    }
+
+    .fab-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 768px) {
+    right: 18px;
+    bottom: 22px;
+    gap: 10px;
+
+    &.has-quick-footer {
+      bottom: 74px;
+    }
+
+    .fab-primary {
+      width: 52px;
+      height: 52px;
+      font-size: 1.4rem;
+    }
+
+    .fab-secondary {
+      width: 40px;
+      height: 40px;
+      font-size: 1.05rem;
+    }
+  }
+}
+
+body:has(.quick-actions-footer) .fab-container {
+  bottom: 84px;
+
+  @media (max-width: 768px) {
+    bottom: 74px;
+  }
+}
+
+/* Universal hide native spin arrows for input[type="number"] */
+input[type='number'] {
+  -webkit-appearance: none !important;
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Mobile Layout Compression
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Fullscreen square-edge feature modals on mobile */
+  .cdk-overlay-pane:has(.action-modal-shell, .pantry-add-shell, .quick-consume-shell, .stock-item-editor-shell, .product-editor-shell, .product-relations-shell, .product-stock-shell, .mealie-link-shell, .shopping-add-shell, .list-modal-shell, .missing-modal-shell, .hh-modal-shell) {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    position: fixed !important;
+    inset: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  app-product-editor-modal,
+  app-product-relations-modal,
+  app-product-stock-modal,
+  app-pantry-action-modal,
+  app-pantry-add-item-modal,
+  app-pantry-quick-consume-modal,
+  app-stock-item-editor-modal,
+  app-mealie-link-modal,
+  app-shopping-add-modal,
+  app-shopping-list-modal,
+  app-shopping-missing-modal,
+  app-household-form-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .action-modal-shell,
+  .pantry-add-shell,
+  .quick-consume-shell,
+  .stock-item-editor-shell,
+  .product-editor-shell,
+  .product-relations-shell,
+  .product-stock-shell,
+  .mealie-link-shell,
+  .shopping-add-shell,
+  .list-modal-shell,
+  .missing-modal-shell,
+  .hh-modal-shell {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    flex: 1 1 auto !important;
+    margin: 0 !important;
+  }
+
+  /* Centered confirm modals on mobile */
+  .cdk-overlay-pane:has(app-confirm-modal),
+  .cdk-overlay-pane:has(.confirm-modal-shell) {
+    width: auto !important;
+    max-width: min(440px, 92vw) !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    position: relative !important;
+    margin: auto !important;
+    transform: none !important;
+  }
+
+  app-confirm-modal,
+  .confirm-modal-shell {
+    border-radius: var(--radius-md) !important;
+    width: min(440px, 92vw) !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    margin: auto !important;
+  }
+
+  .page-header {
+    margin-bottom: 12px;
+    gap: 8px;
+
+    h1, h2, .page-title {
+      font-size: 1.3rem;
+    }
+    .subtitle, .page-subtitle {
+      font-size: 0.82rem;
+    }
+  }
+
+  .card {
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    border-radius: var(--radius-md);
+  }
+
+  .modal-backdrop {
+    padding: 6px;
+  }
+
+  .modal-header {
+    padding: 12px 16px 8px;
+    h3 {
+      font-size: 1.05rem;
+    }
+  }
+
+  .modal-body {
+    padding: 12px 16px;
+  }
+
+  .modal-footer {
+    padding: 10px 16px 14px;
+  }
+
+  .btn {
+    padding: 7px 12px;
+    font-size: 0.88rem;
+  }
+
+  .btn-sm, .btn-xs {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+
+  input, select, textarea {
+    padding: 7px 10px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    margin-bottom: 10px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+
+    h1, h2, .page-title {
+      font-size: 1.18rem;
+    }
+  }
+
+  .card {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  .modal-header {
+    padding: 10px 12px 6px;
+  }
+
+  .modal-body {
+    padding: 10px 12px;
+  }
+
+  .modal-footer {
+    padding: 8px 12px 12px;
+    gap: 6px;
+  }
+}
+
+/* Lucide Icons Theme Styling */
+svg[lucideIcon],
+svg[lucideHouse],
+svg[lucideBoxes],
+svg[lucidePackage],
+svg[lucideShoppingCart],
+svg[lucideStore],
+svg[lucideTag],
+svg[lucidePencil],
+svg[lucideTrash2],
+svg[lucideSave],
+svg[lucidePlus],
+svg[lucideX],
+svg[lucideCheck],
+svg[lucideRotateCw],
+svg[lucideRefreshCw],
+svg[lucideGripVertical],
+svg[lucideFileText],
+svg[lucideSnowflake],
+svg[lucideLockOpen],
+svg[lucideUtensils],
+svg[lucideCamera],
+svg[lucideScanBarcode],
+svg[lucideUndo] {
+  display: inline-block;
+  vertical-align: middle;
+  stroke: currentColor;
+  stroke-width: 2px;
+  fill: none;
+  line-height: 1;
+}
+

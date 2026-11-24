@@ -27,6 +27,7 @@ describe('ProductEditorModalComponent', () => {
     deleteProductPicture: vi.fn().mockResolvedValue(undefined),
     reorderProductPictures: vi.fn().mockResolvedValue(undefined),
     setProductStore: vi.fn().mockResolvedValue(undefined),
+    getAisles: vi.fn().mockResolvedValue([]),
     getMealieStatus: vi.fn().mockResolvedValue({ configured: true, mealieUrl: 'https://mealie.local' }),
   };
 
@@ -85,6 +86,16 @@ describe('ProductEditorModalComponent', () => {
 
     component.removeBarcode(0);
     expect(component.barcodes().length).toBe(0);
+  });
+
+  it('should toggle inline barcode scanner and add barcode on scanned event', () => {
+    expect(component.isScannerOpen()).toBe(false);
+    component.toggleScanner();
+    expect(component.isScannerOpen()).toBe(true);
+
+    component.onBarcodeScanned('8001234567890');
+    expect(component.barcodes()).toContain('8001234567890');
+    expect(component.isScannerOpen()).toBe(false);
   });
 
   it('should manage linked foods and recipes', () => {
@@ -150,5 +161,28 @@ describe('ProductEditorModalComponent', () => {
       product: expect.objectContaining({ id: 'p1' }),
       isNew: true,
     });
+  });
+
+  it('should filter out freezer locations and clear freezing days when cannotBeFrozen is enabled', () => {
+    component.data.locations = [
+      { id: 'l1', name: 'Pantry Shelf', isFreezer: false } as any,
+      { id: 'l2', name: 'Deep Freezer', isFreezer: true } as any,
+    ];
+    component.formProduct.cannotBeFrozen = false;
+    component.formProduct.defaultBestBeforeDaysAfterFreezing = 30;
+    component.formProduct.defaultBestBeforeDaysAfterThawing = 5;
+    component.formProduct.defaultLocationId = 'l2';
+    component.formProduct.openLocationId = 'l2';
+
+    expect(component.availableLocations().length).toBe(2);
+
+    component.formProduct.cannotBeFrozen = true;
+    component.onCannotBeFrozenChange(true);
+
+    expect(component.availableLocations().map((l) => l.id)).toEqual(['l1']);
+    expect(component.formProduct.defaultBestBeforeDaysAfterFreezing).toBeNull();
+    expect(component.formProduct.defaultBestBeforeDaysAfterThawing).toBeNull();
+    expect(component.formProduct.defaultLocationId).toBeNull();
+    expect(component.formProduct.openLocationId).toBeNull();
   });
 });

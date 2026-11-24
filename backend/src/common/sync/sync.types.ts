@@ -3,6 +3,7 @@ import {
   Product,
   ProductGroup,
   QuantityUnit,
+  ShoppingList,
   ShoppingListItem,
   StockItem,
   Store,
@@ -14,6 +15,7 @@ export interface SyncPayloadDto {
     products?: Array<Partial<Product>>;
     stock?: Array<Partial<StockItem>>;
     shoppingListItems?: Array<Partial<ShoppingListItem>>;
+    shoppingLists?: Array<Partial<ShoppingList>>;
     catalogs?: {
       units?: Array<Partial<QuantityUnit>>;
       groups?: Array<Partial<ProductGroup>>;
@@ -29,6 +31,7 @@ export interface SyncResponseDto {
     products: Product[];
     stock: StockItem[];
     shoppingListItems: ShoppingListItem[];
+    shoppingLists?: ShoppingList[];
     catalogs: {
       units: QuantityUnit[];
       groups: ProductGroup[];

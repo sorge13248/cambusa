@@ -3,6 +3,7 @@ import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { firstValueFrom, Subscription } from 'rxjs';
+import { LucideX } from '@lucide/angular';
 import { ApiService } from '../../../core/api.service.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
 
@@ -14,7 +15,7 @@ export interface HouseholdFormModalData {
 @Component({
   selector: 'app-household-form-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideX],
   templateUrl: './household-form-modal.component.html',
   styleUrl: './household-form-modal.component.scss',
 })

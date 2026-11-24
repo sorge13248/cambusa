@@ -67,6 +67,9 @@ export class SyncService {
           products: queue.filter((q) => q.entity === 'product').map((q) => q.payload),
           stock: queue.filter((q) => q.entity === 'stock').map((q) => q.payload),
           shoppingListItems: queue.filter((q) => q.entity === 'shopping_item').map((q) => q.payload),
+          shoppingLists: queue
+            .filter((q) => q.entity === 'shopping_list')
+            .flatMap((q) => (Array.isArray(q.payload) ? q.payload : [q.payload])),
         },
       };
 
@@ -77,6 +80,11 @@ export class SyncService {
         await this.storage.removeQueueItem(item.id);
       }
       this.pendingCount.set(0);
+
+      const hhId = this.api.activeHouseholdId();
+      if (hhId && response.serverChanges?.shoppingLists) {
+        await this.storage.setMeta(`shopping_lists_${hhId}`, response.serverChanges.shoppingLists);
+      }
 
       const syncedAt = response.syncedAt || new Date().toISOString();
       await this.storage.setMeta('lastSyncAt', syncedAt);

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { LucideX } from '@lucide/angular';
 import { ShoppingList, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
 
@@ -13,7 +14,7 @@ export interface ShoppingListModalData {
 @Component({
   selector: 'app-shopping-list-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideX],
   templateUrl: './shopping-list-modal.component.html',
   styleUrl: './shopping-list-modal.component.scss',
 })
@@ -24,12 +25,14 @@ export class ShoppingListModalComponent implements OnInit {
 
   name = '';
   storeId: string | null = null;
+  isDefault = false;
   readonly isSaving = signal<boolean>(false);
 
   ngOnInit() {
     if (this.data.shoppingList) {
       this.name = this.data.shoppingList.name;
       this.storeId = this.data.shoppingList.storeId || null;
+      this.isDefault = !!this.data.shoppingList.isDefault;
     }
   }
 
@@ -42,11 +45,13 @@ export class ShoppingListModalComponent implements OnInit {
         await this.api.updateShoppingList(this.data.shoppingList.id, {
           name: this.name.trim(),
           storeId: this.storeId || null,
+          isDefault: this.isDefault,
         });
       } else {
         await this.api.createShoppingList({
           name: this.name.trim(),
           storeId: this.storeId || null,
+          isDefault: this.isDefault,
         });
       }
       this.dialogRef.close(true);

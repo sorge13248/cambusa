@@ -4,13 +4,15 @@
       <h3>Items Below Minimum Stock</h3>
       <p class="subtitle">Automatic replenishment based on your household's inventory thresholds.</p>
     </div>
-    <button class="modal-close-btn" (click)="close(false)">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="close(false)" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <div class="modal-body">
     @if (data.missingProducts.length === 0) {
       <div class="empty-missing">
-        <span class="empty-icon">🎉</span>
+        <span class="empty-icon"><svg lucideSparkles [size]="28"></svg></span>
         <p>All items in this household are currently above their minimum stock levels!</p>
       </div>
     } @else {
@@ -35,7 +37,7 @@
               @if (m.productPictureFileNames && m.productPictureFileNames.length > 0) {
                 <img [src]="'/api/products/pictures/' + m.productPictureFileNames[0]" [alt]="m.productName" />
               } @else {
-                <span>📦</span>
+                <svg lucidePackage [size]="20"></svg>
               }
             </div>
 

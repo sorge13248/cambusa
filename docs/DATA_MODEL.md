@@ -45,6 +45,7 @@ erDiagram
     Product ||--o{ Product : "parent/sub-products"
     Product ||--o{ ProductStore : "sold at"
     Store ||--o{ ProductStore : "stocks"
+    Store ||--o{ Aisle : "contains"
     Store ||--o{ ShoppingList : "associated store"
     Product ||--o{ StockItem : "instances in pantry"
     Product ||--o{ ShoppingListItem : "requested"
@@ -183,15 +184,15 @@ Primary catalog entity supporting infinite recursive parent hierarchies, multi-p
 | `pictureFileNames` | TEXT (JSON) | DEFAULT '[]' | Ordered JSON array of WebP filenames in `uploads/products/` |
 | `mealieFoods` | TEXT (JSON) | DEFAULT '[]' | JSON array of mapped Mealie food entities (`[{ id, name }]`) |
 | `mealieRecipes` | TEXT (JSON) | DEFAULT '[]' | JSON array of explicitly mapped Mealie recipes (`[{ id, slug, name }]`) |
-| `cannotBeFrozen` | BOOLEAN | DEFAULT FALSE | If true, prevents transfers to freezer locations |
+| `cannotBeFrozen` | BOOLEAN | DEFAULT FALSE | If true, prevents assignment or transfers to freezer locations, omits freezer options from storage selectors, and forces freezing/thawing shelf-life fields to NULL |
 | `openLocationId` | VARCHAR | NULLABLE, FK &rarr; `locations(id)` ON DELETE SET NULL | Destination location when item is unsealed |
 | `moveOnOpen` | BOOLEAN | DEFAULT FALSE | Automatically move item to `openLocationId` upon opening |
 | `defaultStoreId` | VARCHAR | NULLABLE, FK &rarr; `stores(id)` ON DELETE SET NULL | Preferred retail store |
 | `dueType` | VARCHAR | DEFAULT 'best_before' | Expiration mode (`best_before` or `use_by`) |
 | `defaultBestBeforeDays` | INTEGER | DEFAULT 0 | Shelf life in days from purchase date |
 | `defaultBestBeforeDaysAfterOpen` | INTEGER | NULLABLE | Shelf life in days after unsealing |
-| `defaultBestBeforeDaysAfterFreezing` | INTEGER | NULLABLE | Shelf life in days when placed in freezer |
-| `defaultBestBeforeDaysAfterThawing` | INTEGER | NULLABLE | Shelf life in days after thawing from freezer |
+| `defaultBestBeforeDaysAfterFreezing` | INTEGER | NULLABLE | Shelf life in days when placed in freezer (enforced NULL if `cannotBeFrozen` is true) |
+| `defaultBestBeforeDaysAfterThawing` | INTEGER | NULLABLE | Shelf life in days after thawing from freezer (enforced NULL if `cannotBeFrozen` is true) |
 | `minStockAmount` | REAL | DEFAULT 0 | Minimum desired pantry threshold |
 | `treatOpenedAsOutOfStock` | BOOLEAN | DEFAULT FALSE | Exclude opened packages from stock thresholds |
 | `productGroupId` | VARCHAR | NULLABLE, FK &rarr; `product_groups(id)` ON DELETE SET NULL | Associated product group / category |
@@ -218,6 +219,20 @@ Physical or online grocery retail store.
 | `description` | TEXT | NULLABLE | Optional store notes |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+#### `Aisle` (`aisles`)
+Physical aisle or section within a specific store/supermarket, supporting customizable sequential drag-and-drop route ordering.
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | Aisle ID |
+| `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
+| `storeId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `stores(id)` ON DELETE CASCADE | Parent store scope |
+| `name` | VARCHAR | NOT NULL | Aisle designation (e.g. "Produce", "Bakery", "Aisle 4") |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Sequential position for shopping routing |
+| `createdAt` | DATETIME | NOT NULL | Creation timestamp |
+| `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+> **Unique & Ordering Constraints**: Enforces `UNIQUE(householdId, storeId, name)` and an index on `(householdId, storeId, sortOrder)`. Deletions trigger mandatory `SyncTombstone` records (`entityType: 'aisle'`) to maintain offline sync consistency.
 
 #### `ProductStore` (`product_stores`)
 Product-to-store mapping with store-specific aisle order and price history.
@@ -281,6 +296,7 @@ Shopping list definition for a household, optionally linked to a store.
 | `name` | VARCHAR | NOT NULL | List name (e.g. "Weekly Groceries") |
 | `storeId` | VARCHAR | INDEX, NULLABLE, FK &rarr; `stores(id)` ON DELETE SET NULL | Associated store for aisle route sorting |
 | `isDefault` | BOOLEAN | DEFAULT TRUE | Whether this is the default list |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Sequential position for custom drag-and-drop shopping list ordering |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
@@ -297,6 +313,7 @@ Line items within a shopping list.
 | `quId` | VARCHAR | NULLABLE, FK &rarr; `quantity_units(id)` ON DELETE SET NULL | Unit of measure |
 | `storeId` | VARCHAR | INDEX, NULLABLE, FK &rarr; `stores(id)` ON DELETE SET NULL | Supermarket where item should be bought |
 | `note` | TEXT | NULLABLE | Item shopping note |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Sequential position for custom drag-and-drop item reordering |
 | `done` | BOOLEAN | DEFAULT FALSE | Strikethrough state (item completed in cart) |
 | `doneAt` | DATETIME | NULLABLE | Timestamp when item was marked done |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |

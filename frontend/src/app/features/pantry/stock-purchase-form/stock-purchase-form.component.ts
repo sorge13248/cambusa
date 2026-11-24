@@ -5,11 +5,12 @@ import { Location, Product, QuantityUnit, StockItem, Store } from '../../../core
 import { ApiService } from '../../../core/api.service.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { CdkDatepickerComponent } from '../../../shared/components/datepicker/cdk-datepicker.component.js';
+import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
 
 @Component({
   selector: 'app-stock-purchase-form',
   standalone: true,
-  imports: [CommonModule, FormsModule, CdkDatepickerComponent],
+  imports: [CommonModule, FormsModule, CdkDatepickerComponent, NumberStepperComponent],
   templateUrl: './stock-purchase-form.component.html',
   styleUrl: './stock-purchase-form.component.scss',
 })
@@ -39,6 +40,18 @@ export class StockPurchaseFormComponent implements OnInit, OnChanges {
   purchaseNote = '';
   isSubmitting = false;
 
+  get availableLocations(): Location[] {
+    if (this.product?.cannotBeFrozen) {
+      return (this.locations || []).filter((l) => !l.isFreezer);
+    }
+    return this.locations || [];
+  }
+
+  get stockUnitName(): string {
+    const qu = this.units?.find((u) => u.id === this.product?.quStockId);
+    return qu?.name || '';
+  }
+
   ngOnInit(): void {
     this.initProductDefaults();
   }
@@ -60,7 +73,21 @@ export class StockPurchaseFormComponent implements OnInit, OnChanges {
       this.purchaseBestBeforeDate = null;
     }
 
-    this.purchaseLocationId = this.product.defaultLocationId || (this.locations[0]?.id ?? '');
+    if (this.product.cannotBeFrozen) {
+      const defLoc = this.locations.find((l) => l.id === this.product.defaultLocationId);
+      if (defLoc && !defLoc.isFreezer) {
+        this.purchaseLocationId = defLoc.id;
+      } else if (!this.product.defaultLocationId) {
+        this.purchaseLocationId = this.availableLocations[0]?.id ?? '';
+      } else {
+        // defaultLocationId was a freezer location or unknown
+        const firstNonFreezer = this.availableLocations[0];
+        this.purchaseLocationId = firstNonFreezer?.id ?? '';
+      }
+    } else {
+      this.purchaseLocationId = this.product.defaultLocationId || (this.locations[0]?.id ?? '');
+    }
+
     this.purchaseStoreId = this.product.defaultStoreId || '';
   }
 
@@ -70,6 +97,11 @@ export class StockPurchaseFormComponent implements OnInit, OnChanges {
 
   async submitPurchase(): Promise<void> {
     if (this.purchaseAmount <= 0 || !this.product || this.isSubmitting) return;
+
+    if (this.product.cannotBeFrozen && this.purchaseLocationId) {
+      const chosenLoc = this.locations.find((l) => l.id === this.purchaseLocationId);
+      if (chosenLoc?.isFreezer) return;
+    }
 
     this.isSubmitting = true;
     try {

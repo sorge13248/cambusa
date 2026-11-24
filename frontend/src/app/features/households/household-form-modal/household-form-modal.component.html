@@ -1,7 +1,9 @@
 <div class="hh-modal-shell" role="dialog" aria-modal="true">
   <div class="modal-header">
     <h3>{{ data.householdId ? 'Rename Household' : 'Create New Household' }}</h3>
-    <button class="modal-close-btn" (click)="requestClose()">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="requestClose()" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <div class="modal-body">

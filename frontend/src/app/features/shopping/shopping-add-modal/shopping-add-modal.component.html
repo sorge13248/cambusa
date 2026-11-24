@@ -4,7 +4,9 @@
       <h3>{{ isEditMode() ? 'Edit Shopping Item' : 'Add Item to Shopping List' }}</h3>
       <p class="subtitle">{{ isEditMode() ? 'Update item details, quantity, or store.' : 'Search catalog items or add a custom uncataloged product.' }}</p>
     </div>
-    <button class="modal-close-btn" (click)="requestClose()">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="requestClose()" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <div class="modal-body">
@@ -14,16 +16,39 @@
         <label>Search Product Catalog</label>
         <div class="search-input-wrapper">
           <input
+            #searchInput
             type="text"
             [ngModel]="searchQuery()"
             (ngModelChange)="searchQuery.set($event)"
             placeholder="Type product name or scan barcode..."
             autofocus
+            cdkFocusInitial
           />
           @if (searchQuery().trim()) {
-            <button class="btn-clear-search" (click)="searchQuery.set('')">✕</button>
+            <button class="btn-clear-search" (click)="searchQuery.set('')" aria-label="Clear search">
+              <svg lucideX [size]="14"></svg>
+            </button>
           }
+          <button
+            type="button"
+            class="btn-scan-camera"
+            [class.active]="isScannerOpen()"
+            (click)="toggleScanner()"
+            title="Scan barcode with camera"
+            aria-label="Scan barcode with camera"
+          >
+            <svg lucideCamera [size]="16"></svg>
+          </button>
         </div>
+
+        @if (isScannerOpen()) {
+          <div class="inline-scanner-wrapper">
+            <app-barcode-scanner
+              (scanned)="onBarcodeScanned($event)"
+              (close)="isScannerOpen.set(false)"
+            />
+          </div>
+        }
       </div>
 
       <!-- Autocomplete Results -->
@@ -35,7 +60,7 @@
                 @if (p.pictureFileNames && p.pictureFileNames.length > 0) {
                   <img [src]="'/api/products/pictures/' + p.pictureFileNames[0]" [alt]="p.name" />
                 } @else {
-                  <span>📦</span>
+                  <svg lucidePackage [size]="20"></svg>
                 }
               </div>
               <div class="item-info">
@@ -51,7 +76,7 @@
       <!-- Option to add as custom item -->
       @if (searchQuery().trim()) {
         <div class="custom-item-option" (click)="chooseCustomItem()">
-          <span class="custom-icon">✨</span>
+          <svg lucideSparkles [size]="16" class="custom-icon"></svg>
           <div class="custom-text">
             <strong>Add "{{ searchQuery().trim() }}" as custom uncataloged item</strong>
             <span class="hint">Will appear on your shopping list without a catalog link</span>
@@ -67,7 +92,7 @@
           @if (prod.pictureFileNames && prod.pictureFileNames.length > 0) {
             <img [src]="'/api/products/pictures/' + prod.pictureFileNames[0]" [alt]="prod.name" />
           } @else {
-            <span class="placeholder-icon">📦</span>
+            <svg lucidePackage [size]="20" class="placeholder-icon"></svg>
           }
         </div>
         <div class="selected-details">
@@ -108,16 +133,7 @@
       <div class="form-row">
         <div class="form-group flex-1">
           <label>Quantity</label>
-          <div class="qty-control">
-            <button type="button" class="btn-qty" (click)="decrementAmount()">-</button>
-            <input
-              type="number"
-              min="1"
-              [(ngModel)]="amount"
-              class="qty-input"
-            />
-            <button type="button" class="btn-qty" (click)="incrementAmount()">+</button>
-          </div>
+          <app-number-stepper [(value)]="amount" [min]="1" [unit]="data.itemToEdit?.quName || null" ariaLabel="Quantity"></app-number-stepper>
         </div>
 
         <div class="form-group flex-2">

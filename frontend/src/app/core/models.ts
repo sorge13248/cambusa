@@ -76,6 +76,16 @@ export interface Store {
   active: boolean;
 }
 
+export interface Aisle {
+  id: string;
+  householdId: string;
+  storeId: string;
+  name: string;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ProductStore {
   id?: string;
   householdId?: string;
@@ -191,6 +201,7 @@ export interface ShoppingList {
   name: string;
   storeId: string | null;
   isDefault: boolean;
+  sortOrder?: number;
 }
 
 export interface ShoppingListItem {
@@ -210,6 +221,7 @@ export interface ShoppingListItem {
   storeName: string | null;
   aisle: string | null;
   aisleOrder: number | null;
+  sortOrder?: number;
   estimatedPrice: number | null;
   currentStock: number;
   minStockAmount: number;
@@ -264,6 +276,7 @@ export interface CreatedApiKeyDto extends ApiKeyDto {
 
 export interface UserSettingsDto {
   nextExpiringDays: number;
+  quickConsumeTimerSeconds?: number;
   mealieUrl: string | null;
   mealieLinked: boolean;
   hasMealieToken: boolean;

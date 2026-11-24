@@ -1,7 +1,9 @@
 <div class="list-modal-shell" role="dialog" aria-modal="true">
   <div class="modal-header">
     <h3>{{ data.shoppingList ? 'Edit Shopping List' : 'New Shopping List' }}</h3>
-    <button class="modal-close-btn" (click)="close(false)">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="close(false)" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <div class="modal-body">
@@ -27,6 +29,13 @@
       <span class="field-hint">
         Associating a store automatically sorts items by the store's aisle order.
       </span>
+    </div>
+
+    <div class="form-group-checkbox">
+      <label>
+        <input type="checkbox" [(ngModel)]="isDefault" />
+        <span>Set as default shopping list</span>
+      </label>
     </div>
   </div>
 

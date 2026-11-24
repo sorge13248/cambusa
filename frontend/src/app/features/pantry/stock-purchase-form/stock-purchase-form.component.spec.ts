@@ -107,4 +107,22 @@ describe('StockPurchaseFormComponent', () => {
     component.onCancel();
     expect(cancelledFired).toBe(true);
   });
+
+  it('should filter out freezer locations when product cannot be frozen', () => {
+    component.locations = [
+      { id: 'loc-1', name: 'Pantry', isFreezer: false } as any,
+      { id: 'loc-2', name: 'Deep Freezer', isFreezer: true } as any,
+    ];
+    component.product = {
+      ...mockProduct,
+      cannotBeFrozen: true,
+      defaultLocationId: 'loc-2',
+    };
+    component.ngOnChanges({
+      product: new SimpleChange(null, component.product, true),
+    });
+
+    expect(component.availableLocations.map((l) => l.id)).toEqual(['loc-1']);
+    expect(component.purchaseLocationId).toBe('loc-1');
+  });
 });

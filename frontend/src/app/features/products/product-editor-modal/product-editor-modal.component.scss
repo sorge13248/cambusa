@@ -49,6 +49,15 @@
     display: flex;
     align-items: center;
     gap: 10px;
+
+    .modal-header-btn {
+      width: 34px;
+      height: 34px;
+      padding: 0 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
   }
 }
 
@@ -67,18 +76,6 @@
   }
 }
 
-.modal-close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  line-height: 1;
-  color: var(--text-muted, #64748b);
-  cursor: pointer;
-
-  &:hover {
-    color: #fff;
-  }
-}
 
 .modal-body {
   padding: 16px 20px;
@@ -95,6 +92,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 
   label {
     font-size: 0.8rem;
@@ -126,10 +126,21 @@
 
 .form-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 
   .form-group {
-    flex: 1;
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 12px;
+
+    .form-group {
+      flex: 1 1 100%;
+    }
   }
 }
 
@@ -143,6 +154,8 @@ textarea {
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
 
   &:focus {
     outline: none;
@@ -325,6 +338,17 @@ textarea {
 
   input {
     flex: 1;
+    min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    .btn {
+      padding: 6px 10px;
+
+      .btn-label {
+        display: none !important;
+      }
+    }
   }
 }
 
@@ -370,15 +394,63 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 .aisle-input {
   flex: 2;
+  min-width: 0;
 }
-.order-input {
-  width: 85px;
+.store-subrow-inputs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+
+  .order-input {
+    width: 85px;
+    flex-shrink: 0;
+  }
+  .price-input {
+    width: 110px;
+    flex-shrink: 0;
+  }
 }
-.price-input {
-  width: 110px;
+
+@media (max-width: 768px) {
+  .store-row-editor {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border, #334155);
+    border-radius: var(--radius-sm, 6px);
+    padding: 10px 12px;
+    gap: 8px;
+    margin-bottom: 10px;
+
+    .store-name-label {
+      width: 100%;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--primary, #10b981);
+    }
+
+    .aisle-input {
+      width: 100%;
+    }
+
+    .store-subrow-inputs {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+
+      .order-input,
+      .price-input {
+        flex: 1 1 0;
+        width: 100%;
+      }
+    }
+  }
 }
 
 /* Mealie Integration Section */

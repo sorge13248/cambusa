@@ -6,6 +6,7 @@ export * from './quantity-unit.entity.js';
 export * from './product-group.entity.js';
 export * from './location.entity.js';
 export * from './store.entity.js';
+export * from './aisle.entity.js';
 export * from './product.entity.js';
 export * from './product-store.entity.js';
 export * from './stock-item.entity.js';

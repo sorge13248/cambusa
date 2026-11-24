@@ -17,6 +17,7 @@ import {
   ShoppingListItem,
   StockItem,
   Store,
+  Aisle,
   User,
   UserHouseholdSummary,
   ProfileDataDto,
@@ -201,6 +202,34 @@ export class ApiService {
     return firstValueFrom(this.http.delete<void>(`/api/catalogs/stores/${id}`, this.options));
   }
 
+  // Aisles
+  getAisles(storeId?: string): Promise<Aisle[]> {
+    const params = storeId ? `?storeId=${encodeURIComponent(storeId)}` : '';
+    return firstValueFrom(this.http.get<Aisle[]>(`/api/catalogs/aisles${params}`, this.options));
+  }
+
+  getStoreAisles(storeId: string): Promise<Aisle[]> {
+    return firstValueFrom(this.http.get<Aisle[]>(`/api/catalogs/stores/${storeId}/aisles`, this.options));
+  }
+
+  createAisle(storeId: string, data: { name: string; sortOrder?: number }): Promise<Aisle> {
+    return firstValueFrom(this.http.post<Aisle>(`/api/catalogs/stores/${storeId}/aisles`, data, this.options));
+  }
+
+  updateAisle(id: string, data: { name?: string; sortOrder?: number }): Promise<Aisle> {
+    return firstValueFrom(this.http.put<Aisle>(`/api/catalogs/aisles/${id}`, data, this.options));
+  }
+
+  deleteAisle(id: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`/api/catalogs/aisles/${id}`, this.options));
+  }
+
+  reorderStoreAisles(storeId: string, aisleIds: string[]): Promise<Aisle[]> {
+    return firstValueFrom(
+      this.http.post<Aisle[]>(`/api/catalogs/stores/${storeId}/aisles/reorder`, { aisleIds }, this.options),
+    );
+  }
+
   // Products
   getProducts(includeInactive = false): Promise<Product[]> {
     const url = includeInactive ? '/api/products?includeInactive=true' : '/api/products';
@@ -310,6 +339,40 @@ export class ApiService {
     );
   }
 
+  openStock(
+    id: string,
+    amount = 1,
+  ): Promise<{
+    openedStockItem: StockItem;
+    originalStockItem: StockItem | null;
+    split: boolean;
+    originalDate: string | null;
+    originalLocationId: string | null;
+  }> {
+    return firstValueFrom(
+      this.http.post<{
+        openedStockItem: StockItem;
+        originalStockItem: StockItem | null;
+        split: boolean;
+        originalDate: string | null;
+        originalLocationId: string | null;
+      }>(`/api/stock/${id}/open`, { amount }, this.options),
+    );
+  }
+
+  revertOpen(data: {
+    openedStockItemId: string;
+    originalStockItemId?: string | null;
+    split: boolean;
+    amount?: number;
+    originalDate?: string | null;
+    originalLocationId?: string | null;
+  }): Promise<{ reverted: boolean }> {
+    return firstValueFrom(
+      this.http.post<{ reverted: boolean }>(`/api/stock/revert-open`, data, this.options),
+    );
+  }
+
   toggleOpen(id: string): Promise<StockItem> {
     return firstValueFrom(this.http.post<StockItem>(`/api/stock/${id}/toggle-open`, {}, this.options));
   }
@@ -323,15 +386,21 @@ export class ApiService {
     return firstValueFrom(this.http.get<ShoppingList[]>('/api/shopping-list', this.options));
   }
 
+  reorderShoppingLists(listIds: string[]): Promise<void> {
+    return firstValueFrom(
+      this.http.post<void>('/api/shopping-list/reorder', { listIds }, this.options),
+    );
+  }
+
   getDefaultShoppingList(): Promise<ShoppingList> {
     return firstValueFrom(this.http.get<ShoppingList>('/api/shopping-list/default', this.options));
   }
 
-  createShoppingList(data: { name: string; storeId?: string | null }): Promise<ShoppingList> {
+  createShoppingList(data: { name: string; storeId?: string | null; isDefault?: boolean }): Promise<ShoppingList> {
     return firstValueFrom(this.http.post<ShoppingList>('/api/shopping-list', data, this.options));
   }
 
-  updateShoppingList(id: string, data: { name?: string; storeId?: string | null }): Promise<ShoppingList> {
+  updateShoppingList(id: string, data: { name?: string; storeId?: string | null; isDefault?: boolean }): Promise<ShoppingList> {
     return firstValueFrom(this.http.put<ShoppingList>(`/api/shopping-list/${id}`, data, this.options));
   }
 
@@ -363,6 +432,12 @@ export class ApiService {
 
   deleteShoppingItem(id: string): Promise<void> {
     return firstValueFrom(this.http.delete<void>(`/api/shopping-list/items/${id}`, this.options));
+  }
+
+  reorderShoppingItems(itemIds: string[]): Promise<void> {
+    return firstValueFrom(
+      this.http.post<void>('/api/shopping-list/items/reorder', { itemIds }, this.options),
+    );
   }
 
   clearDoneShoppingItems(shoppingListId?: string): Promise<{ deletedCount: number }> {
@@ -424,6 +499,7 @@ export class ApiService {
 
   updateProfileSettings(dto: {
     nextExpiringDays?: number;
+    quickConsumeTimerSeconds?: number;
     mealieUrl?: string | null;
     mealieApiToken?: string | null;
     notificationEmail?: string | null;

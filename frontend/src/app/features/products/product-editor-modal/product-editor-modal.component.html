@@ -9,7 +9,9 @@
       <button type="button" class="btn-toggle-all" (click)="toggleAllSections()">
         {{ allExpanded() ? 'Collapse All' : 'Expand All' }}
       </button>
-      <button type="button" class="modal-close-btn" (click)="cancel()">×</button>
+      <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="cancel()" aria-label="Close dialog">
+        <svg lucideX [size]="14"></svg>
+      </button>
     </div>
   </div>
 
@@ -18,7 +20,7 @@
     <!-- Section 1: Basic Information -->
     <app-collapsible-section
       title="Basic Information"
-      icon="📋"
+      lucideIcon="clipboard-list"
       [badge]="formProduct.name || ''"
       [(expanded)]="sections.basic"
     >
@@ -41,32 +43,30 @@
         ></textarea>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Parent Product (Infinite Hierarchy)</label>
-          <input
-            type="text"
-            class="form-input"
-            [appAutocomplete]="candidateParents()"
-            [(selectedId)]="selectedParentProductId"
-            (validityChange)="isParentValid = $event"
-            placeholder="Search or select parent product..."
-          />
-          @if (!isParentValid) {
-            <span class="field-error">Parent product does not exist. Please select a valid product or clear the field.</span>
-          }
-          <span class="field-hint">Hierarchical nesting aggregates stock and simplifies searching.</span>
-        </div>
+      <div class="form-group">
+        <label>Parent Product (Infinite Hierarchy)</label>
+        <input
+          type="text"
+          class="form-input"
+          [appAutocomplete]="candidateParents()"
+          [(selectedId)]="selectedParentProductId"
+          (validityChange)="isParentValid = $event"
+          placeholder="Search or select parent product..."
+        />
+        @if (!isParentValid) {
+          <span class="field-error">Parent product does not exist. Please select a valid product or clear the field.</span>
+        }
+        <span class="field-hint">Hierarchical nesting aggregates stock and simplifies searching.</span>
+      </div>
 
-        <div class="form-group">
-          <label>Product Group / Category</label>
-          <select [(ngModel)]="formProduct.productGroupId">
-            <option [ngValue]="null">None</option>
-            @for (g of data.productGroups; track g.id) {
-              <option [value]="g.id">{{ g.name }}</option>
-            }
-          </select>
-        </div>
+      <div class="form-group">
+        <label>Product Group / Category</label>
+        <select [(ngModel)]="formProduct.productGroupId">
+          <option [ngValue]="null">None</option>
+          @for (g of data.productGroups; track g.id) {
+            <option [value]="g.id">{{ g.name }}</option>
+          }
+        </select>
       </div>
 
       <div class="checkbox-row mt-2">
@@ -74,6 +74,7 @@
           type="checkbox"
           id="cannotBeFrozen"
           [(ngModel)]="formProduct.cannotBeFrozen"
+          (ngModelChange)="onCannotBeFrozenChange($event)"
         />
         <label for="cannotBeFrozen">
           <strong>Cannot be frozen</strong>
@@ -102,7 +103,7 @@
     <!-- Section 2: Photos (Drag & Drop Reordering) -->
     <app-collapsible-section
       title="Photos & Media"
-      icon="🖼️"
+      lucideIcon="image"
       [badge]="photos().length + (photos().length === 1 ? ' photo' : ' photos')"
       [(expanded)]="sections.photos"
     >
@@ -133,7 +134,9 @@
                   <circle cx="8" cy="14" r="1.5" />
                 </svg>
               </div>
-              <button type="button" class="btn-delete-photo" (click)="removePhoto(i)" title="Remove photo">✕</button>
+              <button type="button" class="btn-delete-photo" (click)="removePhoto(i)" title="Remove photo" aria-label="Remove photo">
+                <svg lucideX [size]="14"></svg>
+              </button>
             </div>
           </div>
         }
@@ -147,7 +150,7 @@
             (change)="onFilesSelected($event)"
             [disabled]="isUploading()"
           />
-          <span class="upload-icon">📷</span>
+          <span class="upload-icon"><svg lucideCamera [size]="20"></svg></span>
           <span class="upload-text">Add Photos</span>
         </label>
       </div>
@@ -156,31 +159,29 @@
     <!-- Section 3: Locations & Default Store -->
     <app-collapsible-section
       title="Locations & Default Store"
-      icon="📍"
+      lucideIcon="map-pin"
       [badge]="formProduct.defaultLocationId || formProduct.openLocationId ? 'Configured' : ''"
       [(expanded)]="sections.locations"
     >
-      <div class="form-row">
-        <div class="form-group">
-          <label>Default Storage Location</label>
-          <select [(ngModel)]="formProduct.defaultLocationId">
-            <option [ngValue]="null">None</option>
-            @for (loc of data.locations; track loc.id) {
-              <option [value]="loc.id">{{ loc.name }} {{ loc.isFreezer ? '❄️' : '' }}</option>
-            }
-          </select>
-        </div>
+      <div class="form-group">
+        <label>Default Storage Location</label>
+        <select [(ngModel)]="formProduct.defaultLocationId">
+          <option [ngValue]="null">None</option>
+          @for (loc of availableLocations(); track loc.id) {
+            <option [value]="loc.id">{{ loc.name }} {{ loc.isFreezer ? '❄️' : '' }}</option>
+          }
+        </select>
+      </div>
 
-        <div class="form-group">
-          <label>Open Location</label>
-          <select [(ngModel)]="formProduct.openLocationId">
-            <option [ngValue]="null">Same location (None)</option>
-            @for (loc of data.locations; track loc.id) {
-              <option [value]="loc.id">{{ loc.name }} {{ loc.isFreezer ? '❄️' : '' }}</option>
-            }
-          </select>
-          <span class="field-hint">Location where the product is stored once opened.</span>
-        </div>
+      <div class="form-group">
+        <label>Open Location</label>
+        <select [(ngModel)]="formProduct.openLocationId">
+          <option [ngValue]="null">Same location (None)</option>
+          @for (loc of availableLocations(); track loc.id) {
+            <option [value]="loc.id">{{ loc.name }} {{ loc.isFreezer ? '❄️' : '' }}</option>
+          }
+        </select>
+        <span class="field-hint">Location where the product is stored once opened.</span>
       </div>
 
       <div class="checkbox-row mb-3">
@@ -212,7 +213,7 @@
     <!-- Section 4: Expiration Policies & Rules -->
     <app-collapsible-section
       title="Expiration & Due Date Rules"
-      icon="⏳"
+      lucideIcon="clock"
       [badge]="formProduct.dueType === 'use_by' ? 'Use by' : 'Best before'"
       [(expanded)]="sections.dueDate"
     >
@@ -241,67 +242,69 @@
       </div>
 
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group flex-1">
           <label>Default Shelf Life (Days upon Purchase)</label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            [(ngModel)]="formProduct.defaultBestBeforeDays"
-            placeholder="e.g. 7"
-          />
+          <app-number-stepper
+            [(value)]="formProduct.defaultBestBeforeDays"
+            [min]="0"
+            [step]="1"
+            unit="days"
+            ariaLabel="Default shelf life days"
+          ></app-number-stepper>
           <span class="field-hint">0 or empty means no preset expiration.</span>
         </div>
 
-        <div class="form-group">
+        <div class="form-group flex-1">
           <label>Days After Opening</label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            [(ngModel)]="formProduct.defaultBestBeforeDaysAfterOpen"
-            placeholder="e.g. 3"
-          />
+          <app-number-stepper
+            [(value)]="formProduct.defaultBestBeforeDaysAfterOpen"
+            [min]="0"
+            [step]="1"
+            unit="days"
+            ariaLabel="Days after opening"
+          ></app-number-stepper>
           <span class="field-hint">Recalculates best-before when unsealed.</span>
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label>Days After Freezing</label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            [(ngModel)]="formProduct.defaultBestBeforeDaysAfterFreezing"
-            placeholder="e.g. 180"
-          />
-          <span class="field-hint">Extended shelf life when moved into freezer.</span>
-        </div>
+      @if (!formProduct.cannotBeFrozen) {
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>Days After Freezing</label>
+            <app-number-stepper
+              [(value)]="formProduct.defaultBestBeforeDaysAfterFreezing"
+              [min]="0"
+              [step]="1"
+              unit="days"
+              ariaLabel="Days after freezing"
+            ></app-number-stepper>
+            <span class="field-hint">Extended shelf life when moved into freezer.</span>
+          </div>
 
-        <div class="form-group">
-          <label>Days After Thawing</label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            [(ngModel)]="formProduct.defaultBestBeforeDaysAfterThawing"
-            placeholder="e.g. 2"
-          />
-          <span class="field-hint">Recalculated upon removing from freezer.</span>
+          <div class="form-group flex-1">
+            <label>Days After Thawing</label>
+            <app-number-stepper
+              [(value)]="formProduct.defaultBestBeforeDaysAfterThawing"
+              [min]="0"
+              [step]="1"
+              unit="days"
+              ariaLabel="Days after thawing"
+            ></app-number-stepper>
+            <span class="field-hint">Recalculated upon removing from freezer.</span>
+          </div>
         </div>
-      </div>
+      }
     </app-collapsible-section>
 
     <!-- Section 5: Quantity & Stock Rules -->
     <app-collapsible-section
       title="Quantity & Stock Rules"
-      icon="⚖️"
+      lucideIcon="scale"
       [badge]="formProduct.minStockAmount ? 'Min: ' + formProduct.minStockAmount : ''"
       [(expanded)]="sections.quantity"
     >
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group flex-1">
           <label>Quantity Unit</label>
           <select [(ngModel)]="formProduct.quStockId">
             <option [ngValue]="null">None (Units)</option>
@@ -311,15 +314,15 @@
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group flex-1">
           <label>Minimum Stock Threshold</label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            [(ngModel)]="formProduct.minStockAmount"
-            placeholder="0"
-          />
+          <app-number-stepper
+            [(value)]="formProduct.minStockAmount"
+            [min]="0"
+            [step]="1"
+            [unit]="getQuStockUnitName()"
+            ariaLabel="Minimum stock threshold"
+          ></app-number-stepper>
           <span class="field-hint">Automatically added to shopping suggestions when below this amount.</span>
         </div>
       </div>
@@ -342,7 +345,7 @@
     <!-- Section 6: Barcodes -->
     <app-collapsible-section
       title="Barcodes & EAN/UPC"
-      icon="🏷️"
+      lucideIcon="tag"
       [badge]="barcodes().length + (barcodes().length === 1 ? ' barcode' : ' barcodes')"
       [(expanded)]="sections.barcodes"
     >
@@ -353,10 +356,31 @@
           (keyup.enter)="addBarcode()"
           placeholder="Scan or enter barcode / EAN..."
         />
-        <button type="button" class="btn btn-secondary btn-sm" (click)="addBarcode()">
-          + Add
+        <button type="button" class="btn btn-secondary btn-sm" (click)="addBarcode()" title="Add barcode" aria-label="Add barcode">
+          <svg lucidePlus [size]="14"></svg>
+          <span class="btn-label"> Add</span>
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm btn-scan-barcode"
+          [class.active]="isScannerOpen()"
+          (click)="toggleScanner()"
+          [title]="isScannerOpen() ? 'Close scanner' : 'Toggle camera scanner'"
+          [attr.aria-label]="isScannerOpen() ? 'Close scanner' : 'Scan barcode'"
+        >
+          <svg lucideCamera [size]="14"></svg>
+          <span class="btn-label">{{ isScannerOpen() ? ' Close' : ' Scan' }}</span>
         </button>
       </div>
+
+      @if (isScannerOpen()) {
+        <div class="inline-scanner-wrapper">
+          <app-barcode-scanner
+            (scanned)="onBarcodeScanned($event)"
+            (close)="isScannerOpen.set(false)"
+          />
+        </div>
+      }
 
       @if (barcodes().length === 0) {
         <p class="field-hint mt-2">No barcodes registered for this product.</p>
@@ -365,7 +389,9 @@
           @for (bc of barcodes(); track bc; let i = $index) {
             <div class="barcode-chip">
               <span class="barcode-text">{{ bc }}</span>
-              <button type="button" class="btn-remove-chip" (click)="removeBarcode(i)">✕</button>
+              <button type="button" class="btn-remove-chip" (click)="removeBarcode(i)" aria-label="Remove barcode">
+                <svg lucideX [size]="12"></svg>
+              </button>
             </div>
           }
         </div>
@@ -375,7 +401,7 @@
     <!-- Section 7: Store Aisles & Prices -->
     <app-collapsible-section
       title="Store Aisles & Prices"
-      icon="🏬"
+      lucideIcon="store"
       [badge]="data.stores.length + ' stores'"
       [(expanded)]="sections.stores"
     >
@@ -386,26 +412,43 @@
       @for (store of data.stores; track store.id) {
         <div class="store-row-editor">
           <span class="store-name-label">{{ store.name }}</span>
-          <input
-            type="text"
-            class="aisle-input"
-            placeholder="Aisle (e.g. 4B)"
-            [(ngModel)]="storeConfigs[store.id].aisle"
-          />
-          <input
-            type="number"
-            class="order-input"
-            placeholder="Order"
-            [(ngModel)]="storeConfigs[store.id].aisleOrder"
-            title="Order"
-          />
-          <input
-            type="number"
-            class="price-input"
-            placeholder="Avg price"
-            step="0.01"
-            [(ngModel)]="storeConfigs[store.id].averagePrice"
-          />
+          @if ((storeAisles()[store.id]?.length || 0) > 0) {
+            <select
+              class="aisle-input aisle-select"
+              [ngModel]="storeConfigs[store.id].aisle"
+              (ngModelChange)="onStoreAisleSelected(store.id, $event)"
+              title="Select Store Aisle"
+            >
+              <option value="">No aisle assigned</option>
+              @for (aisle of storeAisles()[store.id]; track aisle.id) {
+                <option [value]="aisle.name">{{ aisle.name }} (#{{ aisle.sortOrder }})</option>
+              }
+            </select>
+          } @else {
+            <input
+              type="text"
+              class="aisle-input"
+              placeholder="Aisle (e.g. 4B)"
+              [(ngModel)]="storeConfigs[store.id].aisle"
+            />
+          }
+          <div class="store-subrow-inputs">
+            <input
+              type="number"
+              class="order-input"
+              placeholder="Order"
+              [(ngModel)]="storeConfigs[store.id].aisleOrder"
+              title="Order"
+            />
+            <input
+              type="number"
+              class="price-input"
+              placeholder="Avg price (€)"
+              step="0.01"
+              [(ngModel)]="storeConfigs[store.id].averagePrice"
+              title="Average price"
+            />
+          </div>
         </div>
       }
     </app-collapsible-section>
@@ -414,7 +457,7 @@
     @if (isMealieConfigured()) {
       <app-collapsible-section
         title="Mealie"
-        icon="🍲"
+        lucideIcon="cooking-pot"
         [badge]="mealieBadge()"
         [(expanded)]="sections.mealie"
       >
@@ -436,7 +479,7 @@
               <div class="mealie-chips">
                 @for (food of inheritedFoods(); track food.id) {
                   <div class="mealie-chip inherited" title="Inherited from parent product">
-                    <span class="chip-name">🥗 {{ food.name }}</span>
+                    <span class="chip-name"><svg lucideUtensils [size]="14"></svg> {{ food.name }}</span>
                     <span class="inherited-badge">Inherited</span>
                   </div>
                 }
@@ -449,8 +492,10 @@
             <div class="mealie-chips">
               @for (food of linkedFoods(); track food.id; let i = $index) {
                 <div class="mealie-chip">
-                  <span class="chip-name">🥗 {{ food.name }}</span>
-                  <button type="button" class="btn-remove-chip" (click)="removeLinkedFood(i)" title="Unlink food">✕</button>
+                  <span class="chip-name"><svg lucideUtensils [size]="14"></svg> {{ food.name }}</span>
+                  <button type="button" class="btn-remove-chip" (click)="removeLinkedFood(i)" title="Unlink food" aria-label="Unlink food">
+                    <svg lucideX [size]="12"></svg>
+                  </button>
                 </div>
               }
             </div>
@@ -471,7 +516,7 @@
               <div class="mealie-chips">
                 @for (rec of inheritedRecipes(); track rec.id) {
                   <div class="mealie-chip inherited" title="Inherited from parent product">
-                    <span class="chip-name">📖 {{ rec.name }}</span>
+                    <span class="chip-name"><svg lucideBookOpen [size]="14"></svg> {{ rec.name }}</span>
                     <span class="inherited-badge">Inherited</span>
                   </div>
                 }
@@ -484,8 +529,10 @@
             <div class="mealie-chips">
               @for (rec of linkedRecipes(); track rec.id; let i = $index) {
                 <div class="mealie-chip">
-                  <span class="chip-name">📖 {{ rec.name }}</span>
-                  <button type="button" class="btn-remove-chip" (click)="removeLinkedRecipe(i)" title="Unlink recipe">✕</button>
+                  <span class="chip-name"><svg lucideBookOpen [size]="14"></svg> {{ rec.name }}</span>
+                  <button type="button" class="btn-remove-chip" (click)="removeLinkedRecipe(i)" title="Unlink recipe" aria-label="Unlink recipe">
+                    <svg lucideX [size]="12"></svg>
+                  </button>
                 </div>
               }
             </div>

@@ -8,13 +8,13 @@
     [class.is-paused]="isPaused()"
   >
     <div class="toast-content">
-      <span class="action-icon">↩️</span>
+      <svg lucideUndo2 [size]="16" class="action-icon"></svg>
       <span class="action-desc">{{ act.description }}</span>
       <button type="button" class="btn-undo" (click)="undo()">
         Undo ({{ act.remainingSeconds }}s)
       </button>
-      <button type="button" class="btn-close" (click)="dismiss()" title="Dismiss">
-        ✕
+      <button type="button" class="btn-close" (click)="dismiss()" title="Dismiss" aria-label="Dismiss">
+        <svg lucideX [size]="14"></svg>
       </button>
     </div>
     <div

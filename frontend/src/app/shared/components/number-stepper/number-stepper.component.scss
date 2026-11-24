@@ -1,0 +1,118 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.number-stepper {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-input, #0f172a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+  height: 38px;
+  width: 100%;
+  max-width: 100%;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:focus-within {
+    border-color: var(--border-focus, #38bdf8);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+  }
+
+  &.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+.stepper-btn {
+  width: 38px;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: none;
+  color: var(--text-primary, #ffffff);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--primary, #10b981);
+  }
+
+  &:active:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.16);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  svg {
+    display: block;
+    stroke-width: 2.2px;
+  }
+}
+
+.stepper-btn-dec {
+  border-right: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.stepper-btn-inc {
+  border-left: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.stepper-input-wrap {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  position: relative;
+  height: 100%;
+  padding: 0 4px;
+}
+
+.stepper-input {
+  flex: 1 1 auto;
+  min-width: 44px;
+  width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #ffffff);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 2px 4px;
+  outline: none;
+  -webkit-appearance: none !important;
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+
+  /* Hide native browser spin arrows across Webkit, Blink and Firefox */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    margin: 0 !important;
+    display: none !important;
+  }
+}
+
+.stepper-unit {
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary, #94a3b8);
+  padding-right: 6px;
+  padding-left: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+}

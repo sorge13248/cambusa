@@ -1,0 +1,137 @@
+<!-- Newly Created Key Modal / Callout Banner -->
+@if (createdKey(); as k) {
+  <div class="alert-box alert-warning new-key-banner">
+    <div class="banner-header">
+      <span class="banner-title"><svg lucideKey [size]="15"></svg> New API Key Generated: {{ k.name }}</span>
+      <button type="button" class="btn-close" (click)="dismissCreatedKey()" aria-label="Close">
+        <svg lucideX [size]="14"></svg>
+      </button>
+    </div>
+    <p class="banner-desc">
+      Make sure to copy your API key now. For security reasons, <strong>you will not be able to see it again!</strong>
+    </p>
+    <div class="key-display-row">
+      <code class="raw-key-code">{{ k.rawKey }}</code>
+      <button type="button" class="btn btn-primary btn-sm copy-btn" (click)="copyRawKey()">
+        @if (copied()) {
+          <svg lucideCheck [size]="14"></svg> Copied!
+        } @else {
+          <svg lucideCopy [size]="14"></svg> Copy Key
+        }
+      </button>
+    </div>
+  </div>
+}
+
+<section class="card glass-card apikeys-card">
+  <div class="card-header apikeys-header">
+    <div class="header-left">
+      <div class="card-icon"><svg lucideKey [size]="20"></svg></div>
+      <div>
+        <h2 class="card-title">API Keys</h2>
+        <p class="card-subtitle">Manage access keys for external automations and integrations</p>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" (click)="openCreateKeyModal()">
+      + Generate Key
+    </button>
+  </div>
+
+  <div class="card-body">
+    <p class="section-desc">
+      External services (e.g. Home Assistant, cron jobs, e-ink dashboards) can authenticate with Cambusa using the HTTP header:
+      <code>X-API-Key: cambusa_ak_...</code> or <code>Authorization: Bearer cambusa_ak_...</code>
+    </p>
+
+    @if (!apiKeys().length) {
+      <div class="empty-keys">
+        <span class="empty-icon"><svg lucideLock [size]="32"></svg></span>
+        <p>No active API keys found. Generate a key to connect external integrations.</p>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="keys-table">
+          <thead>
+            <tr>
+              <th>Key Name</th>
+              <th>Prefix</th>
+              <th>Created</th>
+              <th>Last Used</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (k of apiKeys(); track k.id) {
+              <tr>
+                <td class="font-medium text-primary">{{ k.name }}</td>
+                <td><code class="prefix-tag">{{ k.keyPrefix }}</code></td>
+                <td>{{ k.createdAt | date: 'mediumDate' }}</td>
+                <td>
+                  @if (k.lastUsedAt) {
+                    <span class="text-muted">{{ k.lastUsedAt | date: 'short' }}</span>
+                  } @else {
+                    <span class="badge badge-neutral">Never</span>
+                  }
+                </td>
+                <td class="text-right">
+                  <button
+                    type="button"
+                    class="btn btn-danger-outline btn-xs"
+                    (click)="revokeApiKey(k)"
+                    title="Revoke key"
+                  >
+                    Revoke
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- Create API Key Dialog Modal -->
+@if (showCreateKeyModal()) {
+  <div class="modal-backdrop" (click)="closeCreateKeyModal()"></div>
+  <div class="custom-modal glass-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-header">
+      <h3 id="modal-title" class="modal-title">Generate API Key</h3>
+      <button type="button" class="btn-close" (click)="closeCreateKeyModal()" aria-label="Close dialog">
+        <svg lucideX [size]="14"></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">
+        Provide a descriptive name to easily identify which application or hardware device will use this key.
+      </p>
+      <div class="form-group">
+        <label for="keyNameInput" class="form-label">Integration / Application Name:</label>
+        <input
+          id="keyNameInput"
+          type="text"
+          class="form-input"
+          placeholder="e.g. Home Assistant Pantry Display"
+          [ngModel]="newKeyName()"
+          (ngModelChange)="newKeyName.set($event)"
+          (keydown.enter)="confirmCreateKey()"
+          autofocus
+        />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" (click)="closeCreateKeyModal()">
+        Cancel
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="!newKeyName().trim() || isGenerating()"
+        (click)="confirmCreateKey()"
+      >
+        {{ isGenerating() ? 'Generating...' : 'Generate Key' }}
+      </button>
+    </div>
+  </div>
+}

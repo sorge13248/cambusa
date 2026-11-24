@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { LucideLock, LucidePackage, LucideShieldCheck } from '@lucide/angular';
 import { AuthService } from '../../core/auth.service.js';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucidePackage, LucideLock, LucideShieldCheck],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })

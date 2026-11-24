@@ -1,23 +1,47 @@
 import { CommonModule } from '@angular/common';
 import { Component, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Dialog } from '@angular/cdk/dialog';
 import { firstValueFrom, Subscription } from 'rxjs';
+import {
+  LucideAlertCircle,
+  LucideAlertTriangle,
+  LucideBoxes,
+  LucideCheckCircle2,
+  LucideClock,
+  LucideMapPin,
+  LucidePackage,
+  LucideSparkles,
+} from '@lucide/angular';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
+import { UndoService } from '../../core/undo.service.js';
 import { NextItemDto, NextResponseDto } from '../../core/models.js';
 import { PantryActionModalComponent } from '../pantry/pantry-action-modal/pantry-action-modal.component.js';
+import { QuickActionsFooterComponent } from '../../shared/components/quick-actions-footer/quick-actions-footer.component.js';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [
+    CommonModule,
+    LucideAlertCircle,
+    LucideAlertTriangle,
+    LucideBoxes,
+    LucideCheckCircle2,
+    LucideClock,
+    LucideMapPin,
+    LucidePackage,
+    LucideSparkles,
+    QuickActionsFooterComponent,
+  ],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
 export class HomeComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   readonly auth = inject(AuthService);
+  private readonly undoService = inject(UndoService);
   private readonly dialog = inject(Dialog);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -29,12 +53,18 @@ export class HomeComponent implements OnInit, OnDestroy {
   readonly nextData = signal<NextResponseDto | null>(null);
   readonly isLoading = signal<boolean>(true);
   readonly errorMessage = signal<string | null>(null);
-  readonly activeTab = signal<'all' | 'expired' | 'expiring'>('all');
 
   constructor() {
     effect(() => {
       const hhId = this.auth.activeHouseholdId();
       if (hhId) {
+        this.loadDashboardData();
+      }
+    });
+
+    effect(() => {
+      const undoCount = this.undoService.onUndoExecuted();
+      if (undoCount > 0) {
         this.loadDashboardData();
       }
     });
@@ -137,9 +167,5 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
-  }
-
-  setTab(tab: 'all' | 'expired' | 'expiring') {
-    this.activeTab.set(tab);
   }
 }

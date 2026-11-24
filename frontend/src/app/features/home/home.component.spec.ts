@@ -4,6 +4,7 @@ import { of, BehaviorSubject } from 'rxjs';
 import { HomeComponent } from './home.component.js';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
+import { UndoService } from '../../core/undo.service.js';
 import { Dialog } from '@angular/cdk/dialog';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { NextResponseDto } from '../../core/models.js';
@@ -125,12 +126,13 @@ describe('HomeComponent', () => {
     expect(['Good morning', 'Good afternoon', 'Good evening']).toContain(greeting);
   });
 
-  it('handles tab switching', () => {
-    expect(component.activeTab()).toBe('all');
-    component.setTab('expired');
-    expect(component.activeTab()).toBe('expired');
-    component.setTab('expiring');
-    expect(component.activeTab()).toBe('expiring');
+  it('reloads dashboard data when undo is executed', async () => {
+    await component.ngOnInit();
+    const loadSpy = vi.spyOn(component, 'loadDashboardData');
+    const undoService = TestBed.inject(UndoService);
+    undoService.onUndoExecuted.update((c) => c + 1);
+    TestBed.flushEffects();
+    expect(loadSpy).toHaveBeenCalled();
   });
 
   it('handles API error gracefully', async () => {

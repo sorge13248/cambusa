@@ -1,5 +1,5 @@
 // Cambusa PWA Service Worker
-const VERSION = '0.1.4';
+const VERSION = '0.1.5';
 const CACHE_NAME = `cambusa-cache-v${VERSION}`;
 
 const PRECACHE_ASSETS = [
@@ -16,6 +16,7 @@ self.addEventListener('install', (event) => {
       });
     })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -45,19 +46,22 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Bypass API and Auth calls
-  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/auth') || url.pathname.startsWith('/health')) {
-    return;
-  }
-
-  // Bypass dev HMR
+  // Bypass all dev server traffic (e.g. localhost:4200, 127.0.0.1:4200, Vite/esbuild chunks)
   if (
+    self.location.port === '4200' ||
+    url.port === '4200' ||
     url.pathname.includes('/@vite') ||
     url.pathname.includes('/ng-cli-ws') ||
     url.pathname.includes('/@fs') ||
     url.pathname.includes('/@id') ||
+    url.pathname.includes('chunk-') ||
     request.headers.get('Upgrade') === 'websocket'
   ) {
+    return;
+  }
+
+  // Bypass API and Auth calls
+  if (url.pathname.startsWith('/api') || url.pathname.startsWith('/auth') || url.pathname.startsWith('/health')) {
     return;
   }
 
@@ -90,7 +94,12 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => cachedResponse);
+        .catch((err) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          throw err;
+        });
 
       return cachedResponse || fetchPromise;
     })

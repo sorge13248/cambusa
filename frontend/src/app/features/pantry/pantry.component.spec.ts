@@ -30,6 +30,15 @@ describe('PantryComponent', () => {
     getSavedFilters: vi.fn().mockResolvedValue([]),
     saveFilter: vi.fn().mockResolvedValue({ id: 'f1', name: 'Test', filterConfig: '{}' }),
     consumeStock: vi.fn().mockResolvedValue({ consumed: true }),
+    toggleOpen: vi.fn().mockResolvedValue({ id: 's2', isOpen: true }),
+    openStock: vi.fn().mockResolvedValue({
+      openedStockItem: { id: 's2-opened', isOpen: true },
+      originalStockItem: { id: 's2', amount: 1 },
+      split: true,
+      originalDate: '2026-11-20',
+      originalLocationId: null,
+    }),
+    revertOpen: vi.fn().mockResolvedValue({ reverted: true }),
     adjustDate: vi.fn().mockResolvedValue({ id: 's1' }),
     getProfile: vi.fn().mockResolvedValue({
       user: { id: 'u1', displayName: 'Test User' },
@@ -182,5 +191,26 @@ describe('PantryComponent', () => {
     component.applyLocalFilters();
 
     expect(component.filteredStock().length).toBe(2);
+  });
+
+  it('should mark earliest expiring batch as opened and register undo when openOne is called', async () => {
+    const batch1 = { id: 's1', productId: 'p1', productName: 'Milk', amount: 1, bestBeforeDate: '2026-12-01', isOpen: false } as any;
+    const batch2 = { id: 's2', productId: 'p1', productName: 'Milk', amount: 1, bestBeforeDate: '2026-11-20', isOpen: false } as any;
+    const item = {
+      id: 'p1',
+      productId: 'p1',
+      productName: 'Milk',
+      batches: [batch1, batch2],
+      primaryStockItem: batch2,
+      totalAmount: 2,
+      isOpen: false,
+    } as any;
+
+    expect(component.hasUnopenedBatch(item)).toBe(true);
+
+    await component.openOne(item);
+
+    expect(mockApiService.openStock).toHaveBeenCalledWith('s2', 1);
+    expect(mockUndoService.register).toHaveBeenCalled();
   });
 });

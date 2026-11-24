@@ -1,0 +1,39 @@
+<div class="number-stepper" [class.is-disabled]="disabled()">
+  <button
+    type="button"
+    class="stepper-btn stepper-btn-dec"
+    (click)="decrement()"
+    [disabled]="disabled() || isAtMin()"
+    [attr.aria-label]="'Decrease ' + ariaLabel()"
+  >
+    <svg lucideMinus [size]="14"></svg>
+  </button>
+
+  <div class="stepper-input-wrap">
+    <input
+      type="number"
+      class="stepper-input"
+      [value]="value() ?? 0"
+      (change)="onInputChange($event)"
+      (blur)="onInputChange($event)"
+      [min]="min()"
+      [max]="max()"
+      [step]="step()"
+      [disabled]="disabled()"
+      [attr.aria-label]="ariaLabel()"
+    />
+    @if (unit()) {
+      <span class="stepper-unit">{{ unit() }}</span>
+    }
+  </div>
+
+  <button
+    type="button"
+    class="stepper-btn stepper-btn-inc"
+    (click)="increment()"
+    [disabled]="disabled() || isAtMax()"
+    [attr.aria-label]="'Increase ' + ariaLabel()"
+  >
+    <svg lucidePlus [size]="14"></svg>
+  </button>
+</div>

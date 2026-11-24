@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { LucidePackage, LucideSparkles, LucideX } from '@lucide/angular';
 import { MissingProduct } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
 
@@ -13,7 +14,7 @@ export interface ShoppingMissingModalData {
 @Component({
   selector: 'app-shopping-missing-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucidePackage, LucideSparkles, LucideX],
   templateUrl: './shopping-missing-modal.component.html',
   styleUrl: './shopping-missing-modal.component.scss',
 })

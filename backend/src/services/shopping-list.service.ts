@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
   Product,
+  ProductGroup,
   ProductStore,
   QuantityUnit,
   ShoppingList,
@@ -28,6 +29,7 @@ export interface EnrichedShoppingListItemDto {
   storeName: string | null;
   aisle: string | null;
   aisleOrder: number | null;
+  sortOrder: number;
   estimatedPrice: number | null;
   currentStock: number;
   minStockAmount: number;
@@ -69,6 +71,8 @@ export class ShoppingListService {
     private readonly storesRepository: Repository<Store>,
     @InjectRepository(QuantityUnit)
     private readonly unitsRepository: Repository<QuantityUnit>,
+    @InjectRepository(ProductGroup)
+    private readonly groupsRepository: Repository<ProductGroup>,
     @InjectRepository(SyncTombstone)
     private readonly tombstonesRepository: Repository<SyncTombstone>,
   ) {}
@@ -97,19 +101,32 @@ export class ShoppingListService {
   async getLists(householdId: string): Promise<ShoppingList[]> {
     return this.listRepository.find({
       where: { householdId },
-      order: { isDefault: 'DESC', name: 'ASC' },
+      order: { sortOrder: 'ASC', isDefault: 'DESC', name: 'ASC' },
     });
+  }
+
+  async reorderLists(householdId: string, listIds: string[]): Promise<void> {
+    if (!listIds || listIds.length === 0) return;
+    for (let i = 0; i < listIds.length; i++) {
+      await this.listRepository.update(
+        { id: listIds[i], householdId },
+        { sortOrder: i },
+      );
+    }
   }
 
   async createList(
     householdId: string,
-    data: { name: string; storeId?: string | null },
+    data: { name: string; storeId?: string | null; isDefault?: boolean },
   ): Promise<ShoppingList> {
+    if (data.isDefault) {
+      await this.listRepository.update({ householdId }, { isDefault: false });
+    }
     const list = this.listRepository.create({
       householdId,
       name: data.name,
       storeId: data.storeId ?? null,
-      isDefault: false,
+      isDefault: !!data.isDefault,
     });
     return this.listRepository.save(list);
   }
@@ -117,10 +134,17 @@ export class ShoppingListService {
   async updateList(
     id: string,
     householdId: string,
-    data: { name?: string; storeId?: string | null },
+    data: { name?: string; storeId?: string | null; isDefault?: boolean },
   ): Promise<ShoppingList> {
     const list = await this.listRepository.findOne({ where: { id, householdId } });
     if (!list) throw new NotFoundException('Shopping list not found');
+
+    if (data.isDefault) {
+      await this.listRepository.update({ householdId }, { isDefault: false });
+      list.isDefault = true;
+    } else if (data.isDefault === false) {
+      list.isDefault = false;
+    }
 
     if (data.name !== undefined) list.name = data.name;
     if (data.storeId !== undefined) list.storeId = data.storeId;
@@ -146,11 +170,16 @@ export class ShoppingListService {
   async getItems(
     shoppingListId: string,
     householdId: string,
-    filterStoreId?: string,
+    _filterStoreId?: string,
   ): Promise<EnrichedShoppingListItemDto[]> {
     const items = await this.itemsRepository.find({
       where: { shoppingListId, householdId },
     });
+
+    const list = await this.listRepository.findOne({
+      where: { id: shoppingListId, householdId },
+    });
+    const associatedStoreId = list?.storeId ?? null;
 
     const products = await this.productsRepository.find({ where: { householdId } });
     const productMap = new Map(products.map((p) => [p.id, p]));
@@ -186,19 +215,35 @@ export class ShoppingListService {
 
     const enriched: EnrichedShoppingListItemDto[] = items.map((item) => {
       const product = item.productId ? productMap.get(item.productId) : null;
-      const storeIdToUse = filterStoreId || item.storeId || (product ? preferredStoreMap.get(product.id) : null);
-      const store = storeIdToUse ? storeMap.get(storeIdToUse) : null;
 
       let aisle: string | null = null;
       let aisleOrder: number | null = null;
       let estimatedPrice: number | null = null;
+      let storeIdToUse: string | null = null;
 
-      if (product && storeIdToUse) {
-        const ps = productStoresMap.get(`${product.id}:${storeIdToUse}`);
-        if (ps) {
-          aisle = ps.aisle;
-          aisleOrder = ps.aisleOrder;
-          estimatedPrice = ps.averagePrice ? ps.averagePrice * item.amount : null;
+      if (associatedStoreId) {
+        // Aisles are strictly used ONLY when that same store is associated with the shopping list being consulted.
+        storeIdToUse = associatedStoreId;
+        if (product) {
+          const ps = productStoresMap.get(`${product.id}:${associatedStoreId}`);
+          if (ps && ps.aisle) {
+            aisle = ps.aisle;
+            aisleOrder = ps.aisleOrder;
+          }
+          if (ps && ps.averagePrice) {
+            estimatedPrice = ps.averagePrice * item.amount;
+          }
+        }
+      } else {
+        // No store is associated with this shopping list: store aisles must NEVER be used.
+        aisle = null;
+        aisleOrder = null;
+        storeIdToUse = item.storeId || (product ? preferredStoreMap.get(product.id) : null) || null;
+        if (product && storeIdToUse) {
+          const ps = productStoresMap.get(`${product.id}:${storeIdToUse}`);
+          if (ps && ps.averagePrice) {
+            estimatedPrice = ps.averagePrice * item.amount;
+          }
         }
       }
 
@@ -219,9 +264,10 @@ export class ShoppingListService {
         quId,
         quName: unit?.name ?? null,
         storeId: storeIdToUse ?? null,
-        storeName: store?.name ?? null,
+        storeName: storeIdToUse ? storeMap.get(storeIdToUse)?.name ?? null : null,
         aisle,
         aisleOrder,
+        sortOrder: item.sortOrder ?? 0,
         estimatedPrice,
         currentStock: product ? (stockMap.get(product.id) ?? 0) : 0,
         minStockAmount: product?.minStockAmount ?? 0,
@@ -233,20 +279,23 @@ export class ShoppingListService {
       };
     });
 
-    // Sort by aisle order if viewing for a store, or alphabetical by aisle/name
+    // Sort by aisle order, then aisle, then custom sortOrder, then productName
     return enriched.sort((a, b) => {
       // Completed items go below pending items
       if (a.done !== b.done) {
         return a.done ? 1 : -1;
       }
 
-      if (a.aisleOrder !== null && b.aisleOrder !== null) {
+      if (a.aisleOrder !== null && b.aisleOrder !== null && a.aisleOrder !== b.aisleOrder) {
         return a.aisleOrder - b.aisleOrder;
       }
 
-      if (a.aisle && b.aisle) {
-        const aisleComp = a.aisle.localeCompare(b.aisle);
-        if (aisleComp !== 0) return aisleComp;
+      if (a.aisle && b.aisle && a.aisle !== b.aisle) {
+        return a.aisle.localeCompare(b.aisle);
+      }
+
+      if (a.sortOrder !== b.sortOrder) {
+        return a.sortOrder - b.sortOrder;
       }
 
       return a.productName.localeCompare(b.productName);
@@ -434,5 +483,11 @@ export class ShoppingListService {
     }
 
     return { addedCount };
+  }
+
+  async reorderItems(householdId: string, itemIds: string[]): Promise<void> {
+    for (let i = 0; i < itemIds.length; i++) {
+      await this.itemsRepository.update({ id: itemIds[i], householdId }, { sortOrder: i + 1 });
+    }
   }
 }

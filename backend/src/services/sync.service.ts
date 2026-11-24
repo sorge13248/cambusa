@@ -7,6 +7,7 @@ import {
   Product,
   ProductGroup,
   QuantityUnit,
+  ShoppingList,
   ShoppingListItem,
   StockItem,
   Store,
@@ -22,6 +23,8 @@ export class SyncService {
     private readonly stockRepository: Repository<StockItem>,
     @InjectRepository(ShoppingListItem)
     private readonly shoppingItemsRepository: Repository<ShoppingListItem>,
+    @InjectRepository(ShoppingList)
+    private readonly shoppingListsRepository: Repository<ShoppingList>,
     @InjectRepository(QuantityUnit)
     private readonly unitsRepository: Repository<QuantityUnit>,
     @InjectRepository(ProductGroup)
@@ -95,8 +98,16 @@ export class SyncService {
     if (changes.products) {
       for (const p of changes.products) {
         if (!p.id || !p.name) continue;
+        if (p.cannotBeFrozen) {
+          p.defaultBestBeforeDaysAfterFreezing = null;
+          p.defaultBestBeforeDaysAfterThawing = null;
+        }
         const existing = await this.productsRepository.findOne({ where: { id: p.id, householdId } });
         if (existing) {
+          if (p.cannotBeFrozen) {
+            existing.defaultBestBeforeDaysAfterFreezing = null;
+            existing.defaultBestBeforeDaysAfterThawing = null;
+          }
           Object.assign(existing, p);
           await this.productsRepository.save(existing);
         } else {
@@ -131,6 +142,19 @@ export class SyncService {
       }
     }
 
+    if (changes.shoppingLists) {
+      for (const list of changes.shoppingLists) {
+        if (!list.id) continue;
+        const existing = await this.shoppingListsRepository.findOne({ where: { id: list.id, householdId } });
+        if (existing) {
+          Object.assign(existing, list);
+          await this.shoppingListsRepository.save(existing);
+        } else if (list.name) {
+          await this.shoppingListsRepository.save(this.shoppingListsRepository.create({ ...list, householdId }));
+        }
+      }
+    }
+
     // 2. Query Server Changes & Tombstones since lastSyncDate
     const filter = (_entity?: string) => {
       if (!lastSyncDate) return { householdId };
@@ -140,6 +164,10 @@ export class SyncService {
     const serverProducts = await this.productsRepository.find({ where: filter('product') });
     const serverStock = await this.stockRepository.find({ where: filter('stock') });
     const serverShoppingItems = await this.shoppingItemsRepository.find({ where: filter('shopping_item') });
+    const serverShoppingLists = await this.shoppingListsRepository.find({
+      where: filter('shopping_list'),
+      order: { sortOrder: 'ASC', isDefault: 'DESC', name: 'ASC' },
+    });
     const serverUnits = await this.unitsRepository.find({ where: filter('unit') });
     const serverGroups = await this.groupsRepository.find({ where: filter('group') });
     const serverLocations = await this.locationsRepository.find({ where: filter('location') });
@@ -157,6 +185,7 @@ export class SyncService {
         products: serverProducts,
         stock: serverStock,
         shoppingListItems: serverShoppingItems,
+        shoppingLists: serverShoppingLists,
         catalogs: {
           units: serverUnits,
           groups: serverGroups,

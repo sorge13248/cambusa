@@ -5,10 +5,6 @@
       <h2>Pantry Inventory</h2>
       <p class="subtitle">Real-time stock levels, locations, and expiration tracking.</p>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" (click)="openSaveFilterModal()">Save Current View</button>
-      <button class="btn btn-primary" (click)="openAddStockModal()">+ Add Item</button>
-    </div>
   </div>
 
   <!-- Filters & Sorting Bar -->
@@ -24,7 +20,9 @@
             placeholder="Search title or description..."
           />
           @if (searchQuery().trim()) {
-            <button class="btn-clear-search" (click)="onSearchChange('')">✕</button>
+            <button class="btn-clear-search" (click)="onSearchChange('')" aria-label="Clear search">
+              <svg lucideX [size]="14"></svg>
+            </button>
           }
         </div>
       </div>
@@ -119,7 +117,7 @@
               @if (item.productPictureFileName) {
                 <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
               } @else {
-                <div class="no-photo-thumb">📦</div>
+                <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
               }
             </div>
             <div class="card-top-info">
@@ -135,10 +133,12 @@
                 <!-- Consolidated product stock amount -->
                 <span class="amount-badge" title="Total amount in pantry">{{ item.totalAmount }} {{ item.quName || 'units' }}</span>
                 @if (item.locationName) {
-                  <span class="loc-badge">📍 {{ item.locationName }}</span>
+                  <span class="loc-badge"><svg lucideMapPin [size]="12"></svg> {{ item.locationName }}</span>
                 }
                 @if (item.isOpen) {
-                  <span class="open-badge">🔓 Opened</span>
+                  <span class="open-badge">
+                    <svg lucideLockOpen [size]="12"></svg> Opened@if ((item.openedCount ?? 0) >= 2) { ({{ item.openedCount }})}
+                  </span>
                 }
               </div>
             </div>
@@ -158,19 +158,17 @@
               class="btn btn-primary btn-sm btn-manage"
               (click)="openProductActionModal(item)"
             >
-              ⚡ Manage
+              <svg lucideZap [size]="14"></svg> Manage
             </button>
             <div class="footer-right">
-              @if (item.batches && item.batches.length === 1) {
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  (click)="openEditStockItem(item.primaryStockItem)"
-                  title="Edit stock batch (expiration, location, price, notes)"
-                >
-                  ✏️ Edit
-                </button>
-              }
+              <button
+                class="btn btn-secondary btn-sm btn-open-one"
+                [disabled]="!hasUnopenedBatch(item)"
+                (click)="openOne(item)"
+                title="Mark earliest expiring batch as opened"
+              >
+                Open 1
+              </button>
               <button class="btn btn-secondary btn-sm" (click)="consume(item, 1)">
                 Consume 1
               </button>
@@ -215,7 +213,9 @@
       <div class="modal-content filter-save-content">
         <div class="modal-header">
           <h3>Save Filter Preset</h3>
-          <button class="modal-close" (click)="isSaveFilterModalOpen.set(false)">×</button>
+          <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="isSaveFilterModalOpen.set(false)" aria-label="Close dialog">
+            <svg lucideX [size]="14"></svg>
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-group">
@@ -237,4 +237,28 @@
       </div>
     </div>
   }
+
+  <!-- Floating Action Buttons -->
+  <div class="fab-container">
+    <button
+      type="button"
+      class="fab-btn fab-secondary"
+      (click)="openSaveFilterModal()"
+      title="Save Current View"
+      aria-label="Save Current View"
+    >
+      <span class="fab-icon"><svg lucideSave [size]="18"></svg></span>
+    </button>
+    <button
+      type="button"
+      class="fab-btn fab-primary"
+      (click)="openAddStockModal()"
+      title="Add Item"
+      aria-label="Add Item"
+    >
+      <span class="fab-icon"><svg lucidePlus [size]="24"></svg></span>
+    </button>
+  </div>
+
+  <app-quick-actions-footer (stockChanged)="loadStock()"></app-quick-actions-footer>
 </div>

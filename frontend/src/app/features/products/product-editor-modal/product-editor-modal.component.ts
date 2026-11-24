@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { CdkDragDrop, CdkDropList, CdkDrag, CdkDragHandle, moveItemInArray } from '@angular/cdk/drag-drop';
 import { firstValueFrom, Subscription } from 'rxjs';
+import { LucideBookOpen, LucideCamera, LucidePlus, LucideUtensils, LucideX } from '@lucide/angular';
 import {
   Location,
   MealieLinkedFood,
@@ -12,15 +13,19 @@ import {
   ProductGroup,
   QuantityUnit,
   Store,
+  Aisle,
 } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
 import { CollapsibleSectionComponent } from '../../../shared/components/collapsible-section/collapsible-section.component.js';
 import { AutocompleteDirective, AutocompleteOption } from '../../../shared/directives/autocomplete.directive.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
+import { BarcodeScannerComponent } from '../../../shared/components/barcode-scanner/barcode-scanner.component.js';
+import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
 import { MealieLinkModalComponent, MealieLinkModalResult } from '../mealie-link-modal/mealie-link-modal.component.js';
 
 export interface ProductEditorModalData {
   product?: Product | null;
+  initialName?: string;
   allProducts: Product[];
   productGroups: ProductGroup[];
   locations: Location[];
@@ -46,6 +51,13 @@ export interface PhotoItem {
     CdkDragHandle,
     CollapsibleSectionComponent,
     AutocompleteDirective,
+    BarcodeScannerComponent,
+    NumberStepperComponent,
+    LucideBookOpen,
+    LucideCamera,
+    LucidePlus,
+    LucideUtensils,
+    LucideX,
   ],
   templateUrl: './product-editor-modal.component.html',
   styleUrl: './product-editor-modal.component.scss',
@@ -156,9 +168,9 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
     defaultStoreId: null,
     dueType: 'best_before',
     defaultBestBeforeDays: 0,
-    defaultBestBeforeDaysAfterOpen: null,
-    defaultBestBeforeDaysAfterFreezing: null,
-    defaultBestBeforeDaysAfterThawing: null,
+    defaultBestBeforeDaysAfterOpen: 0,
+    defaultBestBeforeDaysAfterFreezing: 0,
+    defaultBestBeforeDaysAfterThawing: 0,
     minStockAmount: 0,
     treatOpenedAsOutOfStock: false,
     cannotBeFrozen: false,
@@ -168,14 +180,17 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
 
   readonly photos = signal<PhotoItem[]>([]);
   readonly barcodes = signal<string[]>([]);
+  readonly isScannerOpen = signal<boolean>(false);
   newBarcodeInput = '';
   storeConfigs: Record<string, { aisle: string; aisleOrder: number | null; averagePrice: number | null }> = {};
+  readonly storeAisles = signal<Record<string, Aisle[]>>({});
 
   readonly isUploading = signal<boolean>(false);
   readonly isSaving = signal<boolean>(false);
 
   ngOnInit() {
     this.initStoreConfigs();
+    this.loadAisles();
 
     this.api
       .getMealieStatus()
@@ -184,6 +199,7 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
 
     if (this.data.product) {
       const p = this.data.product;
+      const cannotBeFrozen = !!p.cannotBeFrozen;
       this.selectedParentId.set(p.parentProductId || null);
       this.formProduct = {
         name: p.name,
@@ -196,12 +212,12 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
         defaultStoreId: p.defaultStoreId || null,
         dueType: p.dueType || 'best_before',
         defaultBestBeforeDays: p.defaultBestBeforeDays || 0,
-        defaultBestBeforeDaysAfterOpen: p.defaultBestBeforeDaysAfterOpen ?? null,
-        defaultBestBeforeDaysAfterFreezing: p.defaultBestBeforeDaysAfterFreezing ?? null,
-        defaultBestBeforeDaysAfterThawing: p.defaultBestBeforeDaysAfterThawing ?? null,
+        defaultBestBeforeDaysAfterOpen: p.defaultBestBeforeDaysAfterOpen ?? 0,
+        defaultBestBeforeDaysAfterFreezing: cannotBeFrozen ? null : (p.defaultBestBeforeDaysAfterFreezing ?? 0),
+        defaultBestBeforeDaysAfterThawing: cannotBeFrozen ? null : (p.defaultBestBeforeDaysAfterThawing ?? 0),
         minStockAmount: p.minStockAmount || 0,
         treatOpenedAsOutOfStock: !!p.treatOpenedAsOutOfStock,
-        cannotBeFrozen: !!p.cannotBeFrozen,
+        cannotBeFrozen,
         quStockId: p.quStockId || null,
         active: p.active !== undefined ? !!p.active : true,
       };
@@ -239,6 +255,8 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
           }
         }
       }
+    } else if (this.data.initialName) {
+      this.formProduct.name = this.data.initialName;
     }
 
     this.initialSnapshot = this.snapshot();
@@ -282,6 +300,31 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
     this.storeConfigs = {};
     for (const s of this.data.stores) {
       this.storeConfigs[s.id] = { aisle: '', aisleOrder: null, averagePrice: null };
+    }
+  }
+
+  private loadAisles() {
+    if (!this.api.getAisles) return;
+    this.api
+      .getAisles()
+      .then((aisles) => {
+        const grouped: Record<string, Aisle[]> = {};
+        for (const a of aisles) {
+          if (!grouped[a.storeId]) grouped[a.storeId] = [];
+          grouped[a.storeId].push(a);
+        }
+        this.storeAisles.set(grouped);
+      })
+      .catch(() => {});
+  }
+
+  onStoreAisleSelected(storeId: string, aisleName: string) {
+    if (!this.storeConfigs[storeId]) return;
+    this.storeConfigs[storeId].aisle = aisleName;
+    const aisles = this.storeAisles()[storeId] || [];
+    const matched = aisles.find((a) => a.name === aisleName);
+    if (matched) {
+      this.storeConfigs[storeId].aisleOrder = matched.sortOrder;
     }
   }
 
@@ -406,10 +449,54 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
     this.newBarcodeInput = '';
   }
 
+  toggleScanner() {
+    this.isScannerOpen.set(!this.isScannerOpen());
+  }
+
+  onBarcodeScanned(code: string) {
+    const val = code.trim();
+    if (val && !this.barcodes().includes(val)) {
+      this.barcodes.set([...this.barcodes(), val]);
+    }
+    this.isScannerOpen.set(false);
+  }
+
   removeBarcode(index: number) {
     const list = [...this.barcodes()];
     list.splice(index, 1);
     this.barcodes.set(list);
+  }
+
+  availableLocations(): Location[] {
+    if (this.formProduct.cannotBeFrozen) {
+      return (this.data.locations || []).filter((l) => !l.isFreezer);
+    }
+    return this.data.locations || [];
+  }
+
+  onCannotBeFrozenChange(checked: boolean): void {
+    if (checked) {
+      this.formProduct.defaultBestBeforeDaysAfterFreezing = null;
+      this.formProduct.defaultBestBeforeDaysAfterThawing = null;
+      if (this.formProduct.defaultLocationId) {
+        const loc = this.data.locations?.find((l) => l.id === this.formProduct.defaultLocationId);
+        if (loc?.isFreezer) {
+          this.formProduct.defaultLocationId = null;
+        }
+      }
+      if (this.formProduct.openLocationId) {
+        const loc = this.data.locations?.find((l) => l.id === this.formProduct.openLocationId);
+        if (loc?.isFreezer) {
+          this.formProduct.openLocationId = null;
+        }
+      }
+    }
+  }
+
+  getQuStockUnitName(): string {
+    if (!this.formProduct.quStockId) return '';
+    const unit = this.data.units?.find((u) => u.id === this.formProduct.quStockId);
+    return unit ? unit.name : '';
   }
 
   async saveProduct() {
@@ -417,8 +504,30 @@ export class ProductEditorModalComponent implements OnInit, OnDestroy {
 
     this.isSaving.set(true);
     try {
+      const cannotFreeze = !!this.formProduct.cannotBeFrozen;
+      let defaultLocationId = this.formProduct.defaultLocationId ?? null;
+      let openLocationId = this.formProduct.openLocationId ?? null;
+
+      if (cannotFreeze) {
+        if (defaultLocationId) {
+          const loc = this.data.locations?.find((l) => l.id === defaultLocationId);
+          if (loc?.isFreezer) defaultLocationId = null;
+        }
+        if (openLocationId) {
+          const loc = this.data.locations?.find((l) => l.id === openLocationId);
+          if (loc?.isFreezer) openLocationId = null;
+        }
+      }
+
       const payload: Partial<Product> = {
         ...this.formProduct,
+        defaultLocationId,
+        openLocationId,
+        defaultBestBeforeDays: Number(this.formProduct.defaultBestBeforeDays) || 0,
+        defaultBestBeforeDaysAfterOpen: this.formProduct.defaultBestBeforeDaysAfterOpen ? Number(this.formProduct.defaultBestBeforeDaysAfterOpen) : null,
+        defaultBestBeforeDaysAfterFreezing: cannotFreeze ? null : (this.formProduct.defaultBestBeforeDaysAfterFreezing ? Number(this.formProduct.defaultBestBeforeDaysAfterFreezing) : null),
+        defaultBestBeforeDaysAfterThawing: cannotFreeze ? null : (this.formProduct.defaultBestBeforeDaysAfterThawing ? Number(this.formProduct.defaultBestBeforeDaysAfterThawing) : null),
+        minStockAmount: Number(this.formProduct.minStockAmount) || 0,
         barcodes: this.barcodes(),
         mealieFoods: this.linkedFoods(),
         mealieRecipes: this.linkedRecipes(),

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, DestroyRef, effect, inject, Injectable, NgZone, signal, untracked } from '@angular/core';
+import { computed, DestroyRef, effect, inject, Injectable, Injector, NgZone, signal, untracked } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { ApiService } from './api.service.js';
 import { User, UserHouseholdSummary } from './models.js';
@@ -10,7 +10,7 @@ const RETURN_URL_STORAGE_KEY = 'cambusa_auth_return_url';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly api = inject(ApiService);
-  private readonly dialog = inject(Dialog);
+  private readonly injector = inject(Injector);
   private readonly ngZone = inject(NgZone);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -50,16 +50,19 @@ export class AuthService {
   });
 
   constructor() {
-    effect(() => {
-      const authenticated = this.isAuthenticated();
-      untracked(() => {
-        if (authenticated) {
-          this.startSessionPing();
-        } else {
-          this.stopSessionPing();
-        }
-      });
-    });
+    effect(
+      () => {
+        const authenticated = this.isAuthenticated();
+        untracked(() => {
+          if (authenticated) {
+            this.startSessionPing();
+          } else {
+            this.stopSessionPing();
+          }
+        });
+      },
+      { injector: this.injector },
+    );
 
     this.destroyRef.onDestroy(() => {
       this.stopSessionPing();
@@ -277,7 +280,8 @@ export class AuthService {
       }
       this.sessionExpiredModalOpen = true;
 
-      const dialogRef = this.dialog.open<boolean>(ConfirmModalComponent, {
+      const dialog = this.injector.get(Dialog);
+      const dialogRef = dialog.open<boolean>(ConfirmModalComponent, {
         disableClose: true,
         data: {
           title: 'Session Expired',

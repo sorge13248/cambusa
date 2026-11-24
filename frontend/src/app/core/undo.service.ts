@@ -19,6 +19,7 @@ export interface RegisterUndoOptions {
 export class UndoService {
   readonly activeAction = signal<UndoAction | null>(null);
   readonly isPaused = signal<boolean>(false);
+  readonly onUndoExecuted = signal<number>(0);
 
   private timerInterval: any = null;
   private actionCounter = 0;
@@ -105,6 +106,7 @@ export class UndoService {
     this.dismiss();
     try {
       await action.undo();
+      this.onUndoExecuted.update((c) => c + 1);
       return true;
     } catch (err) {
       console.error('Error executing undo:', err);

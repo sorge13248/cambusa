@@ -2,10 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { LucideAlertTriangle, LucidePencil, LucideX } from '@lucide/angular';
 import { Location, Product, StockItem } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { CdkDatepickerComponent } from '../../../shared/components/datepicker/cdk-datepicker.component.js';
+import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
 
 export interface StockItemEditorModalData {
   stockItem: StockItem;
@@ -16,7 +18,15 @@ export interface StockItemEditorModalData {
 @Component({
   selector: 'app-stock-item-editor-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, CdkDatepickerComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    CdkDatepickerComponent,
+    NumberStepperComponent,
+    LucideAlertTriangle,
+    LucidePencil,
+    LucideX,
+  ],
   templateUrl: './stock-item-editor-modal.component.html',
   styleUrl: './stock-item-editor-modal.component.scss',
 })
@@ -37,14 +47,24 @@ export class StockItemEditorModalComponent {
   readonly isSaving = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
 
+  readonly cannotFreeze = computed(() => {
+    return !!(this.data.product?.cannotBeFrozen ?? this.data.stockItem.productCannotBeFrozen);
+  });
+
+  readonly availableLocations = computed(() => {
+    if (this.cannotFreeze()) {
+      return this.data.locations.filter((l) => !l.isFreezer);
+    }
+    return this.data.locations;
+  });
+
   readonly selectedLocation = computed(() => {
     return this.data.locations.find((l) => l.id === this.locationId()) || null;
   });
 
   readonly freezerWarning = computed(() => {
     const loc = this.selectedLocation();
-    const cannotFreeze = this.data.product?.cannotBeFrozen ?? this.data.stockItem.productCannotBeFrozen;
-    return !!(loc?.isFreezer && cannotFreeze);
+    return !!(loc?.isFreezer && this.cannotFreeze());
   });
 
   adjustAmount(delta: number) {

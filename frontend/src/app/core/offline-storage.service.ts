@@ -3,8 +3,8 @@ import { Product, ShoppingListItem, StockItem } from './models.js';
 
 export interface SyncQueueItem {
   id: string;
-  entity: 'product' | 'stock' | 'shopping_item';
-  action: 'create' | 'update' | 'delete';
+  entity: 'product' | 'stock' | 'shopping_item' | 'shopping_list';
+  action: 'create' | 'update' | 'delete' | 'reorder';
   payload: any;
   createdAt: number;
 }

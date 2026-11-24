@@ -40,13 +40,25 @@ Food waste is costly and frustrating, grocery planning across family members can
 - **Expiration-First Priority**: Inventory is automatically ordered by best-before and use-by dates, with vivid urgency badges highlighting what needs attention.
 - **Single-Tap Quick Date Adjustments**: Postpone or adjust due dates on the fly with fast date chips (`Today`, `Tomorrow`, `+2d`, `+7d`).
 - **Batch & Location Control**: Group inventory into unified product cards while tracking distinct batches across pantries, refrigerators, and freezers.
-- **Freezer Protection**: Guard items with freezer-safety constraints and automatic shelf-life recalculation upon freezing and thawing.
-- **Accurate Actions**: Easily record items as **Consumed** (with spoiled waste tracking), **Purchased** (with price and store details), or **Moved** between rooms.
+- **Freezer Protection**: Guard items with freezer-safety constraints (`cannotBeFrozen`), preventing assignment or movement to freezer locations, filtering out freezer storage options across purchase, move, and edit dialogs, automatically nullifying freeze/thaw shelf life fields on the database, and recalculating expiration dates upon freezing and thawing for freezable goods.
+- **Accurate Actions & Batch Splitting**: Easily record items as **Consumed** (with spoiled waste tracking), **Open 1** (splitting individual units from multi-item batches to track opened shelf life with 10-second undo reversal), **Purchased** (with price and store details), or **Moved** between rooms using parameterizable `NumberStepperComponent` controls.
+- **Quick Pantry Actions Footer (Quick Consume & Quick Purchase)**: Fixed bottom-centered toolbar across Home, Pantry, and Products views. "Quick Purchase" enables high-speed continuous barcode scanning and immediate inventory addition. "Quick Consume" scans barcodes, selects the earliest-expiring batch, and displays a confirmation dialog with an auto-approving countdown timer (default 10s, configurable in profile) before returning directly to camera scanning for the next item.
+- **Universal Floating Action Buttons (FAB)**: Rapid one-thumb access to "+ Add Item" (Pantry and Shopping), "+ Add Product" (Catalog), and "Save View" via bottom-right floating action buttons across desktop and mobile, automatically elevated when the quick actions toolbar is active.
 - **Instant Search & Filters**: Search catalog names and descriptions in real time, filter by category or storage location, and save your favorite view presets.
+- **Lucide Vector Iconography**: Crisp, theme-aligned vector icons from `@lucide/angular` replacing generic system emojis across navigation, dialogs, buttons, and status indicators.
+- **Mobile-Optimized Experience**: Full-screen square-edge modals on mobile with unified secondary-styled close buttons matching modal header action buttons, responsive store aisle card layout, barcode scan icon-only controls on mobile viewports, centered confirmation dialogs, and two-column shopping card metadata.
 
 ### 🛒 Intelligent Supermarket Shopping Lists
+- **Default Shopping List Support**: Designate a primary default shopping list (`isDefault`) that automatically opens when visiting the shopping page without requiring manual list selection.
 - **Store-Aware Walking Order**: Organize your shopping items by actual aisle sequences (`Produce` &rarr; `Bakery` &rarr; `Dairy`), eliminating zig-zagging through the store.
-- **Multi-List Flexibility**: Maintain distinct lists for different stores (e.g. Weekly Supermarket, Farmer's Market, Wholesale Club, Pharmacy).
+- **Store-Tied Aisle Section Grouping**: Automatically groups list items under aisle headers strictly for the store associated with the active shopping list. If a shopping list is not associated with any store, store aisles are never used and items are organized cleanly under general item groups. When a list is associated with a store, an "Unspecified Aisle" section appears only for items lacking an aisle assignment in that specific store.
+- **Two-Column Card Layout with Inline Notes**: Shopping cards display item quantities and notes inline alongside product names, with a full-width bottom section presenting aisle badges and current pantry stock counts in two clean columns.
+- **Safe Item Deletion**: Deleting items from any shopping list requires explicit user confirmation via an alert dialog before removal.
+- **Custom Drag & Drop Reordering (Offline-First)**: Reorder shopping list tabs and individual list items with CDK drag-and-drop and custom visual placeholders. List sequences save instantly to local storage and IndexedDB before syncing to the backend.
+- **Wrapped Multi-List Navigation**: Multi-list tabs cleanly wrap onto multiple lines without horizontal overflow scrolling, maintaining full visibility across desktop and mobile screens.
+- **URL Query Parameter Routing**: Switching lists updates the browser URL (`?list=<id>`), with full support for browser Back, Forward, and Page Reload.
+- **Direct Catalog Product Editing**: Edit product details, names, parent products, and store mappings directly from shopping list items with single-click modal access.
+- **Multi-List Flexibility**: Maintain distinct lists for different stores (e.g. Weekly Supermarket, Farmer's Market, Wholesale Club, Pharmacy) rendered as reusable tabs.
 - **One-Click Low-Stock Restocking**: Instantly restock items that have dropped below your configured pantry thresholds.
 - **Non-Destructive Cart Check-Off**: Checking off an item marks it completed without deleting it from your list or altering inventory until you choose to restock.
 - **Uncataloged Quick Items**: Add ad-hoc shopping items on the fly without having to set up formal catalog entries beforehand.
@@ -54,7 +66,7 @@ Food waste is costly and frustrating, grocery planning across family members can
 ### 🍲 Kitchen & Smart Home Integrations
 - **Mealie Recipe Companion**: Connect your [Mealie](https://mealie.io) recipe manager to discover recipes you can cook right now with what is currently in stock. Open recipes with mapped ingredients directly in a single click.
 - **Next Engine Feed (`/api/next`)**: A dedicated high-performance JSON endpoint built for external integrations, Home Assistant sensor dashboards, and kitchen e-ink displays.
-- **Daily Morning Email Digest**: Wake up to an elegant graphical summary of food expiring soon, complete with item photos, days remaining, and direct dashboard links.
+- **Daily Morning Email Digest**: Wake up to a streamlined, high-deliverability graphical summary of food expiring soon, complete with inline product photos, colorful expiration status badges, and direct dashboard links formatted cleanly for native light and dark mode email clients without forced dark backgrounds.
 - **Developer API Keys**: Generate secure, revocable 256-bit API keys directly from your profile to build your own scripts and automations.
 
 ### ⚡ Accident-Proof 10-Second Undo
@@ -66,10 +78,18 @@ Food waste is costly and frustrating, grocery planning across family members can
 - Works offline via client-side IndexedDB storage and Cache-First Service Workers.
 - Transparent bi-directional synchronization with Last-Write-Wins (LWW) conflict resolution and tombstone deletion tracking once your device reconnects.
 
+### 📷 In-Browser Barcode & QR Code Scanner
+- **Direct Web-Embedded Viewfinder**: Scans barcodes and QR codes directly within the web page via WebRTC, bypassing external OS camera apps or file chooser popups.
+- **Hardware-Accelerated Dual Detection Engine**: Combines the high-performance native `BarcodeDetector` API (with zero CPU overhead on modern Chromium and iOS 17+ Safari) with pure JavaScript ZXing fallback for 100% cross-browser reliability, including multi-orientation decoding across all 4 cardinal angles (0°, 90°, 180°, and 270°) with full-resolution offscreen transformations.
+- **Adaptive Camera Flipping**: Toggle between outer/rear and inner/front cameras on multi-camera devices, with automatic hiding on single-camera hardware such as laptops.
+- **Hardware-Aware Flashlight / Torch Control**: One-touch illumination control for dimly-lit pantries, automatically displayed only when hardware torch capability is supported.
+- **Embedded Everywhere**: Integrated into product catalog editing (adding multiple EAN/UPC barcodes), pantry stocking, and shopping list searches with auto-closing on detection and subtle audio/haptic feedback.
+
 ### 🎨 Modern Aero Glass Interface
 - Built with a frosted glass aesthetic, featuring smooth backdrop blurs and floating navigation islands.
 - Automatic OS-native Dark and Light mode adaptation (`prefers-color-scheme`).
-- Fully responsive across desktop, tablet, and mobile screens with a dedicated mobile drawer and touch-friendly controls.
+- Fully responsive across desktop, tablet, and mobile screens with compressed touch layouts, quick icon navigation bar for immediate page access on mobile, and a dedicated expandable full drawer menu.
+- Modular user profile architecture organizing identity, expirations, Mealie recipes, email notifications, API keys, and domains into dedicated subpages.
 
 ### 🔄 Easy Grocy Migration
 - Moving from Grocy? Cambusa includes a dedicated CLI migration tool that imports your products, barcodes, storage locations, product pictures, stock items, and shopping lists in seconds.

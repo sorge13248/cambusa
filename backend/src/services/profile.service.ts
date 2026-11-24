@@ -42,6 +42,7 @@ export class ProfileService {
       settings = this.settingsRepo.create({
         userId: user.id,
         nextExpiringDays: 5,
+        quickConsumeTimerSeconds: 10,
         mealieUrl: null,
         mealieApiToken: null,
         mealieLinked: false,
@@ -64,6 +65,7 @@ export class ProfileService {
       },
       settings: {
         nextExpiringDays: settings.nextExpiringDays,
+        quickConsumeTimerSeconds: settings.quickConsumeTimerSeconds || 10,
         mealieUrl: settings.mealieUrl,
         mealieLinked: settings.mealieLinked,
         hasMealieToken: Boolean(settings.mealieApiToken),
@@ -129,6 +131,7 @@ export class ProfileService {
     user: AuthUser,
     dto: {
       nextExpiringDays?: number;
+      quickConsumeTimerSeconds?: number;
       mealieUrl?: string | null;
       mealieApiToken?: string | null;
       notificationEmail?: string | null;
@@ -143,6 +146,10 @@ export class ProfileService {
 
     if (dto.nextExpiringDays !== undefined && dto.nextExpiringDays > 0) {
       settings.nextExpiringDays = dto.nextExpiringDays;
+    }
+
+    if (dto.quickConsumeTimerSeconds !== undefined && dto.quickConsumeTimerSeconds > 0) {
+      settings.quickConsumeTimerSeconds = dto.quickConsumeTimerSeconds;
     }
 
     if (dto.mealieUrl !== undefined) {
@@ -170,6 +177,7 @@ export class ProfileService {
 
     return {
       nextExpiringDays: settings.nextExpiringDays,
+      quickConsumeTimerSeconds: settings.quickConsumeTimerSeconds || 10,
       mealieUrl: settings.mealieUrl,
       mealieLinked: settings.mealieLinked,
       hasMealieToken: Boolean(settings.mealieApiToken),

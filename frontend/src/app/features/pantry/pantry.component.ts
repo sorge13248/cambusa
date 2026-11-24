@@ -9,6 +9,15 @@ import { AuthService } from '../../core/auth.service.js';
 import { UndoService } from '../../core/undo.service.js';
 import { calculateProductTotalStock } from '../../core/stock-utils.js';
 import {
+  LucideLockOpen,
+  LucideMapPin,
+  LucidePackage,
+  LucidePlus,
+  LucideSave,
+  LucideX,
+  LucideZap,
+} from '@lucide/angular';
+import {
   FilterConfig,
   Location,
   Product,
@@ -22,6 +31,7 @@ import { PantryActionModalComponent } from './pantry-action-modal/pantry-action-
 import { PantryAddItemModalComponent } from './pantry-add-item-modal/pantry-add-item-modal.component.js';
 import { StockItemEditorModalComponent } from './stock-item-editor-modal/stock-item-editor-modal.component.js';
 import { QuickDateModifierComponent } from '../../shared/components/quick-date-modifier/quick-date-modifier.component.js';
+import { QuickActionsFooterComponent } from '../../shared/components/quick-actions-footer/quick-actions-footer.component.js';
 
 export interface PantryCardItem {
   id: string; // productId
@@ -34,6 +44,7 @@ export interface PantryCardItem {
   bestBeforeDate?: string | null;
   urgency?: string;
   isOpen: boolean;
+  openedCount?: number;
   locationName: string;
   locationIds: string[];
   primaryStockItem: StockItem;
@@ -43,7 +54,19 @@ export interface PantryCardItem {
 @Component({
   selector: 'app-pantry',
   standalone: true,
-  imports: [CommonModule, FormsModule, QuickDateModifierComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    QuickDateModifierComponent,
+    QuickActionsFooterComponent,
+    LucideLockOpen,
+    LucideMapPin,
+    LucidePackage,
+    LucidePlus,
+    LucideSave,
+    LucideX,
+    LucideZap,
+  ],
   templateUrl: './pantry.component.html',
   styleUrl: './pantry.component.scss',
 })
@@ -197,6 +220,7 @@ export class PantryComponent implements OnInit, OnDestroy {
     if (p < 1 || p > this.totalPages()) return;
     this.currentPage.set(p);
     this.syncQueryParams();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   syncQueryParams() {
@@ -287,6 +311,7 @@ export class PantryComponent implements OnInit, OnDestroy {
       const hasDueSoon = batches.some((b) => b.urgency === 'due_soon');
       const overallUrgency = hasExpired ? 'expired' : hasDueSoon ? 'due_soon' : 'ok';
       const isOpen = batches.some((b) => b.isOpen);
+      const openedCount = batches.filter((b) => b.isOpen).reduce((sum, b) => sum + (b.amount || 1), 0);
 
       const uniqueLocations = Array.from(
         new Set(batches.map((b) => b.locationName).filter((l): l is string => !!l)),
@@ -306,6 +331,7 @@ export class PantryComponent implements OnInit, OnDestroy {
         bestBeforeDate: primary.bestBeforeDate,
         urgency: overallUrgency,
         isOpen,
+        openedCount,
         locationName: uniqueLocations.join(', ') || 'No location',
         locationIds,
         primaryStockItem: primary,
@@ -412,6 +438,50 @@ export class PantryComponent implements OnInit, OnDestroy {
     });
   }
 
+  hasUnopenedBatch(item: PantryCardItem | StockItem): boolean {
+    if ('batches' in item && item.batches) {
+      return item.batches.some((b) => !b.isOpen);
+    }
+    return !item.isOpen;
+  }
+
+  async openOne(item: PantryCardItem | StockItem) {
+    let targetBatch: StockItem | undefined;
+
+    if ('batches' in item && item.batches) {
+      const unopened = item.batches
+        .filter((b) => !b.isOpen)
+        .sort((a, b) => {
+          if (!a.bestBeforeDate) return 1;
+          if (!b.bestBeforeDate) return -1;
+          return a.bestBeforeDate.localeCompare(b.bestBeforeDate);
+        });
+      targetBatch = unopened[0];
+    } else {
+      targetBatch = 'primaryStockItem' in item ? item.primaryStockItem : item;
+    }
+
+    if (!targetBatch) return;
+
+    const result = await this.api.openStock(targetBatch.id, 1);
+    await this.loadStock();
+
+    this.undoService.register({
+      description: `Opened 1 ${targetBatch.quName || 'unit'} of ${targetBatch.productName}`,
+      onUndo: async () => {
+        await this.api.revertOpen({
+          openedStockItemId: result.openedStockItem.id,
+          originalStockItemId: result.originalStockItem ? result.originalStockItem.id : targetBatch.id,
+          split: result.split,
+          amount: 1,
+          originalDate: result.originalDate,
+          originalLocationId: result.originalLocationId,
+        });
+        await this.loadStock();
+      },
+    });
+  }
+
   async consume(item: PantryCardItem | StockItem, amount: number) {
     const targetItem = 'primaryStockItem' in item ? item.primaryStockItem : item;
     await this.api.consumeStock(targetItem.id, amount);
@@ -478,6 +548,7 @@ export class PantryComponent implements OnInit, OnDestroy {
         locations: this.locations(),
         stores: this.stores(),
         units: this.units(),
+        productGroups: this.productGroups(),
       },
     });
 

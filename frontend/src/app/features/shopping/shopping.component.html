@@ -5,56 +5,45 @@
       <h2>Shopping Lists</h2>
       <p class="subtitle">Multi-list management, store aisle route optimization, and missing inventory replenishment.</p>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" (click)="openMissingModal()">
-        ⚡ Missing Items
-        @if (missingProductsCount() > 0) {
-          <span class="badge badge-due-soon">{{ missingProductsCount() }}</span>
-        }
-      </button>
-      <button class="btn btn-primary" (click)="openAddItemModal()">
-        + Add Item
-      </button>
-    </div>
   </div>
 
-  <!-- Shopping Lists Selector & Toolbar -->
+  <!-- Shopping Lists Tabs & Toolbar -->
   <div class="lists-bar-card">
-    <div class="lists-selector-left">
-      <label>Active List:</label>
-      <select [ngModel]="selectedListId()" (ngModelChange)="selectList($event)">
-        @for (l of shoppingLists(); track l.id) {
-          <option [value]="l.id">
-            {{ l.name }} {{ l.storeId ? '🏬 (' + getStoreName(l.storeId) + ')' : '' }}
-          </option>
-        }
-      </select>
+    <div class="lists-tabs-wrapper">
+      <app-tabview
+        [tabs]="shoppingListTabs()"
+        [activeTabId]="selectedListId()"
+        [reorderable]="true"
+        [wrap]="true"
+        (tabChange)="selectList($event)"
+        (reordered)="onShoppingListsReordered($event)"
+        variant="pill"
+      ></app-tabview>
 
-      <button class="btn-icon" (click)="openCreateListModal()" title="Create new shopping list">
-        ➕ New List
-      </button>
-      @if (currentList()) {
-        <button class="btn-icon" (click)="openEditListModal()" title="Edit active list">
-          ✏️
+      <div class="list-management-btns">
+        <button class="btn btn-secondary btn-xs" (click)="openCreateListModal()" title="Create new shopping list">
+          <svg lucidePlus [size]="13"></svg> New List
         </button>
-        @if (shoppingLists().length > 1) {
-          <button class="btn-icon btn-icon-danger" (click)="confirmDeleteList()" title="Delete active list">
-            🗑️
+        @if (currentList()) {
+          <button class="btn btn-secondary-outline btn-xs" (click)="openEditListModal()" title="Edit active list">
+            <svg lucidePencil [size]="13"></svg>
           </button>
+          @if (shoppingLists().length > 1) {
+            <button class="btn btn-danger-outline btn-xs" (click)="confirmDeleteList()" title="Delete active list">
+              <svg lucideTrash2 [size]="13"></svg>
+            </button>
+          }
         }
-      }
+      </div>
     </div>
 
     <div class="lists-selector-right">
-      <div class="store-filter-wrap">
-        <label>Filter by Store:</label>
-        <select [(ngModel)]="selectedStoreId" (ngModelChange)="loadItems()">
-          <option value="">All Stores (General Route)</option>
-          @for (s of stores(); track s.id) {
-            <option [value]="s.id">{{ s.name }}</option>
-          }
-        </select>
-      </div>
+      @if (currentList()?.storeId) {
+        <div class="associated-store-tag" title="Items sorted by this store's aisle order">
+          <svg lucideStore [size]="14"></svg>
+          <span>{{ getStoreName(currentList()!.storeId!) }}</span>
+        </div>
+      }
       <span class="items-count-summary">
         {{ pendingItemsCount() }} pending, {{ doneItemsCount() }} done
       </span>
@@ -63,31 +52,41 @@
 
   <!-- Quick Add Item Inline Bar -->
   <div class="quick-add-card">
-    <input
-      type="text"
-      [(ngModel)]="newItemName"
-      placeholder="Quick add item by name or open full dialog above..."
-      (keyup.enter)="quickAddItem()"
-    />
-    <input
-      type="number"
-      class="amount-input"
-      [(ngModel)]="newItemAmount"
-      min="1"
-      step="1"
-      placeholder="Qty"
-    />
-    <button class="btn btn-secondary" (click)="quickAddItem()" [disabled]="!newItemName.trim()">
-      Quick Add
-    </button>
-    @if (doneItemsCount() > 0) {
-      <button class="btn btn-secondary btn-clear-done" (click)="clearDoneItems()">
-        Clear Completed ({{ doneItemsCount() }})
+    <div class="quick-add-inputs">
+      <input
+        type="text"
+        [(ngModel)]="newItemName"
+        placeholder="Quick add item by name or open full dialog..."
+        (keyup.enter)="quickAddItem()"
+      />
+      <input
+        type="number"
+        class="amount-input"
+        [(ngModel)]="newItemAmount"
+        min="1"
+        step="1"
+        placeholder="Qty"
+      />
+      <button class="btn btn-secondary" (click)="quickAddItem()" [disabled]="!newItemName.trim()">
+        Quick Add
       </button>
-    }
+    </div>
+    <div class="quick-add-actions">
+      <button class="btn btn-secondary" (click)="openMissingModal()">
+        <svg lucideZap [size]="14"></svg> Missing Items
+        @if (missingProductsCount() > 0) {
+          <span class="badge badge-due-soon">{{ missingProductsCount() }}</span>
+        }
+      </button>
+      @if (doneItemsCount() > 0) {
+        <button class="btn btn-secondary btn-clear-done" (click)="clearDoneItems()">
+          Clear Completed ({{ doneItemsCount() }})
+        </button>
+      }
+    </div>
   </div>
 
-  <!-- Shopping List Items -->
+  <!-- Shopping List Items grouped by Aisle -->
   @if (isLoading()) {
     <div class="loading-state">Loading shopping items...</div>
   } @else if (items().length === 0) {
@@ -99,70 +98,134 @@
       </div>
     </div>
   } @else {
-    <div class="items-list">
-      @for (item of items(); track item.id) {
-        <div class="shopping-item-row" [class.item-done]="item.done">
-          <!-- Non-destructive Done Checkbox -->
-          <button
-            class="done-toggle-btn"
-            [class.checked]="item.done"
-            (click)="toggleDone(item.id)"
-            [title]="item.done ? 'Mark as pending' : 'Mark as done'"
+    <div class="aisle-groups-container">
+      @for (group of aisleGroups(); track group.name) {
+        <section class="aisle-group-card" [class.unspecified-aisle]="group.isUnspecified">
+          <div class="aisle-group-header">
+            <div class="aisle-header-left">
+              <span class="aisle-header-icon">
+                @if (group.isUnspecified) {
+                  <svg lucidePackage [size]="16"></svg>
+                } @else {
+                  <svg lucideShoppingCart [size]="16"></svg>
+                }
+              </span>
+              <h3 class="aisle-header-title">{{ group.name }}</h3>
+              <span class="aisle-items-count">{{ group.items.length }} {{ group.items.length === 1 ? 'item' : 'items' }}</span>
+            </div>
+          </div>
+
+          <div
+            cdkDropList
+            class="aisle-items-drop-list"
+            [cdkDropListData]="group.items"
+            (cdkDropListDropped)="onItemDrop($event, group)"
           >
-            <span class="check-mark">{{ item.done ? '✓' : '' }}</span>
-          </button>
+            @for (item of group.items; track item.id; let idx = $index) {
+              <div class="shopping-item-row" cdkDrag [class.item-done]="item.done">
+                <!-- Custom Drag Placeholder -->
+                <div class="item-drag-placeholder" *cdkDragPlaceholder>
+                  <span class="placeholder-text">Drop here (Position #{{ idx + 1 }})</span>
+                </div>
 
-          <!-- Thumbnail if available -->
-          <div class="item-thumb">
-            @if (item.productPictureFileName || (item.productPictureFileNames && item.productPictureFileNames.length > 0)) {
-              <img
-                [src]="'/api/products/pictures/' + (item.productPictureFileName || item.productPictureFileNames![0])"
-                [alt]="item.productName"
-              />
-            } @else {
-              <span>📦</span>
+                <!-- Top Row: Drag Handle, Checkbox, Thumb, Name/Qty/Note, Actions -->
+                <div class="item-top-row">
+                  <!-- Drag Handle -->
+                  <div class="drag-handle-container" cdkDragHandle title="Drag to reorder">
+                    <svg lucideGripVertical [size]="18" class="drag-handle-icon"></svg>
+                  </div>
+
+                  <!-- Non-destructive Done Checkbox -->
+                  <button
+                    class="done-toggle-btn"
+                    [class.checked]="item.done"
+                    (click)="toggleDone(item.id)"
+                    [title]="item.done ? 'Mark as pending' : 'Mark as done'"
+                  >
+                    @if (item.done) {
+                      <svg lucideCheck [size]="16" class="check-mark"></svg>
+                    }
+                  </button>
+
+                  <!-- Thumbnail if available -->
+                  <div class="item-thumb">
+                    @if (item.productPictureFileName || (item.productPictureFileNames && item.productPictureFileNames.length > 0)) {
+                      <img
+                        [src]="'/api/products/pictures/' + (item.productPictureFileName || item.productPictureFileNames![0])"
+                        [alt]="item.productName"
+                      />
+                    } @else {
+                      <svg lucidePackage [size]="20" class="placeholder-icon"></svg>
+                    }
+                  </div>
+
+                  <div class="item-header-info">
+                    <span class="item-name">{{ item.productName }}</span>
+                    <div class="item-qty-row">
+                      <span class="item-qty">{{ item.amount }} {{ item.quName || 'pcs' }}</span>
+                      <span style="font-size: 0.7em">
+                        @if (item.estimatedPrice) {
+                          <span class="price-badge">
+                            <svg lucideFileEdit [size]="12"></svg> {{ item.estimatedPrice | currency:'EUR':'symbol':'1.2-2' }}
+                          </span>
+                        }
+                        @if (item.earliestExpirationDate) {
+                          <span class="exp-badge">Exp: {{ item.earliestExpirationDate }}</span>
+                        }
+                        @if (item.currentStock !== undefined) {
+                          <span>{{ item.currentStock }} in stock</span>
+                        }
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="item-actions">
+                    @if (item.productId) {
+                      <button
+                        type="button"
+                        class="btn btn-secondary-outline btn-sm action-btn-tag"
+                        (click)="openEditProductModal(item.productId)"
+                        title="Edit product catalog details"
+                      >
+                        <svg lucideTag [size]="14"></svg>
+                      </button>
+                    }
+                    <button class="btn btn-secondary-outline btn-sm action-btn-edit" (click)="openEditItemModal(item)" title="Edit item">
+                      <svg lucidePencil [size]="14"></svg>
+                    </button>
+                    <button class="btn btn-danger-outline btn-sm action-btn-delete" (click)="deleteItem(item)" title="Remove item">
+                      <svg lucideTrash2 [size]="14"></svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Dedicated row for note if populated -->
+                @if (item.note) {
+                  <div class="item-note-row">
+                    <svg lucideFileText [size]="13"></svg>
+                    <span class="item-note-text">{{ item.note }}</span>
+                  </div>
+                }
+              </div>
             }
           </div>
-
-          <div class="item-content">
-            <div class="item-primary-info">
-              <span class="item-name">{{ item.productName }}</span>
-              <span class="item-qty">{{ item.amount }} {{ item.quName || 'pcs' }}</span>
-            </div>
-
-            @if (item.note) {
-              <p class="item-note">📝 {{ item.note }}</p>
-            }
-
-            <div class="item-meta-info">
-              @if (item.aisle) {
-                <span class="aisle-badge">🛒 {{ item.aisle }}</span>
-              }
-              @if (item.storeName && !selectedStoreId) {
-                <span class="store-badge">🏪 {{ item.storeName }}</span>
-              }
-              @if (item.estimatedPrice) {
-                <span class="price-badge">~{{ item.estimatedPrice | currency:'EUR':'symbol':'1.2-2' }}</span>
-              }
-              @if (item.currentStock !== undefined) {
-                <span class="stock-info">Current in pantry: {{ item.currentStock }}</span>
-              }
-              @if (item.earliestExpirationDate) {
-                <span class="exp-badge">Earliest expiry: {{ item.earliestExpirationDate }}</span>
-              }
-            </div>
-          </div>
-
-          <div class="item-actions">
-            <button class="btn btn-secondary btn-sm" (click)="openEditItemModal(item)" title="Edit item">
-              ✏️
-            </button>
-            <button class="btn btn-danger btn-sm" (click)="deleteItem(item.id)" title="Remove item">
-              ×
-            </button>
-          </div>
-        </div>
+        </section>
       }
     </div>
   }
+
+  <!-- Floating Action Button -->
+  <div class="fab-container">
+    <button
+      type="button"
+      class="fab-btn fab-primary"
+      (click)="openAddItemModal()"
+      title="Add Item"
+      aria-label="Add Item"
+    >
+      <span class="fab-icon">
+        <svg lucidePlus [size]="24"></svg>
+      </span>
+    </button>
+  </div>
 </div>
