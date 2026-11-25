@@ -1,8 +1,11 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { unlink } from 'node:fs/promises';
+import { join } from 'node:path';
 import { MoreThan, Repository } from 'typeorm';
 import { compareByName } from '../common/sorting.utils.js';
 import { SyncPayloadDto, SyncResponseDto } from '../common/sync/sync.types.js';
+import { resolveUploadsDir } from '../load-env.js';
 import {
   Location,
   MealPlanEntry,
@@ -219,7 +222,21 @@ export class SyncService {
         if (entityType === 'stock' || entityType === 'stock_item') {
           await this.stockRepository.delete({ id, householdId });
         } else if (entityType === 'product') {
+          const product = await this.productsRepository.findOne({ where: { id, householdId } });
           await this.productsRepository.delete({ id, householdId });
+          if (product?.pictureFileNames && product.pictureFileNames.length > 0) {
+            const uploadsDir = resolveUploadsDir();
+            for (const fileName of product.pictureFileNames) {
+              try {
+                const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '');
+                if (safeName) {
+                  await unlink(join(uploadsDir, 'products', safeName));
+                }
+              } catch {
+                // ignore missing file
+              }
+            }
+          }
         } else if (entityType === 'shopping_item') {
           await this.shoppingItemsRepository.delete({ id, householdId });
         } else if (entityType === 'shopping_list') {

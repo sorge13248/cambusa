@@ -5,6 +5,7 @@ import { ProductsComponent } from './products.component.js';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
 import { SyncService } from '../../core/sync.service.js';
+import { UndoService } from '../../core/undo.service.js';
 import { Dialog } from '@angular/cdk/dialog';
 import { signal } from '@angular/core';
 import { of } from 'rxjs';
@@ -213,5 +214,30 @@ describe('ProductsComponent', () => {
         }),
       }),
     );
+  });
+
+  it('should optimistically delete product and support undo before committing deletion', async () => {
+    vi.useFakeTimers();
+    const undoService = TestBed.inject(UndoService);
+    const product = component.products()[0];
+    mockDialog.open.mockReturnValue({
+      closed: of(true),
+    });
+
+    await component.confirmDeleteProduct(product);
+
+    expect(component.products().some((p) => p.id === product.id)).toBe(false);
+    expect(mockApiService.deleteProduct).not.toHaveBeenCalled();
+
+    await undoService.executeUndo();
+    expect(component.products().some((p) => p.id === product.id)).toBe(true);
+    expect(component.products()[0].id).toBe(product.id);
+    expect(mockApiService.deleteProduct).not.toHaveBeenCalled();
+
+    await component.confirmDeleteProduct(product);
+    expect(component.products().some((p) => p.id === product.id)).toBe(false);
+
+    vi.advanceTimersByTime(10100);
+    expect(mockApiService.deleteProduct).toHaveBeenCalledWith(product.id);
   });
 });

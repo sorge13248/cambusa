@@ -213,6 +213,12 @@
   &.is-today {
     background-color: rgba(16, 185, 129, 0.04);
   }
+
+  &.cdk-drop-list-receiving {
+    background-color: color-mix(in srgb, var(--primary-light) 45%, transparent);
+    outline: 1px dashed var(--primary);
+    outline-offset: -2px;
+  }
 }
 
 .cell-items {
@@ -232,6 +238,21 @@
   padding: 4px 7px;
   font-size: 0.78rem;
   line-height: 1.25;
+  user-select: none;
+
+  &.is-draggable {
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  &.cdk-drag-placeholder {
+    opacity: 0.35;
+    border-style: dashed;
+    border-color: var(--primary);
+  }
 }
 
 .chip-avatar {

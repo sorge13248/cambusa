@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, ElementRef, inject, OnInit, signal, untracked, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, effect, ElementRef, inject, OnInit, signal, untracked, viewChild } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
+import { CdkDrag, CdkDragDrop, CdkDropList, CdkDropListGroup, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkContextMenuTrigger, CdkMenu, CdkMenuItem } from '@angular/cdk/menu';
 import { firstValueFrom } from 'rxjs';
 import {
   LucideApple,
@@ -10,6 +12,7 @@ import {
   LucideCookie,
   LucideMoon,
   LucidePlus,
+  LucideTrash2,
   LucideUtensils,
 } from '@lucide/angular';
 import {
@@ -28,6 +31,7 @@ import {
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
 import { SyncService } from '../../core/sync.service.js';
+import { UndoService } from '../../core/undo.service.js';
 import { compareByName } from '../../core/sorting.utils.js';
 import { PlannerSlotModalComponent } from './planner-slot-modal/planner-slot-modal.component.js';
 
@@ -51,6 +55,12 @@ export interface CellEntryViewModel {
   standalone: true,
   imports: [
     CommonModule,
+    CdkDrag,
+    CdkDropList,
+    CdkDropListGroup,
+    CdkContextMenuTrigger,
+    CdkMenu,
+    CdkMenuItem,
     LucideApple,
     LucideChevronLeft,
     LucideChevronRight,
@@ -58,6 +68,7 @@ export interface CellEntryViewModel {
     LucideCookie,
     LucideMoon,
     LucidePlus,
+    LucideTrash2,
     LucideUtensils,
   ],
   templateUrl: './planner.component.html',
@@ -67,7 +78,9 @@ export class PlannerComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly sync = inject(SyncService);
+  private readonly undoService = inject(UndoService);
   private readonly dialog = inject(Dialog);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly mealSlots: MealSlotConfig[] = MEAL_SLOTS;
 
@@ -84,6 +97,7 @@ export class PlannerComponent implements OnInit {
   readonly isLoading = signal<boolean>(true);
   readonly isHorizontallyScrolled = signal<boolean>(false);
   readonly hoveredCell = signal<{ date: string; mealSlot: MealSlot } | null>(null);
+  readonly isDesktop = signal<boolean>(false);
 
   private readonly calendarWrapper = viewChild<ElementRef<HTMLElement>>('calendarWrapper');
 
@@ -144,6 +158,14 @@ export class PlannerComponent implements OnInit {
 
   constructor() {
     this.lastSyncCounter = this.sync.onSyncCompleted();
+
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      const mql = window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 769px)');
+      this.isDesktop.set(mql.matches);
+      const onChange = (e: MediaQueryListEvent) => this.isDesktop.set(e.matches);
+      mql.addEventListener('change', onChange);
+      this.destroyRef.onDestroy(() => mql.removeEventListener('change', onChange));
+    }
 
     effect(() => {
       const hhId = this.auth.activeHouseholdId();
@@ -297,6 +319,72 @@ export class PlannerComponent implements OnInit {
 
   getCellEntries(date: string, mealSlot: MealSlot): CellEntryViewModel[] {
     return this.cellEntriesMap().get(`${date}__${mealSlot}`) || [];
+  }
+
+  async onEntryDrop(
+    event: CdkDragDrop<{ date: string; mealSlot: MealSlot }, { date: string; mealSlot: MealSlot }, CellEntryViewModel>,
+  ): Promise<void> {
+    if (!this.isDesktop()) return;
+
+    const item = event.item.data;
+    if (!item) return;
+
+    const target = event.container.data;
+    const isSameCell = event.previousContainer === event.container;
+
+    if (isSameCell) {
+      if (event.previousIndex === event.currentIndex) return;
+      const cellItems = [...this.getCellEntries(target.date, target.mealSlot)];
+      moveItemInArray(cellItems, event.previousIndex, event.currentIndex);
+
+      const orderMap = new Map(cellItems.map((vm, idx) => [vm.entry.id, idx]));
+      const nowIso = new Date().toISOString();
+      this.entries.update((list) =>
+        list.map((e) => (orderMap.has(e.id) ? { ...e, sortOrder: orderMap.get(e.id)!, updatedAt: nowIso } : e)),
+      );
+
+      await Promise.all(
+        cellItems.map((vm, idx) => this.api.updateMealPlanEntry(vm.entry.id, { sortOrder: idx })),
+      );
+      return;
+    }
+
+    const newSortOrder = event.currentIndex;
+    const nowIso = new Date().toISOString();
+    this.entries.update((list) =>
+      list.map((e) =>
+        e.id === item.entry.id
+          ? { ...e, date: target.date, mealSlot: target.mealSlot, sortOrder: newSortOrder, updatedAt: nowIso }
+          : e,
+      ),
+    );
+
+    await this.api.updateMealPlanEntry(item.entry.id, {
+      date: target.date,
+      mealSlot: target.mealSlot,
+      sortOrder: newSortOrder,
+    });
+  }
+
+  async deleteEntryFromContextMenu(item: CellEntryViewModel): Promise<void> {
+    const removed = item.entry;
+    const slotLabel = this.mealSlots.find((s) => s.key === removed.mealSlot)?.label ?? removed.mealSlot;
+
+    await this.api.deleteMealPlanEntry(removed.id);
+    this.entries.update((list) => list.filter((e) => e.id !== removed.id));
+
+    this.undoService.register({
+      description: `Removed ${item.productName} from ${slotLabel}`,
+      onUndo: async () => {
+        const restored = await this.api.addMealPlanEntry({
+          date: removed.date,
+          mealSlot: removed.mealSlot,
+          productId: removed.productId,
+          sortOrder: removed.sortOrder,
+        });
+        this.entries.update((list) => [...list, restored]);
+      },
+    });
   }
 
   openSlotModal(day: WeekDayColumn, slot: MealSlotConfig): void {

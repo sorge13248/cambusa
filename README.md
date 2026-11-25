@@ -66,15 +66,15 @@ Food waste is costly and frustrating, grocery planning across family members can
 - **Uncataloged Quick Items**: Add ad-hoc shopping items on the fly without having to set up formal catalog entries beforehand.
 
 ### 🍲 Kitchen, Meal Planner & Smart Home Integrations
-- **Weekly Meal Planner (`/planner`)**: Interactive weekly calendar organized into five daily meal slots (**Breakfast**, **Morning Snack**, **Lunch**, **Afternoon Snack**, **Dinner**). Each planned item records the household member who added it (displaying their profile avatar), total pantry stock, earliest expiration date, and direct **Open 1** / **Consume 1** actions with 10-second undo support. Selecting foods reuses the full Pantry inventory search, filter, and 4-column grid component inside a wide picker modal.
+- **Weekly Meal Planner (`/planner`)**: Interactive weekly calendar organized into five daily meal slots (**Breakfast**, **Morning Snack**, **Lunch**, **Afternoon Snack**, **Dinner**). Each planned item records the household member who added it (displaying their profile avatar), total pantry stock, earliest expiration date, and direct **Open 1** / **Consume 1** actions with 10-second undo support. On desktop browsers (`hover: hover` & `pointer: fine`), planned items can be dragged and dropped across different days and meal slots, and right-clicking any item opens a custom CDK context menu for instant deletion with 10-second undo recovery. Selecting foods reuses the full Pantry inventory search, filter, and 4-column grid component inside a wide picker modal.
 - **Mealie Recipe Companion**: Connect your [Mealie](https://mealie.io) recipe manager to discover recipes you can cook right now with what is currently in stock. Open recipes with mapped ingredients directly in a single click.
 - **Next Engine Feed (`/api/next`)**: A dedicated high-performance JSON endpoint built for external integrations, Home Assistant sensor dashboards, and kitchen e-ink displays.
 - **Daily Morning Email Digest**: Wake up to a streamlined, high-deliverability graphical summary of food expiring soon, complete with inline product photos, colorful expiration status badges, and direct dashboard links formatted cleanly for native light and dark mode email clients without forced dark backgrounds.
 - **Developer API Keys**: Generate secure, revocable 256-bit API keys directly from your profile to build your own scripts and automations.
 
 ### ⚡ Accident-Proof 10-Second Undo
-- Tapped "Consume" or "Purchased" by mistake? Cambusa gives you a persistent 10-second countdown toast on every inventory mutation.
-- A single click reverses the entire operation cleanly without manual database corrections, instantly restoring dashboard state via snapshot undo without network requests.
+- Tapped "Consume", "Purchased", or "Delete Product" by mistake? Cambusa gives you a persistent 10-second countdown toast on inventory, meal planner, and product deletion actions.
+- A single click reverses the entire operation cleanly without manual database corrections, preserving product photo attachments on the filesystem during the 10-second window and instantly restoring state without network requests.
 
 ### 📶 Offline-First PWA Resilience & Local Mutation Pipeline
 - Built from the ground up as a pure offline-first Progressive Web Application: all user mutations across inventory, shopping lists, and products write directly to IndexedDB before background synchronization, eliminating direct REST mutation calls.

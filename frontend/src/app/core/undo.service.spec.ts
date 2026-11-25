@@ -56,4 +56,36 @@ describe('UndoService', () => {
     expect(service.activeAction()).toBeNull();
     expect(undoMock).not.toHaveBeenCalled();
   });
+
+  it('should call onCommit when timer expires or dismiss is called, but not on undo', async () => {
+    const undoMock = vi.fn().mockResolvedValue(undefined);
+    const commitMock = vi.fn().mockResolvedValue(undefined);
+
+    service.register({ description: 'Deleted product', onUndo: undoMock, onCommit: commitMock, durationSeconds: 10 });
+    vi.advanceTimersByTime(10100);
+    expect(commitMock).toHaveBeenCalledTimes(1);
+    expect(undoMock).not.toHaveBeenCalled();
+
+    commitMock.mockClear();
+    service.register({ description: 'Deleted product', onUndo: undoMock, onCommit: commitMock, durationSeconds: 10 });
+    service.dismiss();
+    expect(commitMock).toHaveBeenCalledTimes(1);
+
+    commitMock.mockClear();
+    service.register({ description: 'Deleted product', onUndo: undoMock, onCommit: commitMock, durationSeconds: 10 });
+    await service.executeUndo();
+    expect(undoMock).toHaveBeenCalledTimes(1);
+    expect(commitMock).not.toHaveBeenCalled();
+  });
+
+  it('should flush previous onCommit when a new action is registered', () => {
+    const commitFirst = vi.fn().mockResolvedValue(undefined);
+    const commitSecond = vi.fn().mockResolvedValue(undefined);
+
+    service.register({ description: 'First', onUndo: vi.fn().mockResolvedValue(undefined), onCommit: commitFirst });
+    service.register({ description: 'Second', onUndo: vi.fn().mockResolvedValue(undefined), onCommit: commitSecond });
+
+    expect(commitFirst).toHaveBeenCalledTimes(1);
+    expect(commitSecond).not.toHaveBeenCalled();
+  });
 });
