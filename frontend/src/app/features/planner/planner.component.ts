@@ -1,11 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject, OnInit, signal, untracked } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, OnInit, signal, untracked, viewChild } from '@angular/core';
 import { Dialog } from '@angular/cdk/dialog';
 import { firstValueFrom } from 'rxjs';
 import {
+  LucideApple,
   LucideChevronLeft,
   LucideChevronRight,
+  LucideCoffee,
+  LucideCookie,
+  LucideMoon,
   LucidePlus,
+  LucideUtensils,
 } from '@lucide/angular';
 import {
   HouseholdMemberDto,
@@ -46,9 +51,14 @@ export interface CellEntryViewModel {
   standalone: true,
   imports: [
     CommonModule,
+    LucideApple,
     LucideChevronLeft,
     LucideChevronRight,
+    LucideCoffee,
+    LucideCookie,
+    LucideMoon,
     LucidePlus,
+    LucideUtensils,
   ],
   templateUrl: './planner.component.html',
   styleUrl: './planner.component.scss',
@@ -72,9 +82,14 @@ export class PlannerComponent implements OnInit {
   readonly members = signal<HouseholdMemberDto[]>([]);
   readonly expiringSoonDays = signal<number>(5);
   readonly isLoading = signal<boolean>(true);
+  readonly isHorizontallyScrolled = signal<boolean>(false);
+  readonly hoveredCell = signal<{ date: string; mealSlot: MealSlot } | null>(null);
+
+  private readonly calendarWrapper = viewChild<ElementRef<HTMLElement>>('calendarWrapper');
 
   private lastLoadedHouseholdId: string | null = null;
   private lastSyncCounter = 0;
+  private hasScrolledInitialToday = false;
 
   readonly weekDays = computed<WeekDayColumn[]>(() => {
     const offset = this.weekOffset();
@@ -143,6 +158,15 @@ export class PlannerComponent implements OnInit {
       if (syncCounter > this.lastSyncCounter) {
         this.lastSyncCounter = syncCounter;
         untracked(() => this.refreshEntriesAndStock());
+      }
+    });
+
+    effect(() => {
+      const wrapper = this.calendarWrapper();
+      const offset = this.weekOffset();
+      if (wrapper && offset === 0 && !this.hasScrolledInitialToday) {
+        this.hasScrolledInitialToday = true;
+        untracked(() => requestAnimationFrame(() => this.scrollTodayToLeft()));
       }
     });
   }
@@ -219,6 +243,52 @@ export class PlannerComponent implements OnInit {
 
   goToToday(): void {
     this.weekOffset.set(0);
+    requestAnimationFrame(() => this.scrollTodayToLeft());
+  }
+
+  setHoveredCell(date: string, mealSlot: MealSlot): void {
+    this.hoveredCell.set({ date, mealSlot });
+  }
+
+  clearHoveredCell(): void {
+    this.hoveredCell.set(null);
+  }
+
+  onCalendarScroll(event: Event): void {
+    const el = event.target as HTMLElement | null;
+    this.isHorizontallyScrolled.set(Boolean(el && el.scrollLeft > 0));
+  }
+
+  private scrollTodayToLeft(): void {
+    const wrapper = this.calendarWrapper()?.nativeElement;
+    if (!wrapper || wrapper.scrollWidth <= wrapper.clientWidth) {
+      this.isHorizontallyScrolled.set(false);
+      return;
+    }
+
+    const dayHeaders = Array.from(wrapper.querySelectorAll<HTMLElement>('.day-header'));
+    const todayIndex = dayHeaders.findIndex((el) => el.classList.contains('is-today'));
+    if (todayIndex === -1) {
+      return;
+    }
+
+    // When today is Monday (first column), keep scrollLeft at 0 so row labels remain visible on mobile
+    if (todayIndex === 0) {
+      wrapper.scrollLeft = 0;
+      this.isHorizontallyScrolled.set(false);
+      return;
+    }
+
+    const todayHeader = dayHeaders[todayIndex];
+    if (typeof todayHeader.scrollIntoView === 'function') {
+      todayHeader.scrollIntoView({ behavior: 'instant', inline: 'start', block: 'nearest' });
+    } else {
+      const iconCorner = wrapper.querySelector<HTMLElement>('.calendar-corner-icon');
+      const stickyWidth = iconCorner ? iconCorner.getBoundingClientRect().width : 0;
+      const offset = todayHeader.getBoundingClientRect().left - wrapper.getBoundingClientRect().left - stickyWidth;
+      wrapper.scrollLeft += offset;
+    }
+    this.isHorizontallyScrolled.set(wrapper.scrollLeft > 0);
   }
 
   nextWeek(): void {

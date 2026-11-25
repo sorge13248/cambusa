@@ -61,8 +61,8 @@
 
 .calendar-grid {
   display: grid;
-  grid-template-columns: 140px repeat(7, minmax(140px, 1fr));
-  min-width: 1080px;
+  grid-template-columns: 44px 124px repeat(7, minmax(140px, 1fr));
+  min-width: 1148px;
 }
 
 .calendar-corner,
@@ -79,6 +79,21 @@
 .calendar-corner {
   display: flex;
   align-items: center;
+  position: sticky;
+  z-index: 2;
+  background-color: var(--bg-card);
+}
+
+.calendar-corner-icon {
+  left: 0;
+  padding: 12px 0;
+  justify-content: center;
+  border-right: none;
+}
+
+.calendar-corner-label {
+  left: 44px;
+  padding-left: 4px;
 }
 
 .day-header {
@@ -86,6 +101,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  scroll-margin-left: 168px;
 
   &:last-of-type {
     border-right: none;
@@ -93,6 +109,16 @@
 
   &.is-today {
     background-color: var(--primary-light);
+    color: var(--primary);
+  }
+
+  &.is-hovered {
+    background-color: color-mix(in srgb, var(--bg-card) 90%, var(--primary) 10%);
+    color: var(--text-primary);
+  }
+
+  &.is-today.is-hovered {
+    background-color: color-mix(in srgb, var(--primary-light) 85%, var(--primary) 15%);
     color: var(--primary);
   }
 
@@ -107,18 +133,55 @@
   }
 }
 
+.slot-icon-cell,
 .slot-label-cell {
-  padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--bg-card);
   display: flex;
   align-items: center;
+  position: sticky;
+  z-index: 2;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &.is-hovered {
+    background-color: color-mix(in srgb, var(--bg-card) 90%, var(--primary) 10%);
+  }
+}
+
+.slot-icon-cell {
+  left: 0;
+  justify-content: center;
+  padding: 12px 0;
+
+  .slot-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    transition: color 0.15s ease;
+  }
+
+  &.is-hovered .slot-icon {
+    color: var(--primary);
+  }
+}
+
+.slot-label-cell {
+  left: 44px;
+  padding: 12px 14px 12px 4px;
+  border-right: 1px solid var(--border);
 
   .slot-label {
     font-size: 0.84rem;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
+    transition: color 0.15s ease;
+  }
+
+  &.is-hovered .slot-label {
+    color: var(--primary);
   }
 }
 
@@ -215,5 +278,22 @@
 
   .page-header h2 {
     font-size: 1.3rem;
+  }
+
+  .calendar-wrapper.is-scrolled {
+    .calendar-corner-icon,
+    .slot-icon-cell {
+      border-right: 1px solid var(--border);
+    }
+  }
+
+  .calendar-corner-label,
+  .slot-label-cell {
+    position: static;
+    z-index: auto;
+  }
+
+  .day-header {
+    scroll-margin-left: 44px;
   }
 }
