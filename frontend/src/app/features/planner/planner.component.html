@@ -20,12 +20,22 @@
   @if (isLoading()) {
     <div class="loading-state">Loading meal planner...</div>
   } @else {
-    <div class="calendar-wrapper">
+    <div
+      class="calendar-wrapper"
+      #calendarWrapper
+      [class.is-scrolled]="isHorizontallyScrolled()"
+      (scroll)="onCalendarScroll($event)"
+    >
       <div class="calendar-grid">
         <!-- Header Row -->
-        <div class="calendar-corner">Meal</div>
+        <div class="calendar-corner calendar-corner-icon" aria-hidden="true"></div>
+        <div class="calendar-corner calendar-corner-label">Meal</div>
         @for (day of weekDays(); track day.date) {
-          <div class="day-header" [class.is-today]="day.isToday">
+          <div
+            class="day-header"
+            [class.is-today]="day.isToday"
+            [class.is-hovered]="hoveredCell()?.date === day.date"
+          >
             <span class="day-name">{{ day.dayName }}</span>
             <span class="day-date">{{ day.dateShort }}</span>
           </div>
@@ -33,7 +43,33 @@
 
         <!-- Meal Slot Rows -->
         @for (slot of mealSlots; track slot.key) {
-          <div class="slot-label-cell">
+          <div
+            class="slot-icon-cell"
+            [class.is-hovered]="hoveredCell()?.mealSlot === slot.key"
+            [title]="slot.label"
+            [attr.aria-label]="slot.label"
+          >
+            <span class="slot-icon" aria-hidden="true">
+              @switch (slot.key) {
+                @case ('breakfast') {
+                  <svg lucideCoffee [size]="18"></svg>
+                }
+                @case ('morning_snack') {
+                  <svg lucideApple [size]="18"></svg>
+                }
+                @case ('lunch') {
+                  <svg lucideUtensils [size]="18"></svg>
+                }
+                @case ('afternoon_snack') {
+                  <svg lucideCookie [size]="18"></svg>
+                }
+                @case ('dinner') {
+                  <svg lucideMoon [size]="18"></svg>
+                }
+              }
+            </span>
+          </div>
+          <div class="slot-label-cell" [class.is-hovered]="hoveredCell()?.mealSlot === slot.key">
             <span class="slot-label">{{ slot.label }}</span>
           </div>
 
@@ -42,6 +78,10 @@
               type="button"
               class="calendar-cell"
               [class.is-today]="day.isToday"
+              (mouseenter)="setHoveredCell(day.date, slot.key)"
+              (mouseleave)="clearHoveredCell()"
+              (focus)="setHoveredCell(day.date, slot.key)"
+              (blur)="clearHoveredCell()"
               (click)="openSlotModal(day, slot)"
             >
               @let items = getCellEntries(day.date, slot.key);
