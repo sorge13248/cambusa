@@ -387,12 +387,21 @@ export class ShoppingListService {
   }
 
   async getMissingProducts(householdId: string): Promise<MissingProductDto[]> {
-    const products = await this.productsRepository.find({
-      where: { householdId, active: true },
+    const allProducts = await this.productsRepository.find({
+      where: { householdId },
     });
 
     const stockItems = await this.stockRepository.find({ where: { householdId } });
-    const productMap = new Map(products.map((p) => [p.id, p]));
+    const productMap = new Map(allProducts.map((p) => [p.id, p]));
+    const childrenMap = new Map<string, string[]>();
+    for (const p of allProducts) {
+      if (p.parentProductId) {
+        const list = childrenMap.get(p.parentProductId) ?? [];
+        list.push(p.id);
+        childrenMap.set(p.parentProductId, list);
+      }
+    }
+
     const stockMap = new Map<string, number>();
     const earliestExpMap = new Map<string, string>();
     for (const s of stockItems) {
@@ -409,6 +418,22 @@ export class ShoppingListService {
       }
     }
 
+    const aggregatedStockMemo = new Map<string, number>();
+    const getAggregatedStock = (productId: string, visited = new Set<string>()): number => {
+      if (aggregatedStockMemo.has(productId)) return aggregatedStockMemo.get(productId)!;
+      if (visited.has(productId)) return 0;
+      visited.add(productId);
+
+      let total = stockMap.get(productId) ?? 0;
+      for (const childId of childrenMap.get(productId) ?? []) {
+        total += getAggregatedStock(childId, visited);
+      }
+
+      visited.delete(productId);
+      aggregatedStockMemo.set(productId, total);
+      return total;
+    };
+
     const units = await this.unitsRepository.find({ where: { householdId } });
     const unitMap = new Map(units.map((u) => [u.id, u]));
 
@@ -422,10 +447,10 @@ export class ShoppingListService {
 
     const missing: MissingProductDto[] = [];
 
-    for (const p of products) {
-      if (p.minStockAmount <= 0) continue;
+    for (const p of allProducts) {
+      if (!p.active || p.minStockAmount <= 0) continue;
 
-      const current = stockMap.get(p.id) ?? 0;
+      const current = getAggregatedStock(p.id);
       if (current < p.minStockAmount) {
         const amountMissing = Math.round((p.minStockAmount - current) * 100) / 100;
         const quId = p.quPurchaseId || p.quStockId || null;

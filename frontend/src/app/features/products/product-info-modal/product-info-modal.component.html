@@ -1,0 +1,431 @@
+@if (mode() === 'edit') {
+  <app-product-detail-view
+    mode="edit"
+    [data]="modalData()"
+    [showEditSwitch]="false"
+    (saved)="onSaved($event)"
+    (cancelled)="onEditCancelled()"
+    (closeRequested)="close()"
+  />
+} @else {
+  <div class="product-info-shell" role="dialog" aria-modal="true" [attr.aria-label]="product()?.name || 'Product Details'">
+    <!-- Top Bar -->
+    <div class="info-topbar">
+      <div class="topbar-badges">
+        @if (parentProductName(); as parentName) {
+          <span class="meta-pill meta-pill-parent" title="Parent product">
+            <svg lucideFolderTree [size]="13"></svg>
+            <span>{{ parentName }}</span>
+            <svg lucideChevronRight [size]="12" class="breadcrumb-sep"></svg>
+          </span>
+        }
+        @if (productGroupName(); as groupName) {
+          <button
+            type="button"
+            class="meta-pill meta-pill-group meta-pill-link"
+            (click)="navigateToGroupPantry()"
+            [title]="'View ' + groupName + ' in Pantry'"
+            [attr.aria-label]="'Filter Pantry by ' + groupName"
+          >
+            <svg lucideLayers [size]="13"></svg>
+            <span>{{ groupName }}</span>
+          </button>
+        }
+        @if (product()?.cannotBeFrozen) {
+          <span class="meta-pill meta-pill-warn">
+            <svg lucideSnowflake [size]="13"></svg>
+            <span>Cannot be frozen</span>
+          </span>
+        }
+        @if (product()?.active === false) {
+          <span class="meta-pill meta-pill-muted">
+            <svg lucideArchive [size]="13"></svg>
+            <span>Archived</span>
+          </span>
+        }
+      </div>
+
+      <div class="topbar-actions">
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm topbar-btn btn-switch-edit"
+          (click)="switchToEdit()"
+          title="Edit product"
+          aria-label="Edit product"
+        >
+          <svg lucidePencil [size]="14"></svg>
+          <span>Edit</span>
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm topbar-icon-btn modal-close-btn"
+          (click)="close()"
+          aria-label="Close dialog"
+        >
+          <svg lucideX [size]="14"></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Content -->
+    <div class="info-body">
+      <!-- Hero Showcase: Photos + Identity + Description + Your Rating -->
+      <div class="hero-section" [class.has-photos]="photos().length > 0">
+        @if (photos().length > 0 && activePhoto(); as currentPhoto) {
+          <div class="hero-gallery">
+            <div class="gallery-stage">
+              <img [src]="currentPhoto.url" [alt]="(product()?.name || 'Product') + ' photo'" />
+              @if (activePhotoIndex() === 0) {
+                <span class="stage-badge stage-primary">★ Primary</span>
+              }
+              @if (photos().length > 1) {
+                <span class="stage-badge stage-counter">{{ activePhotoIndex() + 1 }} / {{ photos().length }}</span>
+              }
+            </div>
+
+            @if (photos().length > 1) {
+              <div class="gallery-thumbs">
+                @for (photo of photos(); track photo.url; let i = $index) {
+                  <button
+                    type="button"
+                    class="thumb-btn"
+                    [class.active]="i === activePhotoIndex()"
+                    (click)="selectPhoto(i)"
+                    [attr.aria-label]="'View photo ' + (i + 1)"
+                  >
+                    <img [src]="photo.url" [alt]="'Thumbnail ' + (i + 1)" />
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <div class="hero-summary">
+          <h2 class="product-title">{{ product()?.name || 'Product Details' }}</h2>
+
+          @if (descriptionText()) {
+            <p class="product-description">{{ descriptionText() }}</p>
+          }
+
+          @if (product()?.id) {
+            <div class="rating-inline-box">
+              <div class="rating-inline-meta">
+                <span class="rating-label">Your Rating</span>
+                @if (myRating() !== null) {
+                  <span class="rating-value-text">{{ myRating() }}/5</span>
+                }
+              </div>
+              <div class="rating-inline-stars">
+                <app-star-rating
+                  [value]="myRating()"
+                  (valueChange)="onMyRatingChange($event)"
+                  [size]="19"
+                  ariaLabel="Your product rating"
+                />
+                @if (ratingStatusText(); as status) {
+                  <span class="rating-status-error">{{ status }}</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Main Information Cards (Immediate, only populated fields) -->
+      @if (hasAnySpecCard()) {
+        <div class="specs-grid">
+          @if (hasStockSection()) {
+            <section class="spec-card">
+              <header class="spec-card-header">
+                <svg lucideScale [size]="15"></svg>
+                <h3>Stock &amp; Quantity</h3>
+              </header>
+              <dl class="spec-list">
+                @if (product()?.directStockAmount !== undefined) {
+                  <div class="spec-row">
+                    <dt>In Stock</dt>
+                    <dd class="spec-highlight">
+                      {{ product()!.directStockAmount }}@if (quStockName(); as unit) { {{ unit }}}
+                    </dd>
+                  </div>
+                }
+                @if (
+                  product()?.aggregatedStockAmount !== undefined &&
+                  product()?.aggregatedStockAmount !== product()?.directStockAmount
+                ) {
+                  <div class="spec-row">
+                    <dt>Total (incl. sub-products)</dt>
+                    <dd>
+                      {{ product()!.aggregatedStockAmount }}@if (quStockName(); as unit) { {{ unit }}}
+                    </dd>
+                  </div>
+                }
+                @if (quStockName(); as unit) {
+                  <div class="spec-row">
+                    <dt>Quantity Unit</dt>
+                    <dd>{{ unit }}</dd>
+                  </div>
+                }
+                @if (product()?.minStockAmount && product()!.minStockAmount > 0) {
+                  <div class="spec-row">
+                    <dt>Minimum Stock</dt>
+                    <dd>
+                      {{ product()!.minStockAmount }}@if (quStockName(); as unit) { {{ unit }}}
+                    </dd>
+                  </div>
+                }
+                @if (product()?.treatOpenedAsOutOfStock) {
+                  <div class="spec-row">
+                    <dt>Opened Stock Policy</dt>
+                    <dd><span class="spec-tag">Treated as out of stock</span></dd>
+                  </div>
+                }
+              </dl>
+            </section>
+          }
+
+          @if (hasStorageSection()) {
+            <section class="spec-card">
+              <header class="spec-card-header">
+                <svg lucideMapPin [size]="15"></svg>
+                <h3>Storage &amp; Store</h3>
+              </header>
+              <dl class="spec-list">
+                @if (defaultLocation(); as loc) {
+                  <div class="spec-row">
+                    <dt>Default Location</dt>
+                    <dd>{{ loc.name }}@if (loc.isFreezer) { ❄️}</dd>
+                  </div>
+                }
+                @if (openLocation(); as loc) {
+                  <div class="spec-row">
+                    <dt>Open Location</dt>
+                    <dd>{{ loc.name }}@if (loc.isFreezer) { ❄️}</dd>
+                  </div>
+                }
+                @if (product()?.moveOnOpen) {
+                  <div class="spec-row">
+                    <dt>Move on Open</dt>
+                    <dd><span class="spec-tag">Automatic</span></dd>
+                  </div>
+                }
+                @if (defaultStoreName(); as storeName) {
+                  <div class="spec-row">
+                    <dt>Default Store</dt>
+                    <dd>{{ storeName }}</dd>
+                  </div>
+                }
+              </dl>
+            </section>
+          }
+
+          @if (hasExpirationSection()) {
+            <section class="spec-card">
+              <header class="spec-card-header">
+                <svg lucideClock [size]="15"></svg>
+                <h3>Expiration &amp; Shelf Life</h3>
+              </header>
+              <dl class="spec-list">
+                <div class="spec-row">
+                  <dt>Due Date Type</dt>
+                  <dd>{{ product()?.dueType === 'use_by' ? 'Use by (Expiration)' : 'Best before' }}</dd>
+                </div>
+                @if ((product()?.defaultBestBeforeDays ?? 0) > 0) {
+                  <div class="spec-row">
+                    <dt>Default Shelf Life</dt>
+                    <dd>{{ product()!.defaultBestBeforeDays }} days</dd>
+                  </div>
+                }
+                @if ((product()?.defaultBestBeforeDaysAfterOpen ?? 0) > 0) {
+                  <div class="spec-row">
+                    <dt>After Opening</dt>
+                    <dd>{{ product()!.defaultBestBeforeDaysAfterOpen }} days</dd>
+                  </div>
+                }
+                @if (!product()?.cannotBeFrozen && (product()?.defaultBestBeforeDaysAfterFreezing ?? 0) > 0) {
+                  <div class="spec-row">
+                    <dt>After Freezing</dt>
+                    <dd>{{ product()!.defaultBestBeforeDaysAfterFreezing }} days</dd>
+                  </div>
+                }
+                @if (!product()?.cannotBeFrozen && (product()?.defaultBestBeforeDaysAfterThawing ?? 0) > 0) {
+                  <div class="spec-row">
+                    <dt>After Thawing</dt>
+                    <dd>{{ product()!.defaultBestBeforeDaysAfterThawing }} days</dd>
+                  </div>
+                }
+              </dl>
+            </section>
+          }
+        </div>
+      }
+
+      <!-- Minor Sections (Collapsed by default, hidden if unpopulated) -->
+      @if (
+        barcodes().length > 0 ||
+        configuredStores().length > 0 ||
+        hasMealieLinks() ||
+        showOtherMembersRatings()
+      ) {
+        <div class="minor-sections">
+          @if (barcodes().length > 0) {
+            <app-collapsible-section
+              title="Barcodes & EAN/UPC"
+              lucideIcon="tag"
+              [badge]="barcodes().length + (barcodes().length === 1 ? ' barcode' : ' barcodes')"
+              [(expanded)]="minorSections.barcodes"
+            >
+              <div class="barcode-pills">
+                @for (bc of barcodes(); track bc) {
+                  <span class="barcode-pill">{{ bc }}</span>
+                }
+              </div>
+            </app-collapsible-section>
+          }
+
+          @if (configuredStores().length > 0) {
+            <app-collapsible-section
+              title="Store Aisles & Prices"
+              lucideIcon="store"
+              [badge]="configuredStores().length + (configuredStores().length === 1 ? ' store' : ' stores')"
+              [(expanded)]="minorSections.stores"
+            >
+              <div class="store-info-list">
+                @for (store of configuredStores(); track store.storeId) {
+                  <div class="store-info-row">
+                    <span class="store-info-name">
+                      <svg lucideStore [size]="14"></svg>
+                      <span>{{ store.storeName }}</span>
+                    </span>
+                    <div class="store-info-meta">
+                      @if (store.aisle) {
+                        <span class="store-chip">Aisle {{ store.aisle }}</span>
+                      }
+                      @if (store.aisleOrder !== null) {
+                        <span class="store-chip">#{{ store.aisleOrder }}</span>
+                      }
+                      @if (store.averagePrice !== null) {
+                        <span class="store-chip store-price">€{{ store.averagePrice | number: '1.2-2' }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            </app-collapsible-section>
+          }
+
+          @if (hasMealieLinks()) {
+            <app-collapsible-section
+              title="Mealie Integration"
+              lucideIcon="cooking-pot"
+              [badge]="mealieBadge()"
+              [(expanded)]="minorSections.mealie"
+            >
+              @if (linkedFoods().length > 0 || inheritedFoods().length > 0) {
+                <div class="mealie-group">
+                  <h4>Linked Foods</h4>
+                  <div class="mealie-pills">
+                    @for (food of linkedFoods(); track food.id) {
+                      <span class="mealie-pill">
+                        <svg lucideUtensils [size]="13"></svg>
+                        <span>{{ food.name }}</span>
+                      </span>
+                    }
+                    @for (food of inheritedFoods(); track food.id) {
+                      <span class="mealie-pill inherited" title="Inherited from parent product">
+                        <svg lucideUtensils [size]="13"></svg>
+                        <span>{{ food.name }}</span>
+                        <span class="inherited-tag">Inherited</span>
+                      </span>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (linkedRecipes().length > 0 || inheritedRecipes().length > 0) {
+                <div class="mealie-group">
+                  <h4>Linked Recipes</h4>
+                  <div class="mealie-pills">
+                    @for (rec of linkedRecipes(); track rec.id) {
+                      <span class="mealie-pill">
+                        <svg lucideBookOpen [size]="13"></svg>
+                        <span>{{ rec.name }}</span>
+                      </span>
+                    }
+                    @for (rec of inheritedRecipes(); track rec.id) {
+                      <span class="mealie-pill inherited" title="Inherited from parent product">
+                        <svg lucideBookOpen [size]="13"></svg>
+                        <span>{{ rec.name }}</span>
+                        <span class="inherited-tag">Inherited</span>
+                      </span>
+                    }
+                  </div>
+                </div>
+              }
+            </app-collapsible-section>
+          }
+
+          @if (showOtherMembersRatings()) {
+            <app-collapsible-section
+              title="Household Member Ratings"
+              lucideIcon="users"
+              [badge]="otherRatingsBadge()"
+              [(expanded)]="minorSections.ratings"
+            >
+              <div class="member-ratings-list">
+                @for (member of ratedOtherMembers(); track member.userId) {
+                  <div class="member-rating-row">
+                    <div class="member-info">
+                      @if (member.pictureUrl) {
+                        <img
+                          class="member-avatar"
+                          [src]="member.pictureUrl"
+                          [alt]="member.displayName"
+                          referrerpolicy="no-referrer"
+                        />
+                      } @else {
+                        <span class="member-avatar-fallback" [attr.aria-label]="member.displayName">
+                          {{ getMemberInitials(member.displayName) }}
+                        </span>
+                      }
+                      <span class="member-name">{{ member.displayName }}</span>
+                    </div>
+                    <app-star-rating
+                      [value]="member.rating"
+                      [readonly]="true"
+                      [size]="15"
+                      [showClear]="false"
+                      [ariaLabel]="member.displayName + ' rating'"
+                    />
+                  </div>
+                }
+              </div>
+            </app-collapsible-section>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Footer -->
+    <div class="info-footer">
+      <div class="footer-actions-left">
+        <button type="button" class="btn btn-secondary btn-relations" (click)="openRelationsModal()">
+          <svg lucideNetwork [size]="14"></svg>
+          <span>Relations</span>
+        </button>
+        <button type="button" class="btn btn-secondary btn-stock" (click)="openStockModal()">
+          <svg lucidePackage [size]="14"></svg>
+          <span>Stock</span>
+        </button>
+      </div>
+      <div class="footer-actions-right">
+        <button type="button" class="btn btn-secondary" (click)="switchToEdit()">
+          <svg lucidePencil [size]="14"></svg>
+          <span>Edit Product</span>
+        </button>
+        <button type="button" class="btn btn-primary" (click)="close()">Close</button>
+      </div>
+    </div>
+  </div>
+}

@@ -38,15 +38,17 @@ The client initializes an IndexedDB database named `cambusa_offline_v1` with the
 | Object Store | Key Path | Indexes | Purpose |
 | :--- | :--- | :--- | :--- |
 | `products` | `id` | `householdId`, `barcodes`, `parentProductId` | Cached product catalog |
+| `product_ratings` | `id` | `householdId`, `productId`, `userId` | Cached per-user product star ratings |
 | `stock` | `id` | `householdId`, `productId`, `bestBeforeDate` | Cached pantry inventory items |
 | `shopping_items` | `id` | `householdId`, `shoppingListId`, `storeId` | Cached shopping items |
 | `shopping_lists` | `id` | `householdId` | Cached shopping lists |
+| `meal_plan_entries` | `id` | `householdId`, `date`, `mealSlot`, `productId` | Cached weekly meal planner entries |
 | `sync_queue` | `id` | `createdAt`, `entity` | FIFO queue of offline mutations |
 | `meta` | `key` | — | Per-household sync cursors (`lastSyncAt_v2_<householdId>`), UI `lastSyncAt`, and cached catalogs (alphabetically sorted by `name` for units, product groups, locations, and stores), aisles (numerically sorted by user-defined `sortOrder`), and dashboard snapshots |
 
 ### 2.1 Local-First Mutation Pipeline (Zero Direct API Mutations)
 Cambusa enforces a strict offline-first architectural invariant: **the web client never makes direct REST API mutation calls for domain entities**.
-1. **Local Write First**: When a user creates, updates, or deletes any domain entity (`StockItem`, `ShoppingListItem`, `ShoppingList`, `Product`, etc.), `ApiService` routes the operation directly into `OfflineStorageService` and local IndexedDB stores.
+1. **Local Write First**: When a user creates, updates, or deletes any domain entity (`StockItem`, `ShoppingListItem`, `ShoppingList`, `Product`, `ProductRating`, etc.), `ApiService` routes the operation directly into `OfflineStorageService` and local IndexedDB stores.
 2. **Deterministic Enqueue**: A corresponding mutation payload is stored in the `sync_queue` object store with entity type, operation (`insert`, `update`, `delete`), and payload.
 3. **Background Sync Trigger**: Once the local database transaction completes and in-memory signal state updates, `SyncService.sync()` is triggered asynchronously in the background to push mutations via `POST /api/sync`.
 4. **Resilience to Network Drops**: If the client is offline or the server is temporarily unreachable, local operations succeed instantly without interruption, and queued changes persist safely across browser restarts until connectivity is restored.

@@ -83,6 +83,8 @@ export class ProfileDomainsComponent implements OnInit {
   readonly toast = output<{ type: 'success' | 'error'; message: string }>();
 
   constructor() {
+    this.lastSyncCount = this.syncService?.onSyncCompleted() ?? 0;
+
     effect(() => {
       const hhId = this.auth?.activeHouseholdId() ?? null;
       if (hhId && hhId !== this.lastLoadedHouseholdId) {

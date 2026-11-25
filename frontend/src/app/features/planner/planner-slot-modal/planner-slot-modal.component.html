@@ -1,0 +1,129 @@
+<div class="planner-slot-shell">
+  <div class="modal-header">
+    <div class="header-left">
+      <h3>{{ data.mealSlotLabel }}</h3>
+      <p class="subtitle">{{ data.dateLabel }}</p>
+    </div>
+    <div class="header-right">
+      <button
+        type="button"
+        class="btn btn-primary btn-sm btn-header-add"
+        (click)="openProductPicker()"
+        title="Add food to this meal"
+      >
+        <svg lucidePlus [size]="14"></svg> Add Food
+      </button>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm modal-header-btn modal-close-btn"
+        (click)="close()"
+        aria-label="Close dialog"
+      >
+        <svg lucideX [size]="14"></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="modal-body">
+    @if (foodItems().length === 0) {
+      <div class="empty-slot">
+        <p>No foods planned for {{ data.mealSlotLabel }} yet.</p>
+        <button type="button" class="btn btn-primary btn-sm" (click)="openProductPicker()">
+          <svg lucidePlus [size]="14"></svg> Add Food
+        </button>
+      </div>
+    } @else {
+      <div class="slot-food-list">
+        @for (item of foodItems(); track item.entry.id) {
+          <div class="slot-food-row">
+            <div class="food-main">
+              <div class="food-photo">
+                @if (item.productPictureFileName) {
+                  <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+                } @else {
+                  <div class="no-photo-thumb"><svg lucidePackage [size]="20"></svg></div>
+                }
+              </div>
+
+              <div class="food-info">
+                <div class="food-title-row">
+                  <span class="food-name">{{ item.productName }}</span>
+                  @if (item.addedByMember) {
+                    <span
+                      class="planner-user-avatar"
+                      [title]="'Planned by ' + item.addedByMember.displayName"
+                    >
+                      @if (item.addedByMember.pictureUrl) {
+                        <img [src]="item.addedByMember.pictureUrl" [alt]="item.addedByMember.displayName" />
+                      } @else {
+                        <span class="avatar-initials">{{ item.addedByInitials }}</span>
+                      }
+                    </span>
+                  }
+                </div>
+
+                <div class="food-meta">
+                  <span class="stock-badge" [class.out-of-stock]="item.aggregatedAmount <= 0">
+                    In stock: <strong>{{ item.totalAmount }} {{ item.quName || 'units' }}</strong>
+                  </span>
+
+                  @if (item.earliestBestBeforeDate) {
+                    <span class="expiry-badge" [ngClass]="'urgency-' + item.urgency">
+                      <svg lucideCalendar [size]="12"></svg>
+                      {{ item.earliestBestBeforeDate | localDate }}
+                      @if (item.urgencyLabel) {
+                        <span>({{ item.urgencyLabel }})</span>
+                      }
+                    </span>
+                  } @else {
+                    <span class="expiry-badge urgency-none">
+                      <svg lucideCalendar [size]="12"></svg>
+                      {{ item.totalAmount > 0 ? 'No expiry' : 'No stock' }}
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <div class="food-actions">
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                [disabled]="!item.hasUnopenedBatch"
+                (click)="openOne(item)"
+                title="Mark earliest unopened batch as opened"
+              >
+                Open 1
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                [disabled]="item.totalAmount <= 0"
+                (click)="consumeOne(item)"
+                title="Consume 1 from earliest expiring batch"
+              >
+                Consume 1
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm btn-remove"
+                (click)="removeEntry(item)"
+                title="Remove from meal plan"
+                aria-label="Remove from meal plan"
+              >
+                <svg lucideTrash2 [size]="14"></svg>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-primary" (click)="openProductPicker()">
+      <svg lucidePlus [size]="16"></svg> Add Food
+    </button>
+    <button type="button" class="btn btn-secondary" (click)="close()">Close</button>
+  </div>
+</div>

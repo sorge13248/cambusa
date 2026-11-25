@@ -1,9 +1,7 @@
-.home-container {
+.home-page {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  max-width: 1240px;
-  margin: 0 auto;
+  gap: 20px;
 }
 
 /* Glass Card Utility */
@@ -614,5 +612,11 @@
     text-align: center;
     display: block;
     text-decoration: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-page {
+    gap: 12px;
   }
 }

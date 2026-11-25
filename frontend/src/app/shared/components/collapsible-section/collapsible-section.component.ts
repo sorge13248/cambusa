@@ -10,6 +10,7 @@ import {
   LucideScale,
   LucideStore,
   LucideTag,
+  LucideUsers,
 } from '@lucide/angular';
 import { BackNavigationService, CollapsibleToggleable } from '../../../core/back-navigation.service.js';
 
@@ -27,6 +28,7 @@ import { BackNavigationService, CollapsibleToggleable } from '../../../core/back
     LucideScale,
     LucideStore,
     LucideTag,
+    LucideUsers,
   ],
   templateUrl: './collapsible-section.component.html',
   styleUrl: './collapsible-section.component.scss',

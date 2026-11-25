@@ -126,6 +126,9 @@ export class SyncService {
         lastSyncAt: lastSync,
         changes: {
           products: queue.filter((q) => q.entity === 'product' && q.action !== 'delete').map((q) => q.payload),
+          productRatings: queue
+            .filter((q) => q.entity === 'product_rating' && q.action !== 'delete')
+            .map((q) => q.payload),
           stock: queue.filter((q) => q.entity === 'stock' && q.action !== 'delete').map((q) => q.payload),
           shoppingListItems: queue
             .filter((q) => q.entity === 'shopping_item' && q.action !== 'delete')
@@ -133,6 +136,9 @@ export class SyncService {
           shoppingLists: queue
             .filter((q) => q.entity === 'shopping_list' && q.action !== 'delete')
             .flatMap((q) => (Array.isArray(q.payload) ? q.payload : [q.payload])),
+          mealPlanEntries: queue
+            .filter((q) => q.entity === 'meal_plan_entry' && q.action !== 'delete')
+            .map((q) => q.payload),
           catalogs: hasCatalogChanges ? catalogsPayload : undefined,
           deletions: deletions.length > 0 ? deletions : undefined,
         },
@@ -146,23 +152,46 @@ export class SyncService {
       }
       await this.refreshPendingCount();
 
+      let hasChanges = !lastSync || queue.length > 0;
+
       // Ingest server changes into local IndexedDB stores
       if (response.serverChanges) {
         if (response.serverChanges.products && response.serverChanges.products.length > 0) {
           await this.storage.saveProducts(response.serverChanges.products);
+          hasChanges = true;
+        }
+        if (response.serverChanges.productRatings && response.serverChanges.productRatings.length > 0) {
+          await this.storage.saveProductRatings(response.serverChanges.productRatings);
+          hasChanges = true;
         }
         if (response.serverChanges.stock && response.serverChanges.stock.length > 0) {
           await this.storage.saveStock(response.serverChanges.stock);
+          hasChanges = true;
         }
         if (response.serverChanges.shoppingListItems && response.serverChanges.shoppingListItems.length > 0) {
           await this.storage.saveShoppingItems(response.serverChanges.shoppingListItems);
+          hasChanges = true;
         }
         if (response.serverChanges.shoppingLists && response.serverChanges.shoppingLists.length > 0) {
           await this.storage.saveShoppingLists(response.serverChanges.shoppingLists);
           await this.storage.setMeta(`shopping_lists_${hhId}`, response.serverChanges.shoppingLists);
+          hasChanges = true;
+        }
+        if (response.serverChanges.mealPlanEntries && response.serverChanges.mealPlanEntries.length > 0) {
+          await this.storage.saveMealPlanEntries(response.serverChanges.mealPlanEntries);
+          hasChanges = true;
         }
         if (response.serverChanges.catalogs) {
-          await this.storage.saveCatalogs(hhId, response.serverChanges.catalogs, {
+          const cat = response.serverChanges.catalogs;
+          if (
+            (cat.units && cat.units.length > 0) ||
+            (cat.groups && cat.groups.length > 0) ||
+            (cat.locations && cat.locations.length > 0) ||
+            (cat.stores && cat.stores.length > 0)
+          ) {
+            hasChanges = true;
+          }
+          await this.storage.saveCatalogs(hhId, cat, {
             replace: !lastSync,
           });
         }
@@ -170,6 +199,7 @@ export class SyncService {
 
       // Reconcile tombstones (deletions from other clients or server)
       if (response.tombstones && response.tombstones.length > 0) {
+        hasChanges = true;
         for (const t of response.tombstones) {
           const type = t.entityType;
           const id = t.entityId;
@@ -177,10 +207,13 @@ export class SyncService {
             await this.storage.deleteStockItem(id);
           } else if (type === 'product') {
             await this.storage.deleteProduct(id);
+            await this.storage.deleteProductRatingsByProduct(id);
           } else if (type === 'shopping_item') {
             await this.storage.deleteShoppingItem(id);
           } else if (type === 'shopping_list') {
             await this.storage.deleteShoppingList(id);
+          } else if (type === 'meal_plan_entry') {
+            await this.storage.deleteMealPlanEntry(id);
           } else if (
             type === 'unit' ||
             type === 'quantity_unit' ||
@@ -199,7 +232,9 @@ export class SyncService {
       await this.storage.setMeta('lastSyncAt', syncedAt);
       this.lastSyncAt.set(syncedAt);
       this.status.set('online-ok');
-      this.onSyncCompleted.update((c) => c + 1);
+      if (hasChanges) {
+        this.onSyncCompleted.update((c) => c + 1);
+      }
       return true;
     } catch (err: any) {
       this.status.set('error');
@@ -242,6 +277,9 @@ export class SyncService {
         if (response.serverChanges.products) {
           await this.storage.saveProducts(response.serverChanges.products);
         }
+        if (response.serverChanges.productRatings) {
+          await this.storage.saveProductRatings(response.serverChanges.productRatings);
+        }
         if (response.serverChanges.stock) {
           await this.storage.saveStock(response.serverChanges.stock);
         }
@@ -251,6 +289,9 @@ export class SyncService {
         if (response.serverChanges.shoppingLists) {
           await this.storage.saveShoppingLists(response.serverChanges.shoppingLists);
           await this.storage.setMeta(`shopping_lists_${hhId}`, response.serverChanges.shoppingLists);
+        }
+        if (response.serverChanges.mealPlanEntries) {
+          await this.storage.saveMealPlanEntries(response.serverChanges.mealPlanEntries);
         }
         if (response.serverChanges.catalogs) {
           await this.storage.saveCatalogs(hhId, response.serverChanges.catalogs, { replace: true });

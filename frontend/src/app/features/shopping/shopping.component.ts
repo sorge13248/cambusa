@@ -17,12 +17,12 @@ import {
   LucideFileEdit,
   LucideFileText,
   LucideGripVertical,
+  LucideInfo,
   LucidePackage,
   LucidePencil,
   LucidePlus,
   LucideShoppingCart,
   LucideStore,
-  LucideTag,
   LucideTrash2,
   LucideZap,
 } from '@lucide/angular';
@@ -43,7 +43,7 @@ import { ShoppingAddModalComponent } from './shopping-add-modal/shopping-add-mod
 import { ShoppingListModalComponent } from './shopping-list-modal/shopping-list-modal.component.js';
 import { ShoppingMissingModalComponent } from './shopping-missing-modal/shopping-missing-modal.component.js';
 import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component.js';
-import { ProductEditorModalComponent } from '../products/product-editor-modal/product-editor-modal.component.js';
+import { ProductInfoModalComponent } from '../products/product-info-modal/product-info-modal.component.js';
 import { TabItem, TabViewComponent } from '../../shared/components/tab-view/tab-view.component.js';
 
 export interface ShoppingAisleGroup {
@@ -69,12 +69,12 @@ export interface ShoppingAisleGroup {
     LucideFileEdit,
     LucideFileText,
     LucideGripVertical,
+    LucideInfo,
     LucidePackage,
     LucidePencil,
     LucidePlus,
     LucideShoppingCart,
     LucideStore,
-    LucideTag,
     LucideTrash2,
     LucideZap,
   ],
@@ -92,6 +92,7 @@ export class ShoppingComponent implements OnInit, OnDestroy {
 
   private queryParamSub?: Subscription;
   private lastLoadedHouseholdId: string | null = null;
+  private lastSyncCount = 0;
 
   readonly shoppingLists = signal<ShoppingList[]>([]);
   readonly selectedListId = signal<string>('');
@@ -195,6 +196,16 @@ export class ShoppingComponent implements OnInit, OnDestroy {
       if (hhId && hhId !== this.lastLoadedHouseholdId) {
         this.lastLoadedHouseholdId = hhId;
         untracked(() => this.loadData());
+      }
+    });
+
+    effect(() => {
+      const syncCount = this.syncService?.onSyncCompleted?.() ?? 0;
+      if (syncCount > 0 && syncCount !== this.lastSyncCount) {
+        this.lastSyncCount = syncCount;
+        if (untracked(() => this.auth.activeHouseholdId() && this.selectedListId())) {
+          untracked(() => this.loadItems());
+        }
       }
     });
   }
@@ -502,7 +513,7 @@ export class ShoppingComponent implements OnInit, OnDestroy {
         this.api.getGroups(),
       ]);
 
-      const dialogRef = this.dialog.open(ProductEditorModalComponent, {
+      const dialogRef = this.dialog.open(ProductInfoModalComponent, {
         disableClose: true,
         data: {
           product,

@@ -1,10 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { Dialog, DialogModule } from '@angular/cdk/dialog';
 import { of } from 'rxjs';
 import { ProfileDomainsComponent } from './profile-domains.component.js';
 import { ApiService } from '../../../../core/api.service.js';
+import { SyncService } from '../../../../core/sync.service.js';
 
 describe('ProfileDomainsComponent', () => {
   let component: ProfileDomainsComponent;
@@ -21,12 +23,18 @@ describe('ProfileDomainsComponent', () => {
     { id: 'a2', storeId: 's1', name: 'Dairy', sortOrder: 2, householdId: 'h1', createdAt: '', updatedAt: '' },
   ];
 
+  const mockSyncService = {
+    onSyncCompleted: signal(0),
+  };
+
   beforeEach(async () => {
+    mockSyncService.onSyncCompleted.set(0);
     await TestBed.configureTestingModule({
       imports: [ProfileDomainsComponent, DialogModule],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        { provide: SyncService, useValue: mockSyncService },
         {
           provide: ApiService,
           useValue: {
@@ -112,5 +120,16 @@ describe('ProfileDomainsComponent', () => {
 
     await component.loadStoreAisles('s1');
     expect(component.currentStoreAisles().map((a) => a.sortOrder)).toEqual([1, 2, 10]);
+  });
+
+  it('reloads stores when sync completes', async () => {
+    await fixture.whenStable();
+    vi.clearAllMocks();
+
+    mockSyncService.onSyncCompleted.update((c) => c + 1);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(apiService.getStores).toHaveBeenCalled();
   });
 });

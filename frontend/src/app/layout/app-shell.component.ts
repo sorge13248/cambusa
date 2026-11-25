@@ -3,6 +3,7 @@ import { Component, ElementRef, HostListener, inject, OnInit, signal } from '@an
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import {
   LucideBoxes,
+  LucideCalendarDays,
   LucideCheck,
   LucideHouse,
   LucideLayoutDashboard,
@@ -30,6 +31,7 @@ import { UndoToastComponent } from '../shared/components/undo-toast/undo-toast.c
     SyncIndicatorComponent,
     UndoToastComponent,
     LucideBoxes,
+    LucideCalendarDays,
     LucideCheck,
     LucideHouse,
     LucideLayoutDashboard,

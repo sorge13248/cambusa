@@ -151,4 +151,49 @@ describe('SyncService', () => {
     expect(cat.locations.map((l) => l.id)).toEqual(['l-1']);
     expect(cat.stores.map((s) => s.id)).toEqual(['s-keep']);
   });
+
+  it('should not notify onSyncCompleted if delta sync completes with no queue and no server changes', async () => {
+    api.activeHouseholdId.set('hh-noop');
+    await offlineStorage.setMeta(service.getLastSyncKey('hh-noop'), '2026-01-01T00:00:00.000Z');
+    const initialCount = service.onSyncCompleted();
+
+    vi.spyOn(api, 'sync').mockResolvedValue({
+      syncedAt: '2026-01-02T00:00:00.000Z',
+      serverChanges: {
+        products: [],
+        stock: [],
+        shoppingListItems: [],
+        shoppingLists: [],
+        catalogs: { units: [], groups: [], locations: [], stores: [] },
+      },
+      tombstones: [],
+    } as any);
+
+    const ok = await service.sync();
+    expect(ok).toBe(true);
+    expect(service.onSyncCompleted()).toBe(initialCount);
+  });
+
+  it('should notify onSyncCompleted when delta sync receives server changes', async () => {
+    api.activeHouseholdId.set('hh-changes');
+    await offlineStorage.setMeta(service.getLastSyncKey('hh-changes'), '2026-01-01T00:00:00.000Z');
+    const initialCount = service.onSyncCompleted();
+
+    vi.spyOn(api, 'sync').mockResolvedValue({
+      syncedAt: '2026-01-02T00:00:00.000Z',
+      serverChanges: {
+        catalogs: {
+          units: [],
+          groups: [],
+          locations: [],
+          stores: [{ id: 's-1', householdId: 'hh-changes', name: 'Coop', description: null, active: true }],
+        },
+      },
+      tombstones: [],
+    } as any);
+
+    const ok = await service.sync();
+    expect(ok).toBe(true);
+    expect(service.onSyncCompleted()).toBe(initialCount + 1);
+  });
 });

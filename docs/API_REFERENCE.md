@@ -207,6 +207,13 @@ All catalog list endpoints for quantity units, product groups, locations, and st
 - **Body**: `{ "pictureFileNames": ["uuid1.webp", "uuid2.webp"] }`
 - **Description**: Updates the ordering of product pictures. The first photo is considered primary across the UI.
 
+### `GET /api/products/:id/ratings`
+- **Description**: Returns the authenticated user's star rating (`myRating`: `1..5 | null`), total `memberCount` for the active household, and `otherMembersRatings` (each other household member's `userId`, `displayName`, OIDC `pictureUrl`, `rating`, and `updatedAt`).
+
+### `PUT /api/products/:id/rating`
+- **Body**: `{ "rating": 4 }` (`null` or integer `1` to `5`)
+- **Description**: Upserts or clears the authenticated user's star rating for the specified product within the active household. Rejects out-of-range or non-integer values with `400 Bad Request`.
+
 ---
 
 ## 7. Pantry Stock (`/api/stock`)
@@ -330,7 +337,7 @@ All catalog list endpoints for quantity units, product groups, locations, and st
 - **Description**: Toggles item strikethrough state in the shopping list. **CRITICAL INVARIANT**: This action NEVER mutates pantry inventory or creates stock records.
 
 ### `GET /api/shopping-list/missing-products`
-- **Description**: Returns all products where current pantry stock is below `minStockAmount` (respecting `treatOpenedAsOutOfStock`).
+- **Description**: Returns all active products where aggregated pantry stock (including the product itself and all descendants at any nesting depth) is below `minStockAmount` (respecting `treatOpenedAsOutOfStock`).
 
 ### `POST /api/shopping-list/auto-add-missing`
 - **Body**: `{ "shoppingListId": "list-uuid", "productIds": ["prod-1", "prod-2"] }`
@@ -347,6 +354,14 @@ All catalog list endpoints for quantity units, product groups, locations, and st
 - `GET /api/saved-filters`: Retrieves saved 1-click pantry filter presets.
 - `POST /api/saved-filters`: Creates a named filter preset.
 - `DELETE /api/saved-filters/:id`: Deletes a filter preset.
+
+---
+
+## 10. Meal Planner (`/api/planner`)
+
+- `GET /api/planner`: Lists meal plan entries for the active household. Supports optional `startDate` and `endDate` (`YYYY-MM-DD`) query parameters.
+- `POST /api/planner`: Creates a meal plan entry (`date`, `mealSlot`, `productId`, optional `sortOrder`), automatically recording `userId` from the authenticated user.
+- `DELETE /api/planner/:id`: Deletes a meal plan entry scoped to the active household and writes a `SyncTombstone` (`entityType: 'meal_plan_entry'`).
 
 ---
 

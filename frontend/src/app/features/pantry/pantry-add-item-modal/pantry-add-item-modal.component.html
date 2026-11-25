@@ -69,6 +69,22 @@
           />
         </div>
       }
+      @if (pendingScannedBarcode(); as scannedCode) {
+        <div class="unmatched-barcode-hint" role="status">
+          <span>
+            Barcode <strong>{{ scannedCode }}</strong> was not found. Select a product above to assign it.
+          </span>
+          <button
+            type="button"
+            class="btn-dismiss-hint"
+            (click)="pendingScannedBarcode.set(null)"
+            title="Dismiss"
+            aria-label="Dismiss barcode notice"
+          >
+            <svg lucideX [size]="12"></svg>
+          </button>
+        </div>
+      }
       @if (!isProductValid && productInput.value.trim()) {
         <div class="not-found-prompt">
           <span class="field-error">Product not found in catalog.</span>

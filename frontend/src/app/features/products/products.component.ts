@@ -1,23 +1,20 @@
+import { Dialog } from '@angular/cdk/dialog';
 import { CommonModule } from '@angular/common';
 import { Component, computed, effect, inject, OnDestroy, OnInit, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Dialog } from '@angular/cdk/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom, Subscription } from 'rxjs';
 import {
   LucideChartBar,
+  LucideInfo,
   LucideNetwork,
   LucidePackage,
-  LucidePencil,
   LucidePlus,
   LucideSnowflake,
-  LucideTag,
-  LucideTrash2,
+  LucideTrash
 } from '@lucide/angular';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
-import { compareByName } from '../../core/sorting.utils.js';
-import { SyncService } from '../../core/sync.service.js';
 import {
   Location,
   Product,
@@ -25,11 +22,14 @@ import {
   QuantityUnit,
   Store,
 } from '../../core/models.js';
-import { ProductEditorModalComponent } from './product-editor-modal/product-editor-modal.component.js';
-import { ProductStockModalComponent } from './product-stock-modal/product-stock-modal.component.js';
-import { ProductRelationsModalComponent } from './product-relations-modal/product-relations-modal.component.js';
+import { compareByName } from '../../core/sorting.utils.js';
+import { SyncService } from '../../core/sync.service.js';
 import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component.js';
 import { QuickActionsFooterComponent } from '../../shared/components/quick-actions-footer/quick-actions-footer.component.js';
+import { ProductEditorModalComponent } from './product-editor-modal/product-editor-modal.component.js';
+import { ProductInfoModalComponent } from './product-info-modal/product-info-modal.component.js';
+import { ProductRelationsModalComponent } from './product-relations-modal/product-relations-modal.component.js';
+import { ProductStockModalComponent } from './product-stock-modal/product-stock-modal.component.js';
 
 @Component({
   selector: 'app-products',
@@ -38,13 +38,12 @@ import { QuickActionsFooterComponent } from '../../shared/components/quick-actio
     CommonModule,
     FormsModule,
     LucideChartBar,
+    LucideInfo,
     LucideNetwork,
     LucidePackage,
-    LucidePencil,
     LucidePlus,
     LucideSnowflake,
-    LucideTag,
-    LucideTrash2,
+    LucideTrash,
     QuickActionsFooterComponent,
   ],
   templateUrl: './products.component.html',
@@ -132,7 +131,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
 
   private async refreshProductsFromLocal(): Promise<void> {
     try {
-      const prods = await this.api.getProducts(true, true);
+      const prods = await this.api.getProducts(true);
       this.products.set(prods);
       this.applyFilter();
     } catch {
@@ -300,8 +299,8 @@ export class ProductsComponent implements OnInit, OnDestroy {
     });
   }
 
-  openEditProductModal(p: Product) {
-    const dialogRef = this.dialog.open(ProductEditorModalComponent, {
+  openProductInfoModal(p: Product) {
+    const dialogRef = this.dialog.open(ProductInfoModalComponent, {
       disableClose: true,
       data: {
         product: p,

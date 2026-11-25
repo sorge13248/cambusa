@@ -9,6 +9,7 @@
       @if (auth.isAuthenticated()) {
         <nav class="nav-links">
           <a routerLink="/pantry" routerLinkActive="active" class="nav-item"><svg lucideBoxes [size]="16"></svg>Pantry</a>
+          <a routerLink="/planner" routerLinkActive="active" class="nav-item"><svg lucideCalendarDays [size]="16"></svg>Planner</a>
           <a routerLink="/shopping" routerLinkActive="active" class="nav-item"><svg lucideShoppingCart [size]="16"></svg>Shopping List</a>
           <a routerLink="/products" routerLinkActive="active" class="nav-item"><svg lucideTag [size]="16"></svg>Products</a>
         </nav>
@@ -16,6 +17,9 @@
         <nav class="mobile-quick-nav" aria-label="Mobile Quick Navigation">
           <a routerLink="/pantry" routerLinkActive="active" class="quick-nav-btn" title="Pantry">
             <svg lucideBoxes [size]="18"></svg>
+          </a>
+          <a routerLink="/planner" routerLinkActive="active" class="quick-nav-btn" title="Planner">
+            <svg lucideCalendarDays [size]="18"></svg>
           </a>
           <a routerLink="/shopping" routerLinkActive="active" class="quick-nav-btn" title="Shopping List">
             <svg lucideShoppingCart [size]="18"></svg>
@@ -152,6 +156,10 @@
         <a routerLink="/pantry" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
           <span class="nav-icon"><svg lucideBoxes [size]="18"></svg></span>
           <span class="nav-text">Pantry</span>
+        </a>
+        <a routerLink="/planner" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
+          <span class="nav-icon"><svg lucideCalendarDays [size]="18"></svg></span>
+          <span class="nav-text">Planner</span>
         </a>
         <a routerLink="/shopping" routerLinkActive="active" class="mobile-nav-item" (click)="closeMobileMenu()">
           <span class="nav-icon"><svg lucideShoppingCart [size]="18"></svg></span>

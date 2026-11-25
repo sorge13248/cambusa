@@ -7,6 +7,7 @@ import {
   Location,
   Product,
   ProductGroup,
+  ProductRating,
   ProductStore,
   QuantityUnit,
   SavedFilter,
@@ -51,6 +52,7 @@ describe('Cambusa Core Business Logic & Invariants', () => {
         Store,
         Aisle,
         Product,
+        ProductRating,
         ProductStore,
         StockItem,
         ShoppingList,
@@ -76,6 +78,7 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     const storeRepo = dataSource.getRepository(Store);
     const aisleRepo = dataSource.getRepository(Aisle);
     const productRepo = dataSource.getRepository(Product);
+    const productRatingRepo = dataSource.getRepository(ProductRating);
     const productStoreRepo = dataSource.getRepository(ProductStore);
     const stockRepo = dataSource.getRepository(StockItem);
     const shoppingListRepo = dataSource.getRepository(ShoppingList);
@@ -85,7 +88,17 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     usersService = new UsersService(userRepo, householdRepo, memberRepo);
     householdsService = new HouseholdsService(householdRepo, memberRepo, invitationRepo, userRepo);
     catalogsService = new CatalogsService(unitRepo, groupRepo, locationRepo, storeRepo, aisleRepo, tombstoneRepo);
-    productsService = new ProductsService(productRepo, productStoreRepo, stockRepo, tombstoneRepo, locationRepo);
+    productsService = new ProductsService(
+      productRepo,
+      productStoreRepo,
+      stockRepo,
+      tombstoneRepo,
+      locationRepo,
+      undefined,
+      productRatingRepo,
+      memberRepo,
+      userRepo,
+    );
     stockService = new StockService(stockRepo, productRepo, locationRepo, unitRepo, tombstoneRepo);
     shoppingListService = new ShoppingListService(
       shoppingListRepo,
@@ -108,6 +121,7 @@ describe('Cambusa Core Business Logic & Invariants', () => {
       locationRepo,
       storeRepo,
       tombstoneRepo,
+      productRatingRepo,
     );
   });
 
@@ -755,5 +769,116 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     expect(syncRes.serverChanges.catalogs.locations.map((l) => l.name)).toEqual(['cellar', 'Fridge', 'Pantry']);
     expect(syncRes.serverChanges.catalogs.stores.map((s) => s.name)).toEqual(['aldi', 'Coop', 'Zeta Market']);
     expect(syncRes.serverChanges.catalogs.units.map((u) => u.name)).toEqual(['bag', 'Kilogram', 'Piece']);
+  });
+
+  it('16. Supports per-user product star ratings (null..5), tenant isolation, household member resolution, and sync', async () => {
+    const alice = await usersService.ensureUser({
+      id: 'u16-alice',
+      subject: 'sub-u16-alice',
+      email: 'alice@example.com',
+      displayName: 'Alice',
+      pictureUrl: 'https://example.com/alice.png',
+    });
+    const bob = await usersService.ensureUser({
+      id: 'u16-bob',
+      subject: 'sub-u16-bob',
+      email: 'bob@example.com',
+      displayName: 'Bob',
+      pictureUrl: null,
+    });
+    const charlie = await usersService.ensureUser({
+      id: 'u16-charlie',
+      subject: 'sub-u16-charlie',
+      email: 'charlie@example.com',
+      displayName: 'Charlie',
+      pictureUrl: null,
+    });
+
+    const hh = await householdsService.getDefaultHousehold(alice.id);
+    const otherHh = await householdsService.getDefaultHousehold(charlie.id);
+    expect(hh).toBeTruthy();
+    expect(otherHh).toBeTruthy();
+
+    // Add Bob to Alice's household
+    const memberRepo = dataSource.getRepository(HouseholdMember);
+    await memberRepo.save(memberRepo.create({ householdId: hh!.id, userId: bob.id, role: 'member' }));
+
+    const product = await productsService.createProduct(hh!.id, { name: 'Artisan Olive Oil' });
+
+    // Validation: out-of-range ratings rejected
+    await expect(productsService.setProductRating(product.id, hh!.id, alice.id, 0)).rejects.toThrow();
+    await expect(productsService.setProductRating(product.id, hh!.id, alice.id, 6)).rejects.toThrow();
+    await expect(productsService.setProductRating(product.id, hh!.id, alice.id, 3.5)).rejects.toThrow();
+
+    // Tenant isolation: Charlie's household cannot rate or read Alice's product
+    await expect(productsService.setProductRating(product.id, otherHh!.id, charlie.id, 5)).rejects.toThrow();
+    await expect(productsService.getProductRatings(product.id, otherHh!.id, charlie.id)).rejects.toThrow();
+
+    // Alice rates 4, Bob has not rated yet
+    await productsService.setProductRating(product.id, hh!.id, alice.id, 4);
+    const aliceView = await productsService.getProductRatings(product.id, hh!.id, alice.id);
+    expect(aliceView.memberCount).toBe(2);
+    expect(aliceView.myRating).toBe(4);
+    expect(aliceView.otherMembersRatings).toEqual([
+      expect.objectContaining({
+        userId: bob.id,
+        displayName: 'Bob',
+        pictureUrl: null,
+        rating: null,
+      }),
+    ]);
+
+    // Bob rates 5 independently
+    await productsService.setProductRating(product.id, hh!.id, bob.id, 5);
+    const aliceViewAfterBob = await productsService.getProductRatings(product.id, hh!.id, alice.id);
+    expect(aliceViewAfterBob.myRating).toBe(4);
+    expect(aliceViewAfterBob.otherMembersRatings[0].rating).toBe(5);
+
+    // Alice clears her rating back to null
+    await productsService.setProductRating(product.id, hh!.id, alice.id, null);
+    const aliceCleared = await productsService.getProductRatings(product.id, hh!.id, alice.id);
+    expect(aliceCleared.myRating).toBeNull();
+    expect(aliceCleared.otherMembersRatings[0].rating).toBe(5);
+
+    // Sync push & pull for productRatings
+    const syncRes = await syncService.sync(
+      hh!.id,
+      {
+        lastSyncAt: null,
+        changes: {
+          productRatings: [{ productId: product.id, rating: 3 }],
+        },
+      },
+      alice.id,
+    );
+    expect(syncRes.serverChanges.productRatings?.length).toBeGreaterThanOrEqual(2);
+    const aliceSynced = syncRes.serverChanges.productRatings?.find((r) => r.userId === alice.id);
+    expect(aliceSynced?.rating).toBe(3);
+  });
+
+  it('15. Evaluates missing/out-of-stock products across arbitrary descendant hierarchy depth', async () => {
+    const user = await usersService.ensureUser({
+      id: 'u-hier-missing',
+      subject: 'sub-hier-missing',
+      email: 'hier@example.com',
+      displayName: 'Elena',
+      pictureUrl: null,
+    });
+    const [hh] = await householdsService.getUserHouseholds(user.id);
+
+    const dairy = await productsService.createProduct(hh.id, { name: 'Dairy', minStockAmount: 3 });
+    const milk = await productsService.createProduct(hh.id, { name: 'Milk', parentProductId: dairy.id });
+    const wholeMilk = await productsService.createProduct(hh.id, { name: 'Whole Milk', parentProductId: milk.id });
+    const dryPasta = await productsService.createProduct(hh.id, { name: 'Dry Pasta', minStockAmount: 2 });
+
+    // Stock only on grandchild (Whole Milk = 3), satisfying Dairy's minStockAmount (3)
+    await stockService.addStock(hh.id, { productId: wholeMilk.id, amount: 3 });
+
+    const missing = await shoppingListService.getMissingProducts(hh.id);
+    expect(missing.find((m) => m.productId === dairy.id)).toBeUndefined();
+    const pastaMissing = missing.find((m) => m.productId === dryPasta.id);
+    expect(pastaMissing).toBeDefined();
+    expect(pastaMissing?.currentStock).toBe(0);
+    expect(pastaMissing?.amountMissing).toBe(2);
   });
 });

@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
-import { LucideBoxes, LucideNetwork, LucidePackage, LucidePencil, LucideTag, LucideX } from '@lucide/angular';
+import { LucideBoxes, LucideInfo, LucideNetwork, LucidePackage, LucideTag, LucideX } from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
 import { Location, Product, ProductGroup, QuantityUnit, Store } from '../../../core/models.js';
-import { ProductEditorModalComponent } from '../product-editor-modal/product-editor-modal.component.js';
+import { ProductInfoModalComponent } from '../product-info-modal/product-info-modal.component.js';
 import { ProductStockModalComponent } from '../product-stock-modal/product-stock-modal.component.js';
 
 export interface ProductRelationsModalData {
@@ -19,7 +20,7 @@ export interface ProductRelationsModalData {
 @Component({
   selector: 'app-product-relations-modal',
   standalone: true,
-  imports: [CommonModule, LucideBoxes, LucideNetwork, LucidePackage, LucidePencil, LucideTag, LucideX],
+  imports: [CommonModule, LucideBoxes, LucideInfo, LucideNetwork, LucidePackage, LucideTag, LucideX],
   templateUrl: './product-relations-modal.component.html',
   styleUrl: './product-relations-modal.component.scss',
 })
@@ -27,6 +28,7 @@ export class ProductRelationsModalComponent {
   readonly data = inject<ProductRelationsModalData>(DIALOG_DATA);
   private readonly dialogRef = inject(DialogRef);
   private readonly dialog = inject(Dialog);
+  private readonly router = inject(Router);
 
   readonly currentProduct = signal<Product>(this.data.product);
   readonly allProductsList = signal<Product[]>(this.data.allProducts);
@@ -97,6 +99,34 @@ export class ProductRelationsModalComponent {
     return this.data.productGroups.find((g) => g.id === groupId)?.name ?? '';
   }
 
+  openRelationsModal(p: Product) {
+    const relationsRef = this.dialog.open(ProductRelationsModalComponent, {
+      data: {
+        product: p,
+        allProducts: this.allProductsList(),
+        productGroups: this.data.productGroups || [],
+        locations: this.data.locations || [],
+        units: this.data.units || [],
+        stores: this.data.stores || [],
+      },
+    });
+
+    firstValueFrom(relationsRef.closed).then((res: any) => {
+      if (res && res.hasChanges) {
+        this.hasChanges = true;
+        if (res.products) {
+          this.allProductsList.set(res.products);
+          const updatedCurrent = (res.products as Product[]).find(
+            (item) => item.id === this.currentProduct().id,
+          );
+          if (updatedCurrent) {
+            this.currentProduct.set(updatedCurrent);
+          }
+        }
+      }
+    });
+  }
+
   openStockModal(p: Product, event?: Event) {
     if (event) {
       event.stopPropagation();
@@ -115,7 +145,7 @@ export class ProductRelationsModalComponent {
     if (event) {
       event.stopPropagation();
     }
-    const editRef = this.dialog.open(ProductEditorModalComponent, {
+    const editRef = this.dialog.open(ProductInfoModalComponent, {
       disableClose: true,
       data: {
         product: p,
@@ -139,6 +169,15 @@ export class ProductRelationsModalComponent {
         }
       }
     });
+  }
+
+  navigateToGroupPantry(groupId: string | null | undefined, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!groupId) return;
+    this.dialog.closeAll();
+    void this.router.navigate(['/pantry'], { queryParams: { group: groupId } });
   }
 
   close() {

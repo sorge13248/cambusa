@@ -53,6 +53,7 @@ describe('ShoppingComponent', () => {
 
   const mockSyncService = {
     sync: vi.fn().mockResolvedValue(true),
+    onSyncCompleted: signal(0),
   };
 
   beforeEach(async () => {

@@ -7,6 +7,8 @@ import {
   HouseholdInvitationDto,
   HouseholdMemberDto,
   Location,
+  MealPlanEntry,
+  MealSlot,
   MealieFoodSummary,
   MealieProductRecipesResponse,
   MealieRecipeSummary,
@@ -15,6 +17,9 @@ import {
   NextResponseDto,
   Product,
   ProductGroup,
+  ProductMemberRatingDto,
+  ProductRatingsResponseDto,
+  ProductRatingSyncDto,
   ProductStore,
   QuantityUnit,
   ReceivedInvitationDto,
@@ -28,6 +33,7 @@ import {
   UserSettingsDto,
   ProfileDataDto,
 } from './models.js';
+import { AuthService } from './auth.service.js';
 import { OfflineStorageService } from './offline-storage.service.js';
 import { compareByName, compareByNumericOrder } from './sorting.utils.js';
 import { SyncService } from './sync.service.js';
@@ -44,6 +50,10 @@ export class ApiService {
 
   private get syncService(): SyncService {
     return this.injector.get(SyncService);
+  }
+
+  private get authService(): AuthService {
+    return this.injector.get(AuthService);
   }
 
   private get headers(): HttpHeaders {
@@ -106,8 +116,20 @@ export class ApiService {
     return firstValueFrom(this.http.delete<void>(`/api/households/${id}`, this.options));
   }
 
-  getHouseholdMembers(householdId: string): Promise<HouseholdMemberDto[]> {
-    return firstValueFrom(this.http.get<HouseholdMemberDto[]>(`/api/households/${householdId}/members`, this.options));
+  async getHouseholdMembers(householdId: string): Promise<HouseholdMemberDto[]> {
+    try {
+      const members = await firstValueFrom(
+        this.http.get<HouseholdMemberDto[]>(`/api/households/${householdId}/members`, this.options),
+      );
+      await this.storage.setMeta(`household_members_${householdId}`, members);
+      return members;
+    } catch (err) {
+      const cached = await this.storage.getMeta(`household_members_${householdId}`);
+      if (Array.isArray(cached)) {
+        return cached;
+      }
+      throw err;
+    }
   }
 
   sendInvitation(householdId: string, email: string): Promise<HouseholdInvitationDto> {
@@ -474,23 +496,127 @@ export class ApiService {
     );
   }
 
+  // Product Ratings
+  async getProductRatings(productId: string): Promise<ProductRatingsResponseDto> {
+    const hhId = this.activeHouseholdId();
+    const currentUserId = this.authService.currentUser()?.id ?? '';
+
+    const buildOfflineFallback = async (): Promise<ProductRatingsResponseDto> => {
+      if (!hhId) {
+        return { productId, memberCount: 1, myRating: null, otherMembersRatings: [] };
+      }
+      const [cachedRatings, cachedMembers] = await Promise.all([
+        this.storage.getProductRatings(hhId, productId),
+        this.storage.getMeta(`household_members_${hhId}`),
+      ]);
+      const ratingByUser = new Map(cachedRatings.map((r) => [r.userId, r]));
+      const myRecord = currentUserId ? ratingByUser.get(currentUserId) : undefined;
+      const members: HouseholdMemberDto[] = Array.isArray(cachedMembers) ? cachedMembers : [];
+      const otherMembersRatings: ProductMemberRatingDto[] = members
+        .filter((m) => m.userId !== currentUserId)
+        .map((m) => {
+          const r = ratingByUser.get(m.userId);
+          return {
+            userId: m.userId,
+            displayName: m.displayName,
+            pictureUrl: m.pictureUrl,
+            rating: r?.rating ?? null,
+            updatedAt: r?.updatedAt ?? null,
+          };
+        })
+        .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
+
+      return {
+        productId,
+        memberCount: Math.max(members.length, 1),
+        myRating: myRecord?.rating ?? null,
+        otherMembersRatings,
+      };
+    };
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      return buildOfflineFallback();
+    }
+
+    try {
+      const res = await firstValueFrom(
+        this.http.get<ProductRatingsResponseDto>(`/api/products/${productId}/ratings`, this.options),
+      );
+      if (hhId) {
+        const toCache: ProductRatingSyncDto[] = [];
+        if (currentUserId) {
+          toCache.push({
+            id: `${productId}:${currentUserId}`,
+            householdId: hhId,
+            productId,
+            userId: currentUserId,
+            rating: res.myRating,
+          });
+        }
+        for (const m of res.otherMembersRatings) {
+          toCache.push({
+            id: `${productId}:${m.userId}`,
+            householdId: hhId,
+            productId,
+            userId: m.userId,
+            rating: m.rating,
+            updatedAt: m.updatedAt ?? undefined,
+          });
+        }
+        await this.storage.saveProductRatings(toCache);
+      }
+      return res;
+    } catch {
+      return buildOfflineFallback();
+    }
+  }
+
+  async setProductRating(
+    productId: string,
+    rating: number | null,
+  ): Promise<{ productId: string; userId: string; rating: number | null; updatedAt: string }> {
+    const hhId = this.activeHouseholdId() ?? '';
+    const userId = this.authService.currentUser()?.id ?? '';
+    const now = new Date().toISOString();
+    const localRecord: ProductRatingSyncDto = {
+      id: `${productId}:${userId}`,
+      householdId: hhId,
+      productId,
+      userId,
+      rating,
+      updatedAt: now,
+    };
+
+    if (hhId && userId) {
+      await this.storage.saveProductRating(localRecord);
+    }
+
+    await this.storage.enqueue({
+      entity: 'product_rating',
+      action: 'update',
+      payload: localRecord,
+    });
+    await this.syncService.refreshPendingCount();
+    this.syncService.sync().catch(() => {});
+
+    return { productId, userId, rating, updatedAt: now };
+  }
+
   // Products
-  async getProducts(includeInactive = false, skipBackgroundSync = false): Promise<Product[]> {
+  async getProducts(includeInactive = false): Promise<Product[]> {
     const hhId = this.activeHouseholdId() || undefined;
     const isOnline = typeof navigator === 'undefined' || navigator.onLine;
     if (hhId) {
       const isHydrated = await this.syncService.isHouseholdHydrated(hhId);
       const local = await this.storage.getProducts(hhId);
       if (isHydrated && local.length > 0) {
-        if (!skipBackgroundSync) {
-          this.syncService.sync().catch(() => {});
-          if (
-            isOnline &&
-            !this.productsDetailFetchedForHouseholds.has(hhId) &&
-            !local.some((p) => Array.isArray(p.stores))
-          ) {
-            void this.refreshProductDetails(hhId);
-          }
+        this.syncService.sync().catch(() => {});
+        if (
+          isOnline &&
+          !this.productsDetailFetchedForHouseholds.has(hhId) &&
+          !local.some((p) => Array.isArray(p.stores))
+        ) {
+          void this.refreshProductDetails(hhId);
         }
         return this.enrichAndFilterProducts(local, hhId, includeInactive);
       }
@@ -501,7 +627,6 @@ export class ApiService {
       if (nowHydrated || (!isOnline && refreshed.length > 0)) {
         if (
           isOnline &&
-          !skipBackgroundSync &&
           !this.productsDetailFetchedForHouseholds.has(hhId) &&
           refreshed.length > 0 &&
           !refreshed.some((p) => Array.isArray(p.stores))
@@ -698,7 +823,7 @@ export class ApiService {
     if (hhId) {
       const isHydrated = await this.syncService.isHouseholdHydrated(hhId);
       const local = await this.storage.getStock(hhId);
-      if (isHydrated && local.length > 0) {
+      if (isHydrated) {
         this.syncService.sync().catch(() => {});
         return this.enrichStockItems(local, hhId, dueSoonDays);
       }
@@ -1159,13 +1284,25 @@ export class ApiService {
       const local = await this.storage.getShoppingItems(listId, hhId);
       if (isHydrated && local.length > 0) {
         this.syncService.sync().catch(() => {});
-        return storeId ? local.filter((i) => !i.storeId || i.storeId === storeId) : local;
+        if (isOnline && !this.productsDetailFetchedForHouseholds.has(hhId)) {
+          const products = await this.storage.getProducts(hhId);
+          if (products.length > 0 && !products.some((p) => Array.isArray(p.stores))) {
+            void this.refreshProductDetails(hhId);
+          }
+        }
+        return this.enrichShoppingItems(local, hhId, listId, storeId);
       }
       await this.syncService.sync().catch(() => {});
       const refreshed = await this.storage.getShoppingItems(listId, hhId);
       const nowHydrated = await this.syncService.isHouseholdHydrated(hhId);
       if (nowHydrated || (!isOnline && refreshed.length > 0)) {
-        return storeId ? refreshed.filter((i) => !i.storeId || i.storeId === storeId) : refreshed;
+        if (isOnline && !this.productsDetailFetchedForHouseholds.has(hhId)) {
+          const products = await this.storage.getProducts(hhId);
+          if (products.length > 0 && !products.some((p) => Array.isArray(p.stores))) {
+            void this.refreshProductDetails(hhId);
+          }
+        }
+        return this.enrichShoppingItems(refreshed, hhId, listId, storeId);
       }
     }
     try {
@@ -1178,8 +1315,132 @@ export class ApiService {
       await this.storage.saveShoppingItems(remote);
       return remote;
     } catch {
-      return hhId ? this.storage.getShoppingItems(listId, hhId) : [];
+      if (!hhId) return [];
+      const fallback = await this.storage.getShoppingItems(listId, hhId);
+      return this.enrichShoppingItems(fallback, hhId, listId, storeId);
     }
+  }
+
+  private async enrichShoppingItems(
+    items: ShoppingListItem[],
+    hhId: string,
+    listId?: string,
+    storeId?: string,
+  ): Promise<ShoppingListItem[]> {
+    const [products, catalogs, stockItems, shoppingLists] = await Promise.all([
+      this.storage.getProducts(hhId),
+      this.storage.getCatalogs(hhId),
+      this.storage.getStock(hhId),
+      this.storage.getShoppingLists(hhId),
+    ]);
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const unitMap = new Map((catalogs?.units || []).map((u) => [u.id, u]));
+    const storeMap = new Map((catalogs?.stores || []).map((s) => [s.id, s]));
+
+    const stockMap = new Map<string, number>();
+    const earliestExpMap = new Map<string, string>();
+    for (const s of stockItems) {
+      stockMap.set(s.productId, (stockMap.get(s.productId) ?? 0) + (s.amount || 0));
+      if (s.bestBeforeDate && s.bestBeforeDate !== '2999-12-31' && !s.bestBeforeDate.startsWith('2999')) {
+        const cur = earliestExpMap.get(s.productId);
+        if (!cur || s.bestBeforeDate.localeCompare(cur) < 0) {
+          earliestExpMap.set(s.productId, s.bestBeforeDate);
+        }
+      }
+    }
+
+    const activeList = listId ? shoppingLists.find((l) => l.id === listId) : undefined;
+    const associatedStoreId = activeList ? (activeList.storeId ?? null) : (storeId ?? null);
+
+    return items
+      .map((item) => {
+        const product = item.productId ? productMap.get(item.productId) : null;
+        const productStores = Array.isArray(product?.stores) ? product.stores : null;
+
+        let aisle: string | null = null;
+        let aisleOrder: number | null = null;
+        let estimatedPrice: number | null = null;
+        let storeIdToUse: string | null = null;
+
+        if (associatedStoreId) {
+          storeIdToUse = associatedStoreId;
+          if (product && productStores) {
+            const ps = productStores.find((s) => s.storeId === associatedStoreId);
+            if (ps?.aisle) {
+              aisle = ps.aisle;
+              aisleOrder = ps.aisleOrder ?? null;
+            }
+            if (ps?.averagePrice) {
+              estimatedPrice = ps.averagePrice * item.amount;
+            }
+          } else {
+            aisle = item.aisle ?? null;
+            aisleOrder = item.aisleOrder ?? null;
+            estimatedPrice = item.estimatedPrice ?? null;
+          }
+        } else {
+          aisle = null;
+          aisleOrder = null;
+          const preferredStore = product && productStores ? productStores.find((s) => s.isPreferred) : null;
+          storeIdToUse = item.storeId || preferredStore?.storeId || null;
+          if (product && storeIdToUse && productStores) {
+            const ps = productStores.find((s) => s.storeId === storeIdToUse);
+            if (ps?.averagePrice) {
+              estimatedPrice = ps.averagePrice * item.amount;
+            }
+          } else if (!productStores) {
+            estimatedPrice = item.estimatedPrice ?? null;
+          }
+        }
+
+        const quId = item.quId || product?.quPurchaseId || product?.quStockId || null;
+        const unit = quId ? unitMap.get(quId) : null;
+        const picList = Array.isArray(product?.pictureFileNames) ? product.pictureFileNames : [];
+        const productName = product?.name || item.customName || item.productName || 'Unnamed Item';
+
+        return {
+          ...item,
+          productName,
+          productPictureFileNames:
+            picList.length > 0 ? picList : (item.productPictureFileNames ?? []),
+          productPictureFileName: picList[0] ?? item.productPictureFileName ?? null,
+          earliestExpirationDate: product
+            ? (earliestExpMap.get(product.id) ?? item.earliestExpirationDate ?? null)
+            : null,
+          quId,
+          quName: unit?.name ?? item.quName ?? null,
+          storeId: storeIdToUse ?? null,
+          storeName: storeIdToUse ? (storeMap.get(storeIdToUse)?.name ?? item.storeName ?? null) : null,
+          aisle,
+          aisleOrder,
+          sortOrder: item.sortOrder ?? 0,
+          estimatedPrice,
+          currentStock: product ? (stockMap.get(product.id) ?? 0) : 0,
+          minStockAmount: product?.minStockAmount ?? item.minStockAmount ?? 0,
+        };
+      })
+      .sort((a, b) => {
+        if (a.done !== b.done) {
+          return a.done ? 1 : -1;
+        }
+        const aOrder =
+          a.aisleOrder !== null && a.aisleOrder !== undefined ? Number(a.aisleOrder) : Number.MAX_SAFE_INTEGER;
+        const bOrder =
+          b.aisleOrder !== null && b.aisleOrder !== undefined ? Number(b.aisleOrder) : Number.MAX_SAFE_INTEGER;
+        if (aOrder !== bOrder) {
+          return aOrder - bOrder;
+        }
+        if (a.aisle && b.aisle && a.aisle !== b.aisle) {
+          return a.aisle.localeCompare(b.aisle, undefined, { sensitivity: 'base' }) || a.aisle.localeCompare(b.aisle);
+        }
+        if (a.aisle && !b.aisle) return -1;
+        if (!a.aisle && b.aisle) return 1;
+        if ((a.sortOrder ?? 0) !== (b.sortOrder ?? 0)) {
+          return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+        }
+        return a.productName.localeCompare(b.productName);
+      });
   }
 
   async addShoppingItem(data: Partial<ShoppingListItem>): Promise<ShoppingListItem> {
@@ -1190,7 +1451,8 @@ export class ApiService {
       householdId: hhId,
       shoppingListId: data.shoppingListId || '',
       productId: data.productId || null,
-      productName: data.productName || 'Custom Item',
+      productName: data.productName || data.customName || 'Custom Item',
+      customName: data.customName ?? null,
       amount: data.amount ?? 1,
       note: data.note || null,
       done: data.done ?? false,
@@ -1521,5 +1783,70 @@ export class ApiService {
       },
       generatedAt: now.toISOString(),
     };
+  }
+
+  // Meal Planner (Offline-First)
+  async getMealPlanEntries(): Promise<MealPlanEntry[]> {
+    const hhId = this.activeHouseholdId() || undefined;
+    const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+    if (hhId) {
+      const isHydrated = await this.syncService.isHouseholdHydrated(hhId);
+      const local = await this.storage.getMealPlanEntries(hhId);
+      if (isHydrated) {
+        this.syncService.sync().catch(() => {});
+        return local;
+      }
+      await this.syncService.sync().catch(() => {});
+      const refreshed = await this.storage.getMealPlanEntries(hhId);
+      const nowHydrated = await this.syncService.isHouseholdHydrated(hhId);
+      if (nowHydrated || (!isOnline && refreshed.length > 0)) {
+        return refreshed;
+      }
+    }
+    try {
+      const remote = await firstValueFrom(this.http.get<MealPlanEntry[]>('/api/planner', this.options));
+      await this.storage.saveMealPlanEntries(remote);
+      return remote;
+    } catch {
+      return hhId ? this.storage.getMealPlanEntries(hhId) : [];
+    }
+  }
+
+  async addMealPlanEntry(data: {
+    id?: string;
+    date: string;
+    mealSlot: MealSlot;
+    productId: string;
+    sortOrder?: number;
+  }): Promise<MealPlanEntry> {
+    const id =
+      data.id ||
+      (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `planner-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
+    const hhId = this.activeHouseholdId() || '';
+    const userId = this.authService.currentUser()?.id ?? null;
+    const nowIso = new Date().toISOString();
+    const entry: MealPlanEntry = {
+      id,
+      householdId: hhId,
+      date: data.date,
+      mealSlot: data.mealSlot,
+      productId: data.productId,
+      userId,
+      sortOrder: data.sortOrder ?? 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    await this.storage.putMealPlanEntry(entry);
+    await this.storage.enqueue({ entity: 'meal_plan_entry', action: 'create', payload: entry });
+    this.syncService.sync().catch(() => {});
+    return entry;
+  }
+
+  async deleteMealPlanEntry(id: string): Promise<void> {
+    await this.storage.deleteMealPlanEntry(id);
+    await this.storage.enqueue({ entity: 'meal_plan_entry', action: 'delete', payload: { id } });
+    this.syncService.sync().catch(() => {});
   }
 }

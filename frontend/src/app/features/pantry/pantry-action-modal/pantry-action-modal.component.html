@@ -3,12 +3,19 @@
     <div class="header-left">
       <h3>{{ data.product.name }}</h3>
       @if (productGroupName()) {
-        <span class="product-group-badge">{{ productGroupName() }}</span>
+        <button
+          type="button"
+          class="product-group-badge product-group-badge-link"
+          (click)="navigateToGroupPantry()"
+          [title]="'View ' + productGroupName() + ' in Pantry'"
+        >
+          {{ productGroupName() }}
+        </button>
       }
     </div>
     <div class="header-right">
-      <button type="button" class="btn btn-secondary btn-sm modal-header-btn" (click)="openEditProduct()" title="Edit product" aria-label="Edit product">
-        <svg lucidePencil [size]="14"></svg>
+      <button type="button" class="btn btn-secondary btn-sm modal-header-btn" (click)="openEditProduct()" title="Product info" aria-label="Product info">
+        <svg lucideInfo [size]="14"></svg>
       </button>
       <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="requestClose()" aria-label="Close dialog">
         <svg lucideX [size]="14"></svg>

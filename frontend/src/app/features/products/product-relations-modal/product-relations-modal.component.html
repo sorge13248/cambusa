@@ -41,7 +41,14 @@
           <div class="hero-title-row">
             <h4>{{ currentProduct().name }}</h4>
             @if (getGroupName(currentProduct().productGroupId)) {
-              <span class="badge badge-group">{{ getGroupName(currentProduct().productGroupId) }}</span>
+              <button
+                type="button"
+                class="badge badge-group badge-group-link"
+                (click)="navigateToGroupPantry(currentProduct().productGroupId, $event)"
+                [title]="'View ' + getGroupName(currentProduct().productGroupId) + ' in Pantry'"
+              >
+                {{ getGroupName(currentProduct().productGroupId) }}
+              </button>
             }
           </div>
 
@@ -75,10 +82,10 @@
           type="button"
           class="btn btn-secondary btn-sm"
           (click)="openEditProductModal(currentProduct())"
-          title="Edit this product"
-          aria-label="Edit this product"
+          title="View product info"
+          aria-label="View product info"
         >
-          <svg lucidePencil [size]="14"></svg>
+          <svg lucideInfo [size]="14"></svg>
         </button>
       </div>
     </div>
@@ -90,7 +97,7 @@
           <span>⬆️ Parent Products (Ancestors)</span>
           <span class="count-tag">{{ ancestorProducts().length }}</span>
         </h4>
-        <span class="section-hint">Click a parent product to edit it</span>
+        <span class="section-hint">Click a parent product to view its hierarchy</span>
       </div>
 
       @if (ancestorProducts().length === 0) {
@@ -104,8 +111,8 @@
           @for (parent of ancestorProducts(); track parent.id; let isLast = $last) {
             <div
               class="relation-item-card is-parent"
-              (click)="openEditProductModal(parent)"
-              title="Click to edit this product"
+              (click)="openRelationsModal(parent)"
+              title="Click to view hierarchy for this product"
             >
               <div class="relation-item-main">
                 <div class="relation-thumb">
@@ -125,7 +132,14 @@
                       <span class="badge badge-relation">Ancestor</span>
                     }
                     @if (getGroupName(parent.productGroupId)) {
-                      <span class="badge badge-group">{{ getGroupName(parent.productGroupId) }}</span>
+                      <button
+                        type="button"
+                        class="badge badge-group badge-group-link"
+                        (click)="navigateToGroupPantry(parent.productGroupId, $event)"
+                        [title]="'View ' + getGroupName(parent.productGroupId) + ' in Pantry'"
+                      >
+                        {{ getGroupName(parent.productGroupId) }}
+                      </button>
                     }
                   </div>
 
@@ -151,9 +165,9 @@
                   type="button"
                   class="btn btn-secondary btn-sm"
                   (click)="openEditProductModal(parent, $event)"
-                  title="Edit this product"
+                  title="View product info"
                 >
-                  <svg lucidePencil [size]="14"></svg> Edit
+                  <svg lucideInfo [size]="14"></svg> Info
                 </button>
               </div>
             </div>
@@ -169,7 +183,7 @@
           <span>⬇️ Child Products (Sub-products)</span>
           <span class="count-tag">{{ childProducts().length }}</span>
         </h4>
-        <span class="section-hint">Click a child product to edit it</span>
+        <span class="section-hint">Click a child product to view its hierarchy</span>
       </div>
 
       @if (childProducts().length === 0) {
@@ -183,8 +197,8 @@
           @for (child of childProducts(); track child.id) {
             <div
               class="relation-item-card is-child"
-              (click)="openEditProductModal(child)"
-              title="Click to edit this product"
+              (click)="openRelationsModal(child)"
+              title="Click to view hierarchy for this product"
             >
               <div class="relation-item-main">
                 <div class="relation-thumb">
@@ -200,7 +214,14 @@
                     <span class="relation-name">{{ child.name }}</span>
                     <span class="badge badge-relation direct-child">Direct Child</span>
                     @if (getGroupName(child.productGroupId)) {
-                      <span class="badge badge-group">{{ getGroupName(child.productGroupId) }}</span>
+                      <button
+                        type="button"
+                        class="badge badge-group badge-group-link"
+                        (click)="navigateToGroupPantry(child.productGroupId, $event)"
+                        [title]="'View ' + getGroupName(child.productGroupId) + ' in Pantry'"
+                      >
+                        {{ getGroupName(child.productGroupId) }}
+                      </button>
                     }
                   </div>
 
@@ -226,9 +247,9 @@
                   type="button"
                   class="btn btn-secondary btn-sm"
                   (click)="openEditProductModal(child, $event)"
-                  title="Edit this product"
+                  title="View product info"
                 >
-                  <svg lucidePencil [size]="14"></svg> Edit
+                  <svg lucideInfo [size]="14"></svg> Info
                 </button>
               </div>
             </div>
@@ -252,8 +273,8 @@
           @for (desc of descendantProducts(); track desc.id) {
             <div
               class="relation-item-card is-descendant"
-              (click)="openEditProductModal(desc)"
-              title="Click to edit this product"
+              (click)="openRelationsModal(desc)"
+              title="Click to view hierarchy for this product"
             >
               <div class="relation-item-main">
                 <div class="relation-thumb">
@@ -289,9 +310,9 @@
                   type="button"
                   class="btn btn-secondary btn-sm"
                   (click)="openEditProductModal(desc, $event)"
-                  title="Edit this product"
+                  title="View product info"
                 >
-                  <svg lucidePencil [size]="14"></svg> Edit
+                  <svg lucideInfo [size]="14"></svg> Info
                 </button>
               </div>
             </div>

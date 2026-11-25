@@ -2,9 +2,11 @@ import { Injectable } from '@angular/core';
 import { compareByName } from './sorting.utils.js';
 import {
   Location,
+  MealPlanEntry,
   NextResponseDto,
   Product,
   ProductGroup,
+  ProductRatingSyncDto,
   QuantityUnit,
   ShoppingList,
   ShoppingListItem,
@@ -14,19 +16,21 @@ import {
 
 export interface SyncQueueItem {
   id: string;
-  entity: 'product' | 'stock' | 'shopping_item' | 'shopping_list' | 'catalog';
+  entity: 'product' | 'product_rating' | 'stock' | 'shopping_item' | 'shopping_list' | 'meal_plan_entry' | 'catalog';
   action: 'create' | 'update' | 'delete' | 'reorder';
   payload: any;
   createdAt: number;
 }
 
 const DB_NAME = 'cambusa_offline_v1';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 
 const STORE_PRODUCTS = 'products';
+const STORE_PRODUCT_RATINGS = 'product_ratings';
 const STORE_STOCK = 'stock';
 const STORE_SHOPPING = 'shopping_items';
 const STORE_SHOPPING_LISTS = 'shopping_lists';
+const STORE_MEAL_PLAN = 'meal_plan_entries';
 const STORE_QUEUE = 'sync_queue';
 const STORE_META = 'meta';
 
@@ -35,9 +39,11 @@ export class OfflineStorageService {
   private dbPromise: Promise<IDBDatabase | null> | null = null;
   readonly memoryStore = {
     products: new Map<string, Product>(),
+    productRatings: new Map<string, ProductRatingSyncDto>(),
     stock: new Map<string, StockItem>(),
     shopping: new Map<string, ShoppingListItem>(),
     shoppingLists: new Map<string, ShoppingList>(),
+    mealPlanEntries: new Map<string, MealPlanEntry>(),
     catalogs: new Map<
       string,
       {
@@ -65,6 +71,9 @@ export class OfflineStorageService {
             if (!db.objectStoreNames.contains(STORE_PRODUCTS)) {
               db.createObjectStore(STORE_PRODUCTS, { keyPath: 'id' });
             }
+            if (!db.objectStoreNames.contains(STORE_PRODUCT_RATINGS)) {
+              db.createObjectStore(STORE_PRODUCT_RATINGS, { keyPath: 'id' });
+            }
             if (!db.objectStoreNames.contains(STORE_STOCK)) {
               db.createObjectStore(STORE_STOCK, { keyPath: 'id' });
             }
@@ -73,6 +82,9 @@ export class OfflineStorageService {
             }
             if (!db.objectStoreNames.contains(STORE_SHOPPING_LISTS)) {
               db.createObjectStore(STORE_SHOPPING_LISTS, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORE_MEAL_PLAN)) {
+              db.createObjectStore(STORE_MEAL_PLAN, { keyPath: 'id' });
             }
             if (!db.objectStoreNames.contains(STORE_QUEUE)) {
               db.createObjectStore(STORE_QUEUE, { keyPath: 'id' });
@@ -594,9 +606,11 @@ export class OfflineStorageService {
 
   async clearAllStores(): Promise<void> {
     this.memoryStore.products.clear();
+    this.memoryStore.productRatings.clear();
     this.memoryStore.stock.clear();
     this.memoryStore.shopping.clear();
     this.memoryStore.shoppingLists.clear();
+    this.memoryStore.mealPlanEntries.clear();
     this.memoryStore.catalogs.clear();
     this.memoryStore.dashboard.clear();
     this.memoryStore.queue = [];
@@ -608,9 +622,11 @@ export class OfflineStorageService {
     return new Promise((resolve) => {
       const stores = [
         STORE_PRODUCTS,
+        STORE_PRODUCT_RATINGS,
         STORE_STOCK,
         STORE_SHOPPING,
         STORE_SHOPPING_LISTS,
+        STORE_MEAL_PLAN,
         STORE_QUEUE,
         STORE_META,
       ];
@@ -618,6 +634,95 @@ export class OfflineStorageService {
       for (const s of stores) {
         tx.objectStore(s).clear();
       }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+
+  // Product Ratings
+  async getProductRatings(householdId: string, productId?: string): Promise<ProductRatingSyncDto[]> {
+    const db = await this.getDB();
+    if (!db) {
+      const all = Array.from(this.memoryStore.productRatings.values());
+      return all.filter(
+        (r) => r.householdId === householdId && (!productId || r.productId === productId),
+      );
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_PRODUCT_RATINGS, 'readonly');
+      const req = tx.objectStore(STORE_PRODUCT_RATINGS).getAll();
+      req.onsuccess = () => {
+        const list: ProductRatingSyncDto[] = req.result || [];
+        resolve(
+          list.filter(
+            (r) => r.householdId === householdId && (!productId || r.productId === productId),
+          ),
+        );
+      };
+      req.onerror = () => resolve([]);
+    });
+  }
+
+  async saveProductRating(rating: ProductRatingSyncDto): Promise<void> {
+    const db = await this.getDB();
+    if (!db) {
+      this.memoryStore.productRatings.set(rating.id, rating);
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_PRODUCT_RATINGS, 'readwrite');
+      tx.objectStore(STORE_PRODUCT_RATINGS).put(rating);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+
+  async saveProductRatings(ratings: ProductRatingSyncDto[]): Promise<void> {
+    if (ratings.length === 0) return;
+    const db = await this.getDB();
+    if (!db) {
+      for (const r of ratings) {
+        this.memoryStore.productRatings.set(r.id, r);
+      }
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_PRODUCT_RATINGS, 'readwrite');
+      const store = tx.objectStore(STORE_PRODUCT_RATINGS);
+      for (const r of ratings) {
+        store.put(r);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+
+  async deleteProductRatingsByProduct(productId: string): Promise<void> {
+    const db = await this.getDB();
+    if (!db) {
+      for (const [id, r] of this.memoryStore.productRatings.entries()) {
+        if (r.productId === productId) {
+          this.memoryStore.productRatings.delete(id);
+        }
+      }
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_PRODUCT_RATINGS, 'readwrite');
+      const store = tx.objectStore(STORE_PRODUCT_RATINGS);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const list: ProductRatingSyncDto[] = req.result || [];
+        for (const r of list) {
+          if (r.productId === productId) {
+            store.delete(r.id);
+          }
+        }
+      };
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
     });
@@ -644,6 +749,75 @@ export class OfflineStorageService {
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_META, 'readwrite');
       tx.objectStore(STORE_META).put({ key, value });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+
+  // Meal Plan Entries
+  async getMealPlanEntries(householdId?: string): Promise<MealPlanEntry[]> {
+    const db = await this.getDB();
+    if (!db) {
+      const all = Array.from(this.memoryStore.mealPlanEntries.values());
+      return householdId ? all.filter((e) => e.householdId === householdId) : all;
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_MEAL_PLAN, 'readonly');
+      const req = tx.objectStore(STORE_MEAL_PLAN).getAll();
+      req.onsuccess = () => {
+        const list: MealPlanEntry[] = req.result || [];
+        resolve(householdId ? list.filter((e) => e.householdId === householdId) : list);
+      };
+      req.onerror = () => resolve([]);
+    });
+  }
+
+  async putMealPlanEntry(entry: MealPlanEntry): Promise<void> {
+    const db = await this.getDB();
+    if (!db) {
+      this.memoryStore.mealPlanEntries.set(entry.id, entry);
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_MEAL_PLAN, 'readwrite');
+      tx.objectStore(STORE_MEAL_PLAN).put(entry);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+
+  async saveMealPlanEntries(entries: MealPlanEntry[]): Promise<void> {
+    const db = await this.getDB();
+    if (!db) {
+      for (const e of entries) {
+        this.memoryStore.mealPlanEntries.set(e.id, e);
+      }
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_MEAL_PLAN, 'readwrite');
+      const store = tx.objectStore(STORE_MEAL_PLAN);
+      for (const e of entries) {
+        store.put(e);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+
+  async deleteMealPlanEntry(id: string): Promise<void> {
+    const db = await this.getDB();
+    if (!db) {
+      this.memoryStore.mealPlanEntries.delete(id);
+      return;
+    }
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_MEAL_PLAN, 'readwrite');
+      tx.objectStore(STORE_MEAL_PLAN).delete(id);
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
     });

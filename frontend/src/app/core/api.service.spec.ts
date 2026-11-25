@@ -226,4 +226,62 @@ describe('ApiService', () => {
     const aisles = await promise;
     expect(aisles.map((a) => a.sortOrder)).toEqual([1, 2, 10]);
   });
+
+  it('enriches hydrated local shopping items with productName, quName, picture, aisle, price, and currentStock', async () => {
+    api.activeHouseholdId.set('hh-shop');
+    await storage.setMeta(syncService.getLastSyncKey('hh-shop'), '2026-01-01T00:00:00.000Z');
+    await storage.saveShoppingLists([
+      { id: 'list-1', householdId: 'hh-shop', name: 'Coop', storeId: 'store-1', isDefault: true, sortOrder: 0 },
+    ]);
+    await storage.saveProducts([
+      {
+        id: 'p-1',
+        householdId: 'hh-shop',
+        name: 'Extra Virgin Olive Oil',
+        quPurchaseId: 'u-1',
+        quStockId: 'u-1',
+        minStockAmount: 2,
+        pictureFileNames: ['oil.webp'],
+        stores: [
+          { productId: 'p-1', storeId: 'store-1', aisle: 'Condiments', aisleOrder: 3, averagePrice: 5.98, isPreferred: true },
+        ],
+        active: true,
+      } as unknown as Product,
+    ]);
+    await storage.saveCatalogs('hh-shop', {
+      units: [{ id: 'u-1', householdId: 'hh-shop', name: 'bottle', namePlural: 'bottles', description: null, active: true }],
+      locations: [],
+      groups: [],
+      stores: [{ id: 'store-1', householdId: 'hh-shop', name: 'Coop', description: null, active: true }],
+    });
+    await storage.saveStock([
+      { id: 's-1', householdId: 'hh-shop', productId: 'p-1', amount: 1, bestBeforeDate: '2026-12-31', isOpen: false } as any,
+    ]);
+    await storage.saveShoppingItems([
+      { id: 'si-1', householdId: 'hh-shop', shoppingListId: 'list-1', productId: 'p-1', amount: 2, done: false } as any,
+      { id: 'si-2', householdId: 'hh-shop', shoppingListId: 'list-1', productId: null, customName: 'Paper Towels', amount: 1, done: false } as any,
+    ]);
+    vi.spyOn(syncService, 'sync').mockResolvedValue(true);
+
+    const items = await api.getShoppingItems('list-1', 'store-1');
+    expect(items.length).toBe(2);
+
+    const oil = items.find((i) => i.id === 'si-1')!;
+    expect(oil.productName).toBe('Extra Virgin Olive Oil');
+    expect(oil.quName).toBe('bottle');
+    expect(oil.productPictureFileName).toBe('oil.webp');
+    expect(oil.aisle).toBe('Condiments');
+    expect(oil.aisleOrder).toBe(3);
+    expect(oil.estimatedPrice).toBeCloseTo(11.96);
+    expect(oil.currentStock).toBe(1);
+    expect(oil.minStockAmount).toBe(2);
+    expect(oil.earliestExpirationDate).toBe('2026-12-31');
+    expect(oil.storeName).toBe('Coop');
+
+    const custom = items.find((i) => i.id === 'si-2')!;
+    expect(custom.productName).toBe('Paper Towels');
+    expect(custom.aisle).toBeNull();
+    // Aisle items sort before unspecified aisle items
+    expect(items[0].id).toBe('si-1');
+  });
 });

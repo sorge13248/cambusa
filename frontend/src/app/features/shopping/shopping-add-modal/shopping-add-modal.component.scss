@@ -73,20 +73,46 @@
 
   input {
     width: 100%;
-    padding-right: 32px;
+    padding-right: 76px;
   }
 
   .btn-clear-search {
     position: absolute;
-    right: 8px;
+    right: 44px;
     background: none;
     border: none;
     color: var(--text-muted, #64748b);
     cursor: pointer;
     font-size: 0.85rem;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
       color: #fff;
+    }
+  }
+
+  .btn-scan-camera {
+    position: absolute;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border, #334155);
+    border-radius: 4px;
+    color: var(--text-secondary, #94a3b8);
+    padding: 5px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+
+    &:hover,
+    &.active {
+      background-color: var(--primary, #10b981);
+      border-color: var(--primary, #10b981);
+      color: #ffffff;
     }
   }
 }

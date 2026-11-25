@@ -185,9 +185,10 @@
                         type="button"
                         class="btn btn-secondary-outline btn-sm action-btn-tag"
                         (click)="openEditProductModal(item.productId)"
-                        title="Edit product catalog details"
+                        title="View product info"
+                        aria-label="View product info"
                       >
-                        <svg lucideTag [size]="14"></svg>
+                        <svg lucideInfo [size]="14"></svg>
                       </button>
                     }
                     <button class="btn btn-secondary-outline btn-sm action-btn-edit" (click)="openEditItemModal(item)" title="Edit item">

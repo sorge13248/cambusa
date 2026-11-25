@@ -40,6 +40,17 @@
   border-radius: var(--radius-sm);
   display: inline-block;
   margin-top: 4px;
+
+  &.product-group-badge-link {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: rgba(56, 189, 248, 0.24);
+    }
+  }
 }
 
 .header-right {

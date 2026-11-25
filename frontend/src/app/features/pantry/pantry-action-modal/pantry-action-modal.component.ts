@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { firstValueFrom, Subscription } from 'rxjs';
@@ -7,6 +8,7 @@ import {
   LucideAlertCircle,
   LucideAlertTriangle,
   LucideClock,
+  LucideInfo,
   LucidePackage,
   LucidePencil,
   LucideRotateCw,
@@ -20,7 +22,7 @@ import { compareByName } from '../../../core/sorting.utils.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { calculateProductTotalStock } from '../../../core/stock-utils.js';
 import { QuickDateModifierComponent } from '../../../shared/components/quick-date-modifier/quick-date-modifier.component.js';
-import { ProductEditorModalComponent } from '../../products/product-editor-modal/product-editor-modal.component.js';
+import { ProductInfoModalComponent } from '../../products/product-info-modal/product-info-modal.component.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
 import { LocalDatePipe } from '../../../shared/pipes/local-date.pipe.js';
 import { StockPurchaseFormComponent } from '../stock-purchase-form/stock-purchase-form.component.js';
@@ -52,6 +54,7 @@ export type ActionType = 'none' | 'consume' | 'purchase' | 'move';
     LucideAlertCircle,
     LucideAlertTriangle,
     LucideClock,
+    LucideInfo,
     LucidePackage,
     LucidePencil,
     LucideRotateCw,
@@ -66,6 +69,7 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   readonly data = inject<PantryActionModalData>(DIALOG_DATA);
   private readonly dialogRef = inject(DialogRef);
   private readonly dialog = inject(Dialog);
+  private readonly router = inject(Router);
   private readonly api = inject(ApiService);
   private readonly undoService = inject(UndoService);
 
@@ -211,8 +215,15 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     }
   }
 
+  navigateToGroupPantry(): void {
+    const groupId = this.data.product.productGroupId;
+    if (!groupId) return;
+    this.dialog.closeAll();
+    void this.router.navigate(['/pantry'], { queryParams: { group: groupId } });
+  }
+
   async openEditProduct(): Promise<void> {
-    const dialogRef = this.dialog.open(ProductEditorModalComponent, {
+    const dialogRef = this.dialog.open(ProductInfoModalComponent, {
       disableClose: true,
       data: {
         product: this.data.product,

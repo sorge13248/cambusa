@@ -31,6 +31,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/pantry/pantry.component.js').then((m) => m.PantryComponent)
   },
   {
+    path: 'planner',
+    title: 'Planner',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/planner/planner.component.js').then((m) => m.PlannerComponent)
+  },
+  {
     path: 'shopping',
     title: 'Shopping List',
     canActivate: [authGuard],

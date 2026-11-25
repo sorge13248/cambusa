@@ -74,6 +74,8 @@ describe('PantryComponent', () => {
     fixture = TestBed.createComponent(PantryComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+    await component.loadData();
+    fixture.detectChanges();
   });
 
   afterEach(() => {
@@ -229,6 +231,7 @@ describe('PantryComponent', () => {
     // When configured with 7 days (default from mock)
     component.expiringSoonDays.set(7);
     component.selectedStatus = 'due';
+    fixture.detectChanges();
     component.applyLocalFilters();
 
     expect(component.filteredStock().length).toBe(1);
@@ -236,6 +239,7 @@ describe('PantryComponent', () => {
 
     // When scan horizon is widened to 15 days
     component.expiringSoonDays.set(15);
+    fixture.detectChanges();
     component.applyLocalFilters();
 
     expect(component.filteredStock().length).toBe(2);

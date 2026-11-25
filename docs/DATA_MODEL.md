@@ -40,9 +40,12 @@ erDiagram
     Household ||--o{ StockItem : "inventories"
     Household ||--o{ ShoppingList : "owns"
     Household ||--o{ SavedFilter : "owns"
+    Household ||--o{ MealPlanEntry : "plans meals"
     Household ||--o{ SyncTombstone : "tracks deletions"
 
     Product ||--o{ Product : "parent/sub-products"
+    Product ||--o{ ProductRating : "rated by users"
+    User ||--o{ ProductRating : "rates"
     Product ||--o{ ProductStore : "sold at"
     Store ||--o{ ProductStore : "stocks"
     Store ||--o{ Aisle : "contains"
@@ -249,6 +252,20 @@ Product-to-store mapping with store-specific aisle order and price history.
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
+#### `ProductRating` (`product_ratings`)
+Per-user star rating for a catalog product within a household (`null` for unrated, or `1` to `5`).
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | Rating record ID |
+| `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
+| `productId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `products(id)` ON DELETE CASCADE | Rated product |
+| `userId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `users(id)` ON DELETE CASCADE | Rating author |
+| `rating` | INTEGER | NULLABLE | Star rating (`1` to `5`, or `null` when cleared) |
+| `createdAt` | DATETIME | NOT NULL | Creation timestamp |
+| `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+> **Unique & Index Constraints**: Enforces `UNIQUE(productId, userId)` and composite indexes on `(householdId, productId)` and `(householdId, userId)`.
+
 ---
 
 ### 3.3 Pantry & Inventory Entities
@@ -323,7 +340,25 @@ Line items within a shopping list.
 
 ---
 
-### 3.5 Offline Synchronization Entities
+### 3.5 Meal Planner Entities
+
+#### `MealPlanEntry` (`meal_plan_entries`)
+Scheduled food entry for a specific calendar date and meal slot within a household.
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | Meal plan entry ID |
+| `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
+| `date` | VARCHAR(10) | INDEX, NOT NULL | Calendar date (`YYYY-MM-DD`) |
+| `mealSlot` | VARCHAR(32) | INDEX, NOT NULL | Meal slot (`breakfast`, `morning_snack`, `lunch`, `afternoon_snack`, `dinner`) |
+| `productId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `products(id)` ON DELETE CASCADE | Planned product |
+| `userId` | VARCHAR | NULLABLE, FK &rarr; `users(id)` ON DELETE SET NULL | Household member who added the entry |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Display order within the slot |
+| `createdAt` | DATETIME | NOT NULL | Creation timestamp |
+| `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+---
+
+### 3.6 Offline Synchronization Entities
 
 #### `SyncTombstone` (`sync_tombstones`)
 Records deletions to reconcile state with disconnected offline clients.
@@ -331,6 +366,6 @@ Records deletions to reconcile state with disconnected offline clients.
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PRIMARY KEY | Tombstone ID |
 | `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
-| `entityType` | VARCHAR | NOT NULL | Entity name (`product`, `stock`, `shopping_item`, `shopping_list`, `store`) |
+| `entityType` | VARCHAR | NOT NULL | Entity name (`product`, `stock_item`, `shopping_item`, `shopping_list`, `meal_plan_entry`, `store`) |
 | `entityId` | VARCHAR | NOT NULL | ID of deleted entity |
 | `deletedAt` | DATETIME | INDEX, NOT NULL | Timestamp of deletion |

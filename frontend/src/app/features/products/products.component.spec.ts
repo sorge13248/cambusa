@@ -81,7 +81,7 @@ describe('ProductsComponent', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(mockApiService.getProducts).toHaveBeenCalledWith(true, true);
+    expect(mockApiService.getProducts).toHaveBeenCalledWith(true);
     expect(component.products().length).toBe(3);
   });
 

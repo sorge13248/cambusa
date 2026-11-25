@@ -3,10 +3,34 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { Repository } from 'typeorm';
-import { Location, Product, ProductStore, StockItem, SyncTombstone } from '../entities/index.js';
+import { In, Repository } from 'typeorm';
+import {
+  HouseholdMember,
+  Location,
+  Product,
+  ProductRating,
+  ProductStore,
+  StockItem,
+  SyncTombstone,
+  User,
+} from '../entities/index.js';
 import { resolveUploadsDir } from '../load-env.js';
 import { MealieService } from './mealie.service.js';
+
+export interface ProductMemberRatingDto {
+  userId: string;
+  displayName: string;
+  pictureUrl: string | null;
+  rating: number | null;
+  updatedAt: Date | null;
+}
+
+export interface ProductRatingsResponseDto {
+  productId: string;
+  memberCount: number;
+  myRating: number | null;
+  otherMembersRatings: ProductMemberRatingDto[];
+}
 
 export interface ProductDetailDto extends Product {
   ancestors: Array<{ id: string; name: string }>;
@@ -34,6 +58,15 @@ export class ProductsService {
     private readonly locationsRepository?: Repository<Location>,
     @Optional()
     private readonly mealieService?: MealieService,
+    @Optional()
+    @InjectRepository(ProductRating)
+    private readonly productRatingsRepository?: Repository<ProductRating>,
+    @Optional()
+    @InjectRepository(HouseholdMember)
+    private readonly householdMembersRepository?: Repository<HouseholdMember>,
+    @Optional()
+    @InjectRepository(User)
+    private readonly usersRepository?: Repository<User>,
   ) {
     this.uploadsDir = resolveUploadsDir();
   }
@@ -356,6 +389,104 @@ export class ProductsService {
     product.pictureFileNames = pictureFileNames;
     await this.productsRepository.save(product);
     return product.pictureFileNames;
+  }
+
+  async getProductRatings(
+    productId: string,
+    householdId: string,
+    currentUserId: string,
+  ): Promise<ProductRatingsResponseDto> {
+    const product = await this.productsRepository.findOne({ where: { id: productId, householdId } });
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (!this.productRatingsRepository || !this.householdMembersRepository || !this.usersRepository) {
+      return {
+        productId,
+        memberCount: 1,
+        myRating: null,
+        otherMembersRatings: [],
+      };
+    }
+
+    const members = await this.householdMembersRepository.find({ where: { householdId } });
+    const memberIds = members.map((m) => m.userId);
+    const users = memberIds.length > 0 ? await this.usersRepository.find({ where: { id: In(memberIds) } }) : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const ratings = await this.productRatingsRepository.find({
+      where: { householdId, productId },
+    });
+    const ratingByUser = new Map(ratings.map((r) => [r.userId, r]));
+
+    const myRecord = ratingByUser.get(currentUserId);
+    const otherMembersRatings: ProductMemberRatingDto[] = members
+      .filter((m) => m.userId !== currentUserId)
+      .map((m) => {
+        const user = userMap.get(m.userId);
+        const r = ratingByUser.get(m.userId);
+        return {
+          userId: m.userId,
+          displayName: user?.displayName ?? 'Member',
+          pictureUrl: user?.pictureUrl ?? null,
+          rating: r?.rating ?? null,
+          updatedAt: r?.updatedAt ?? null,
+        };
+      })
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
+
+    return {
+      productId,
+      memberCount: Math.max(members.length, 1),
+      myRating: myRecord?.rating ?? null,
+      otherMembersRatings,
+    };
+  }
+
+  async setProductRating(
+    productId: string,
+    householdId: string,
+    userId: string,
+    rating: number | null,
+  ): Promise<{ productId: string; userId: string; rating: number | null; updatedAt: Date }> {
+    if (rating !== null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
+      throw new BadRequestException('Rating must be null or an integer between 1 and 5');
+    }
+
+    const product = await this.productsRepository.findOne({ where: { id: productId, householdId } });
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (!this.productRatingsRepository) {
+      return { productId, userId, rating, updatedAt: new Date() };
+    }
+
+    const existing = await this.productRatingsRepository.findOne({
+      where: { householdId, productId, userId },
+    });
+
+    if (existing) {
+      existing.rating = rating;
+      const saved = await this.productRatingsRepository.save(existing);
+      return {
+        productId: saved.productId,
+        userId: saved.userId,
+        rating: saved.rating,
+        updatedAt: saved.updatedAt,
+      };
+    }
+
+    const created = this.productRatingsRepository.create({
+      householdId,
+      productId,
+      userId,
+      rating,
+    });
+    const saved = await this.productRatingsRepository.save(created);
+    return {
+      productId: saved.productId,
+      userId: saved.userId,
+      rating: saved.rating,
+      updatedAt: saved.updatedAt,
+    };
   }
 
   // Infinite Hierarchy Helpers
