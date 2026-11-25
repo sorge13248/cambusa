@@ -69,4 +69,14 @@ describe('ShoppingAddModalComponent', () => {
     expect(mockApiService.addShoppingItem).toHaveBeenCalled();
     expect(mockDialogRef.close).toHaveBeenCalledWith(true);
   });
+
+  it('should toggle camera scanner and select product on scanned barcode', () => {
+    expect(component.isScannerOpen()).toBe(false);
+    component.toggleScanner();
+    expect(component.isScannerOpen()).toBe(true);
+
+    component.onBarcodeScanned('222');
+    expect(component.selectedProduct()?.name).toBe('Eggs');
+    expect(component.isScannerOpen()).toBe(false);
+  });
 });

@@ -5,9 +5,6 @@
       <h2>Product Catalog &amp; Hierarchy</h2>
       <p class="subtitle">Infinite parent product nesting, multi-store pricing, and minimum stock rules.</p>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-primary" (click)="openAddProductModal()">+ New Product</button>
-    </div>
   </div>
 
   <!-- Search & Category & Status Filters -->
@@ -60,7 +57,7 @@
               @if (p.pictureFileNames && p.pictureFileNames.length > 0) {
                 <img [src]="'/api/products/pictures/' + p.pictureFileNames[0]" [alt]="p.name" />
               } @else {
-                <div class="no-photo-thumb">📦</div>
+                <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
               }
             </div>
 
@@ -84,7 +81,9 @@
                     <span class="badge badge-inactive">Inactive</span>
                   }
                   @if (p.cannotBeFrozen) {
-                    <span class="badge badge-warning" title="Cannot be frozen">❄️ Cannot be frozen</span>
+                    <span class="badge badge-warning" title="Cannot be frozen">
+                      <svg lucideSnowflake [size]="12"></svg> Cannot be frozen
+                    </span>
                   }
                 </div>
               </div>
@@ -111,12 +110,6 @@
               <span class="stat-label">Min Threshold:</span>
               <span class="stat-val">{{ p.minStockAmount || 0 }}</span>
             </div>
-            @if (p.barcodes && p.barcodes.length > 0) {
-              <div class="stat-pill" title="Barcodes count">
-                <span class="stat-label">🏷️</span>
-                <span class="stat-val">{{ p.barcodes.length }}</span>
-              </div>
-            }
           </div>
 
           <!-- Store Prices Tag Strip -->
@@ -143,7 +136,7 @@
               (click)="openProductStockModal(p)"
               title="View current pantry stock and expiration dates"
             >
-              📊 View Stock
+              <svg lucideChartBar [size]="14"></svg> View Stock
             </button>
             <button
               type="button"
@@ -151,10 +144,14 @@
               (click)="openProductRelationsModal(p)"
               title="View parent and child product relationships"
             >
-              🔗 View Relations
+              <svg lucideNetwork [size]="14"></svg> View Relations
             </button>
-            <button type="button" class="btn btn-secondary btn-sm" (click)="openEditProductModal(p)">Edit</button>
-            <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeleteProduct(p)">Delete</button>
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openProductInfoModal(p)" title="View product details and ratings">
+              <svg lucideInfo [size]="14"></svg> Info
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeleteProduct(p)">
+              <svg lucideTrash [size]="14"></svg> Delete
+            </button>
           </div>
         </div>
       }
@@ -195,4 +192,21 @@
       </div>
     }
   }
+
+  <!-- Floating Action Button -->
+  <div class="fab-container has-quick-footer">
+    <button
+      type="button"
+      class="fab-btn fab-primary"
+      (click)="openAddProductModal()"
+      title="Add Product"
+      aria-label="Add Product"
+    >
+      <span class="fab-icon">
+        <svg lucidePlus [size]="24"></svg>
+      </span>
+    </button>
+  </div>
+
+  <app-quick-actions-footer (stockChanged)="loadData()"></app-quick-actions-footer>
 </div>

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { firstValueFrom } from 'rxjs';
+import { LucidePackage, LucidePencil, LucideSnowflake, LucideX } from '@lucide/angular';
 import { Location, Product, QuantityUnit, StockItem } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
 import { LocalDatePipe } from '../../../shared/pipes/local-date.pipe.js';
@@ -17,7 +18,7 @@ export interface ProductStockModalData {
 @Component({
   selector: 'app-product-stock-modal',
   standalone: true,
-  imports: [CommonModule, LocalDatePipe],
+  imports: [CommonModule, LocalDatePipe, LucidePackage, LucidePencil, LucideSnowflake, LucideX],
   templateUrl: './product-stock-modal.component.html',
   styleUrl: './product-stock-modal.component.scss',
 })

@@ -2,6 +2,14 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import {
+  LucideAlertTriangle,
+  LucideBookOpen,
+  LucideRotateCw,
+  LucideSearch,
+  LucideUtensils,
+  LucideX,
+} from '@lucide/angular';
 import { ApiService } from '../../../core/api.service.js';
 
 export interface MealieLinkModalData {
@@ -25,7 +33,16 @@ interface ItemOption {
 @Component({
   selector: 'app-mealie-link-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LucideAlertTriangle,
+    LucideBookOpen,
+    LucideRotateCw,
+    LucideSearch,
+    LucideUtensils,
+    LucideX,
+  ],
   templateUrl: './mealie-link-modal.component.html',
   styleUrl: './mealie-link-modal.component.scss',
 })

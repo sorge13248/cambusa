@@ -1,0 +1,248 @@
+<div class="domains-wrapper">
+  <!-- Domain Sub-navigation using reusable TabView -->
+  <div class="domains-nav-bar">
+    <app-tabview
+      [tabs]="domainTabs"
+      [(activeTabId)]="activeDomainTab"
+      variant="subtle"
+    ></app-tabview>
+  </div>
+
+  <!-- Domain 1: Stores -->
+  @if (activeDomainTab() === 'stores') {
+    <div class="card glass-card domain-card">
+      <div class="card-header domain-header">
+        <div class="header-left">
+          <div class="card-icon"><svg lucideStore [size]="20"></svg></div>
+          <div>
+            <h2 class="card-title">Stores &amp; Supermarkets</h2>
+            <p class="card-subtitle">Manage stores and supermarkets available for inventory purchases and aisle mappings</p>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" (click)="openAddStoreModal()">
+          + Add Store
+        </button>
+      </div>
+
+      <div class="card-body">
+        @if (stores().length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon"><svg lucideStore [size]="32"></svg></span>
+            <p>No stores defined yet.</p>
+            <button type="button" class="btn btn-primary btn-sm" (click)="openAddStoreModal()">
+              Add your first store
+            </button>
+          </div>
+        } @else {
+          <div class="stores-grid">
+            @for (s of stores(); track s.id) {
+              <div class="store-item-card">
+                <div class="store-item-header">
+                  <h4 class="store-name">{{ s.name }}</h4>
+                  <div class="store-actions">
+                    <button type="button" class="btn btn-secondary-outline btn-xs" (click)="openEditStoreModal(s)">Edit</button>
+                    <button type="button" class="btn btn-danger-outline btn-xs" (click)="deleteStore(s.id)">Delete</button>
+                  </div>
+                </div>
+                @if (s.description) {
+                  <p class="store-desc">{{ s.description }}</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Domain 2: Aisles -->
+  @if (activeDomainTab() === 'aisles') {
+    <div class="card glass-card domain-card">
+      <div class="card-header domain-header">
+        <div class="header-left">
+          <div class="card-icon"><svg lucideShoppingCart [size]="20"></svg></div>
+          <div>
+            <h2 class="card-title">Store Aisles</h2>
+            <p class="card-subtitle">Organize and sort store aisles to optimize shopping route via drag &amp; drop</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <!-- Store Selector Row -->
+        <div class="aisle-store-selector-row">
+          <label for="aisleStoreSelect" class="form-label">Supermarket / Store:</label>
+          <select
+            id="aisleStoreSelect"
+            class="form-select store-select"
+            [ngModel]="selectedAisleStoreId()"
+            (ngModelChange)="selectAisleStore($event)"
+          >
+            @if (stores().length === 0) {
+              <option value="" disabled>No stores found. Please add a store first.</option>
+            } @else {
+              @for (s of stores(); track s.id) {
+                <option [value]="s.id">{{ s.name }}</option>
+              }
+            }
+          </select>
+        </div>
+
+        @if (!selectedAisleStoreId()) {
+          <div class="empty-state">
+            <span class="empty-icon"><svg lucideStore [size]="32"></svg></span>
+            <p>Please create or select a store above to manage its aisles.</p>
+          </div>
+        } @else {
+          <!-- Add Aisle Bar -->
+          <div class="add-aisle-bar">
+            <input
+              type="text"
+              class="form-input aisle-name-input"
+              placeholder="e.g. Produce, Dairy, Bakery, Beverages, Pasta..."
+              [ngModel]="newAisleName()"
+              (ngModelChange)="newAisleName.set($event)"
+              (keydown.enter)="addAisle()"
+            />
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="!newAisleName().trim()"
+              (click)="addAisle()"
+            >
+              + Add Aisle
+            </button>
+          </div>
+
+          @if (isLoadingAisles()) {
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Loading aisles...</p>
+            </div>
+          } @else if (currentStoreAisles().length === 0) {
+            <div class="empty-state">
+              <span class="empty-icon"><svg lucideShoppingCart [size]="32"></svg></span>
+              <p>No aisles defined yet for this store. Add your first aisle above.</p>
+            </div>
+          } @else {
+            <p class="drag-instructions-hint">
+              Drag and drop aisles to reorder them in the order you navigate the supermarket.
+            </p>
+
+            <div
+              cdkDropList
+              class="aisles-drop-list"
+              [cdkDropListData]="currentStoreAisles()"
+              (cdkDropListDropped)="onAisleDrop($event)"
+            >
+              @for (aisle of currentStoreAisles(); track aisle.id; let idx = $index) {
+                <div class="aisle-drag-item" cdkDrag>
+                  <!-- Custom Drag Placeholder -->
+                  <div class="aisle-drag-placeholder" *cdkDragPlaceholder>
+                    <span class="placeholder-text">Drop here (Position #{{ idx + 1 }})</span>
+                  </div>
+
+                  <div class="aisle-drag-content">
+                    <div class="drag-handle-container" cdkDragHandle title="Drag to reorder">
+                      <span class="drag-handle-icon"><svg lucideGripVertical [size]="14"></svg></span>
+                    </div>
+
+                    <span class="aisle-order-badge">#{{ aisle.sortOrder || (idx + 1) }}</span>
+
+                    @if (editingAisleId() === aisle.id) {
+                      <div class="inline-edit-group">
+                        <input
+                          type="text"
+                          class="form-input form-input-sm inline-aisle-input"
+                          [ngModel]="editingAisleName()"
+                          (ngModelChange)="editingAisleName.set($event)"
+                          (keydown.enter)="saveAisleEdit(aisle)"
+                          (keydown.escape)="cancelAisleEdit()"
+                          autofocus
+                        />
+                        <button type="button" class="btn btn-success-outline btn-xs" (click)="saveAisleEdit(aisle)">Save</button>
+                        <button type="button" class="btn btn-secondary-outline btn-xs" (click)="cancelAisleEdit()">Cancel</button>
+                      </div>
+                    } @else {
+                      <span class="aisle-title">{{ aisle.name }}</span>
+                    }
+
+                    <div class="aisle-actions">
+                      @if (editingAisleId() !== aisle.id) {
+                        <button
+                          type="button"
+                          class="btn btn-secondary-outline btn-xs"
+                          (click)="startAisleEdit(aisle)"
+                          title="Rename aisle"
+                        >
+                          <svg lucidePencil [size]="12"></svg>
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-danger-outline btn-xs"
+                          (click)="deleteAisle(aisle.id)"
+                          title="Delete aisle"
+                        >
+                          <svg lucideTrash2 [size]="13"></svg>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Add/Edit Store Modal Dialog -->
+  @if (isStoreModalOpen()) {
+    <div class="modal-backdrop" (click)="closeStoreModal()"></div>
+    <div class="custom-modal glass-modal" role="dialog" aria-modal="true" aria-labelledby="store-modal-title">
+      <div class="modal-header">
+        <h3 id="store-modal-title" class="modal-title">{{ editingStoreId() ? 'Edit Store' : 'New Store' }}</h3>
+        <button type="button" class="btn-close" (click)="closeStoreModal()" aria-label="Close dialog">
+          <svg lucideX [size]="14"></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="storeNameInput" class="form-label">Store Name *</label>
+          <input
+            id="storeNameInput"
+            type="text"
+            class="form-input"
+            placeholder="e.g. Coop, Esselunga, Lidl, Trader Joe's"
+            [ngModel]="storeName()"
+            (ngModelChange)="storeName.set($event)"
+            autofocus
+          />
+        </div>
+        <div class="form-group">
+          <label for="storeDescInput" class="form-label">Description / Location</label>
+          <textarea
+            id="storeDescInput"
+            class="form-input"
+            rows="3"
+            placeholder="Optional store notes or branch location"
+            [ngModel]="storeDescription()"
+            (ngModelChange)="storeDescription.set($event)"
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeStoreModal()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="!storeName().trim()"
+          (click)="saveStore()"
+        >
+          {{ editingStoreId() ? 'Save Changes' : 'Create Store' }}
+        </button>
+      </div>
+    </div>
+  }
+</div>

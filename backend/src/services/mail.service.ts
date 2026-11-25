@@ -301,11 +301,12 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
       const productDetailUrl = `${frontendBaseUrl}/home?openProduct=${encodeURIComponent(item.productId)}${nextData.household?.id ? `&householdId=${encodeURIComponent(nextData.household.id)}` : ''}`;
 
       const imgHtml = cid
-        ? `<a href="${productDetailUrl}" target="_blank" style="text-decoration: none; display: block;"><img src="cid:${cid}" alt="${item.productName}" width="54" height="54" style="border-radius: 8px; object-fit: cover; display: block; border: 1px solid #334155;" /></a>`
-        : `<a href="${productDetailUrl}" target="_blank" style="text-decoration: none; display: block;"><div style="width: 54px; height: 54px; border-radius: 8px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); border: 1px solid #475569; display: flex; align-items: center; justify-content: center; font-size: 24px; text-align: center; line-height: 54px;" title="No photo">📦</div></a>`;
+        ? `<a href="${productDetailUrl}" target="_blank" style="text-decoration: none; display: block;"><img src="cid:${cid}" alt="${item.productName}" width="50" height="50" style="border-radius: 6px; object-fit: cover; display: block; border: 1px solid #e2e8f0;" /></a>`
+        : `<a href="${productDetailUrl}" target="_blank" style="text-decoration: none; display: block;"><div style="width: 50px; height: 50px; border-radius: 6px; background-color: #f1f5f9; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 22px; text-align: center; line-height: 50px;" title="No photo">📦</div></a>`;
 
-      const badgeColor = isExpired ? '#ef4444' : '#f59e0b';
-      const badgeBg = isExpired ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+      const badgeColor = isExpired ? '#dc2626' : '#d97706';
+      const badgeBg = isExpired ? '#fef2f2' : '#fffbeb';
+      const badgeBorder = isExpired ? '#fca5a5' : '#fcd34d';
       const badgeText = isExpired
         ? `Expired ${item.daysOverdue}d ago`
         : item.daysRemaining === 0
@@ -315,29 +316,29 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
             : `Expires in ${item.daysRemaining} days`;
 
       return `
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #162032; border: 1px solid #23354d; border-radius: 10px; margin-bottom: 10px; padding: 12px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; padding: 10px;">
           <tr>
-            <td width="64" valign="middle" style="padding-right: 12px;">
+            <td width="58" valign="middle" style="padding-right: 10px;">
               ${imgHtml}
             </td>
             <td valign="middle">
-              <div style="font-size: 15px; font-weight: 700; color: #f8fafc; margin-bottom: 4px;">
-                <a href="${productDetailUrl}" target="_blank" style="color: #f8fafc; text-decoration: none;">
+              <div style="font-size: 15px; font-weight: 700; margin-bottom: 2px;">
+                <a href="${productDetailUrl}" target="_blank" style="text-decoration: none;">
                   ${item.productName} ↗
                 </a>
-                ${item.isOpened ? '<span style="font-size: 11px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-radius: 4px; padding: 1px 5px; margin-left: 6px;">Opened</span>' : ''}
+                ${item.isOpened ? '<span style="font-size: 11px; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 4px; padding: 1px 5px; margin-left: 6px;">Opened</span>' : ''}
               </div>
-              <div style="font-size: 13px; color: #94a3b8; margin-bottom: 6px;">
+              <div style="font-size: 13px; opacity: 0.8; margin-bottom: 4px;">
                 <strong>${item.amount}</strong> ${item.quantityUnit} • 📍 ${item.location} • BBD: ${item.bestBeforeDate}
               </div>
               <div>
-                <a href="${productDetailUrl}" target="_blank" style="display: inline-block; padding: 3px 8px; font-size: 11px; font-weight: 600; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; text-decoration: none;">
+                <a href="${productDetailUrl}" target="_blank" style="display: inline-block; font-size: 12px; font-weight: 600; text-decoration: underline;">
                   Manage in Pantry →
                 </a>
               </div>
             </td>
             <td width="130" align="right" valign="top">
-              <span style="display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: 700; border-radius: 20px; color: ${badgeColor}; background-color: ${badgeBg}; border: 1px solid ${badgeColor}; white-space: nowrap;">
+              <span style="display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: 700; border-radius: 16px; color: ${badgeColor}; background-color: ${badgeBg}; border: 1px solid ${badgeBorder}; white-space: nowrap;">
                 ${badgeText}
               </span>
             </td>
@@ -357,30 +358,30 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cambusa Morning Digest</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #0b1120; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f8fafc;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #0b1120; padding: 24px 0;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5;">
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="padding: 20px 0;">
     <tr>
       <td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; width: 100%; background-color: #0f172a; border-radius: 16px; border: 1px solid #1e293b; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           
           <!-- Header Banner -->
           <tr>
-            <td style="padding: 28px 32px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(56, 189, 248, 0.2) 100%); border-bottom: 1px solid #334155;">
+            <td style="padding: 24px 28px; border-bottom: 1px solid #e2e8f0;">
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td>
-                    <div style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #34d399; margin-bottom: 4px;">
+                    <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #059669; margin-bottom: 4px;">
                       ${isTest ? '🧪 TEST NOTIFICATION • ' : ''}MORNING PANTRY DIGEST
                     </div>
-                    <h1 style="font-size: 24px; font-weight: 800; color: #f8fafc; margin: 0 0 6px 0;">
+                    <h1 style="font-size: 22px; font-weight: 800; margin: 0 0 4px 0;">
                       Hello ${user.displayName}! 👋
                     </h1>
-                    <div style="font-size: 14px; color: #94a3b8;">
+                    <div style="font-size: 14px; opacity: 0.85;">
                       Here is the pantry status for <strong>${householdName}</strong> today.
                     </div>
                   </td>
-                  <td align="right" valign="top" width="60">
-                    <div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(135deg, #10b981 0%, #38bdf8 100%); text-align: center; line-height: 48px; font-size: 26px;">
+                  <td align="right" valign="top" width="48">
+                    <div style="width: 44px; height: 44px; border-radius: 10px; background-color: #ecfdf5; border: 1px solid #a7f3d0; text-align: center; line-height: 44px; font-size: 24px;">
                       🥫
                     </div>
                   </td>
@@ -391,25 +392,25 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
 
           <!-- Summary Metric Cards -->
           <tr>
-            <td style="padding: 24px 32px 12px 32px;">
+            <td style="padding: 20px 28px 10px 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
-                  <td width="31%" style="background-color: #162032; border: 1px solid #23354d; border-radius: 10px; padding: 14px; text-align: center;">
-                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #64748b;">Distinct Items</div>
-                    <div style="font-size: 24px; font-weight: 800; color: #38bdf8; margin: 4px 0;">${summary.totalUniqueProductsInStock}</div>
-                    <div style="font-size: 11px; color: #94a3b8;">${summary.totalStockItems} total units</div>
+                  <td width="31%" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; opacity: 0.7;">Distinct Items</div>
+                    <div style="font-size: 22px; font-weight: 800; color: #0284c7; margin: 3px 0;">${summary.totalUniqueProductsInStock}</div>
+                    <div style="font-size: 11px; opacity: 0.75;">${summary.totalStockItems} total units</div>
                   </td>
                   <td width="3.5%"></td>
-                  <td width="31%" style="background-color: #162032; border: 1px solid ${summary.expiringSoonCount > 0 ? '#b45309' : '#23354d'}; border-radius: 10px; padding: 14px; text-align: center;">
-                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #f59e0b;">Expiring Soon</div>
-                    <div style="font-size: 24px; font-weight: 800; color: #f59e0b; margin: 4px 0;">${summary.expiringSoonCount}</div>
-                    <div style="font-size: 11px; color: #94a3b8;">Within ${summary.configuredDays} days</div>
+                  <td width="31%" style="border: 1px solid ${summary.expiringSoonCount > 0 ? '#f59e0b' : '#e2e8f0'}; border-radius: 8px; padding: 12px; text-align: center; ${summary.expiringSoonCount > 0 ? 'background-color: #fffbeb;' : ''}">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #d97706;">Expiring Soon</div>
+                    <div style="font-size: 22px; font-weight: 800; color: #d97706; margin: 3px 0;">${summary.expiringSoonCount}</div>
+                    <div style="font-size: 11px; opacity: 0.75;">Within ${summary.configuredDays} days</div>
                   </td>
                   <td width="3.5%"></td>
-                  <td width="31%" style="background-color: #162032; border: 1px solid ${summary.expiredCount > 0 ? '#b91c1c' : '#23354d'}; border-radius: 10px; padding: 14px; text-align: center;">
-                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #ef4444;">Expired</div>
-                    <div style="font-size: 24px; font-weight: 800; color: #ef4444; margin: 4px 0;">${summary.expiredCount}</div>
-                    <div style="font-size: 11px; color: #94a3b8;">Overdue items</div>
+                  <td width="31%" style="border: 1px solid ${summary.expiredCount > 0 ? '#ef4444' : '#e2e8f0'}; border-radius: 8px; padding: 12px; text-align: center; ${summary.expiredCount > 0 ? 'background-color: #fef2f2;' : ''}">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #dc2626;">Expired</div>
+                    <div style="font-size: 22px; font-weight: 800; color: #dc2626; margin: 3px 0;">${summary.expiredCount}</div>
+                    <div style="font-size: 11px; opacity: 0.75;">Overdue items</div>
                   </td>
                 </tr>
               </table>
@@ -421,8 +422,8 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
             nextData.expired && nextData.expired.length > 0
               ? `
           <tr>
-            <td style="padding: 16px 32px 8px 32px;">
-              <h2 style="font-size: 16px; font-weight: 700; color: #ef4444; margin: 0 0 10px 0; display: flex; align-items: center;">
+            <td style="padding: 14px 28px 6px 28px;">
+              <h2 style="font-size: 15px; font-weight: 700; color: #dc2626; margin: 0 0 8px 0;">
                 ⚠️ Overdue / Expired Products (${nextData.expired.length})
               </h2>
               ${expiredList}
@@ -437,8 +438,8 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
             nextData.expiringSoon && nextData.expiringSoon.length > 0
               ? `
           <tr>
-            <td style="padding: 16px 32px 8px 32px;">
-              <h2 style="font-size: 16px; font-weight: 700; color: #f59e0b; margin: 0 0 10px 0; display: flex; align-items: center;">
+            <td style="padding: 14px 28px 6px 28px;">
+              <h2 style="font-size: 15px; font-weight: 700; color: #d97706; margin: 0 0 8px 0;">
                 ⏳ Expiring Soon Products (${nextData.expiringSoon.length})
               </h2>
               ${expiringList}
@@ -454,10 +455,10 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
             (!nextData.expiringSoon || nextData.expiringSoon.length === 0)
               ? `
           <tr>
-            <td style="padding: 32px; text-align: center;">
-              <div style="font-size: 36px; margin-bottom: 8px;">🎉</div>
-              <h3 style="font-size: 18px; font-weight: 700; color: #10b981; margin: 0 0 6px 0;">All Good!</h3>
-              <p style="font-size: 14px; color: #94a3b8; margin: 0;">No products in your pantry are expired or due within ${summary.configuredDays} days.</p>
+            <td style="padding: 28px; text-align: center;">
+              <div style="font-size: 32px; margin-bottom: 6px;">🎉</div>
+              <h3 style="font-size: 17px; font-weight: 700; color: #059669; margin: 0 0 4px 0;">All Good!</h3>
+              <p style="font-size: 13px; opacity: 0.8; margin: 0;">No products in your pantry are expired or due within ${summary.configuredDays} days.</p>
             </td>
           </tr>
           `
@@ -466,8 +467,8 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
 
           <!-- Call to Action Button -->
           <tr>
-            <td align="center" style="padding: 24px 32px 32px 32px;">
-              <a href="${frontendBaseUrl}/home" target="_blank" style="display: inline-block; padding: 12px 28px; background-color: #10b981; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);">
+            <td align="center" style="padding: 20px 28px 24px 28px;">
+              <a href="${frontendBaseUrl}/home" target="_blank" style="display: inline-block; padding: 11px 24px; background-color: #10b981; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; border-radius: 6px;">
                 Open Cambusa Dashboard →
               </a>
             </td>
@@ -475,9 +476,9 @@ export class MailService implements OnModuleInit, OnModuleDestroy {
 
           <!-- Footer -->
           <tr>
-            <td style="padding: 18px 32px; background-color: #0b1120; border-top: 1px solid #1e293b; text-align: center; font-size: 12px; color: #64748b;">
+            <td style="padding: 16px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; opacity: 0.75;">
               Cambusa Smart Pantry • Automatic Morning Digest<br>
-              To change your notification time or turn off alerts, visit your <a href="${frontendBaseUrl}/profile" style="color: #38bdf8; text-decoration: none;">Profile Settings</a>.
+              To change your notification time or turn off alerts, visit your <a href="${frontendBaseUrl}/profile" style="text-decoration: underline;">Profile Settings</a>.
             </td>
           </tr>
         </table>

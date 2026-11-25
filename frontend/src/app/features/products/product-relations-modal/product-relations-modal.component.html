@@ -2,13 +2,15 @@
   <!-- Modal Header -->
   <div class="modal-header">
     <div class="header-left">
-      <span class="header-icon">🔗</span>
+      <span class="header-icon"><svg lucideNetwork [size]="20"></svg></span>
       <div class="header-title-box">
         <h3>Product Hierarchy &amp; Relations</h3>
         <p class="subtitle">Parent ancestors and child sub-products for <strong>{{ currentProduct().name }}</strong></p>
       </div>
     </div>
-    <button type="button" class="modal-close-btn" (click)="close()" title="Close dialog">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="close()" title="Close dialog" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <!-- Modal Body -->
@@ -20,7 +22,7 @@
           @if (currentProduct().pictureFileNames && currentProduct().pictureFileNames.length > 0) {
             <img [src]="'/api/products/pictures/' + currentProduct().pictureFileNames[0]" [alt]="currentProduct().name" />
           } @else {
-            <span class="no-photo-emoji">📦</span>
+            <span class="no-photo-emoji"><svg lucidePackage [size]="24"></svg></span>
           }
         </div>
 
@@ -39,7 +41,14 @@
           <div class="hero-title-row">
             <h4>{{ currentProduct().name }}</h4>
             @if (getGroupName(currentProduct().productGroupId)) {
-              <span class="badge badge-group">{{ getGroupName(currentProduct().productGroupId) }}</span>
+              <button
+                type="button"
+                class="badge badge-group badge-group-link"
+                (click)="navigateToGroupPantry(currentProduct().productGroupId, $event)"
+                [title]="'View ' + getGroupName(currentProduct().productGroupId) + ' in Pantry'"
+              >
+                {{ getGroupName(currentProduct().productGroupId) }}
+              </button>
             }
           </div>
 
@@ -67,15 +76,16 @@
           (click)="openStockModal(currentProduct())"
           title="View pantry stock and expiration dates"
         >
-          📊 View Stock
+          <svg lucideBoxes [size]="14"></svg> View Stock
         </button>
         <button
           type="button"
           class="btn btn-secondary btn-sm"
           (click)="openEditProductModal(currentProduct())"
-          title="Edit this product"
+          title="View product info"
+          aria-label="View product info"
         >
-          ✏️ Edit Product
+          <svg lucideInfo [size]="14"></svg>
         </button>
       </div>
     </div>
@@ -87,7 +97,7 @@
           <span>⬆️ Parent Products (Ancestors)</span>
           <span class="count-tag">{{ ancestorProducts().length }}</span>
         </h4>
-        <span class="section-hint">Click a parent product to edit it</span>
+        <span class="section-hint">Click a parent product to view its hierarchy</span>
       </div>
 
       @if (ancestorProducts().length === 0) {
@@ -101,15 +111,15 @@
           @for (parent of ancestorProducts(); track parent.id; let isLast = $last) {
             <div
               class="relation-item-card is-parent"
-              (click)="openEditProductModal(parent)"
-              title="Click to edit this product"
+              (click)="openRelationsModal(parent)"
+              title="Click to view hierarchy for this product"
             >
               <div class="relation-item-main">
                 <div class="relation-thumb">
                   @if (parent.pictureFileNames && parent.pictureFileNames.length > 0) {
                     <img [src]="'/api/products/pictures/' + parent.pictureFileNames[0]" [alt]="parent.name" />
                   } @else {
-                    <span>📦</span>
+                    <svg lucidePackage [size]="20"></svg>
                   }
                 </div>
 
@@ -122,7 +132,14 @@
                       <span class="badge badge-relation">Ancestor</span>
                     }
                     @if (getGroupName(parent.productGroupId)) {
-                      <span class="badge badge-group">{{ getGroupName(parent.productGroupId) }}</span>
+                      <button
+                        type="button"
+                        class="badge badge-group badge-group-link"
+                        (click)="navigateToGroupPantry(parent.productGroupId, $event)"
+                        [title]="'View ' + getGroupName(parent.productGroupId) + ' in Pantry'"
+                      >
+                        {{ getGroupName(parent.productGroupId) }}
+                      </button>
                     }
                   </div>
 
@@ -142,15 +159,15 @@
                   (click)="openStockModal(parent, $event)"
                   title="View stock for this product"
                 >
-                  📊 View Stock
+                  <svg lucideBoxes [size]="14"></svg> View Stock
                 </button>
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm"
                   (click)="openEditProductModal(parent, $event)"
-                  title="Edit this product"
+                  title="View product info"
                 >
-                  ✏️ Edit
+                  <svg lucideInfo [size]="14"></svg> Info
                 </button>
               </div>
             </div>
@@ -166,7 +183,7 @@
           <span>⬇️ Child Products (Sub-products)</span>
           <span class="count-tag">{{ childProducts().length }}</span>
         </h4>
-        <span class="section-hint">Click a child product to edit it</span>
+        <span class="section-hint">Click a child product to view its hierarchy</span>
       </div>
 
       @if (childProducts().length === 0) {
@@ -180,15 +197,15 @@
           @for (child of childProducts(); track child.id) {
             <div
               class="relation-item-card is-child"
-              (click)="openEditProductModal(child)"
-              title="Click to edit this product"
+              (click)="openRelationsModal(child)"
+              title="Click to view hierarchy for this product"
             >
               <div class="relation-item-main">
                 <div class="relation-thumb">
                   @if (child.pictureFileNames && child.pictureFileNames.length > 0) {
                     <img [src]="'/api/products/pictures/' + child.pictureFileNames[0]" [alt]="child.name" />
                   } @else {
-                    <span>📦</span>
+                    <svg lucidePackage [size]="20"></svg>
                   }
                 </div>
 
@@ -197,14 +214,21 @@
                     <span class="relation-name">{{ child.name }}</span>
                     <span class="badge badge-relation direct-child">Direct Child</span>
                     @if (getGroupName(child.productGroupId)) {
-                      <span class="badge badge-group">{{ getGroupName(child.productGroupId) }}</span>
+                      <button
+                        type="button"
+                        class="badge badge-group badge-group-link"
+                        (click)="navigateToGroupPantry(child.productGroupId, $event)"
+                        [title]="'View ' + getGroupName(child.productGroupId) + ' in Pantry'"
+                      >
+                        {{ getGroupName(child.productGroupId) }}
+                      </button>
                     }
                   </div>
 
                   <div class="relation-meta">
                     <span class="meta-item">Stock in pantry: <strong>{{ child.directStockAmount || 0 }}</strong></span>
                     @if (child.barcodes && child.barcodes.length > 0) {
-                      <span class="meta-item">🏷️ {{ child.barcodes.length }} barcode{{ child.barcodes.length > 1 ? 's' : '' }}</span>
+                      <span class="meta-item"><svg lucideTag [size]="12"></svg> {{ child.barcodes.length }} barcode{{ child.barcodes.length > 1 ? 's' : '' }}</span>
                     }
                   </div>
                 </div>
@@ -217,15 +241,15 @@
                   (click)="openStockModal(child, $event)"
                   title="View stock for this product"
                 >
-                  📊 View Stock
+                  <svg lucideBoxes [size]="14"></svg> View Stock
                 </button>
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm"
                   (click)="openEditProductModal(child, $event)"
-                  title="Edit this product"
+                  title="View product info"
                 >
-                  ✏️ Edit
+                  <svg lucideInfo [size]="14"></svg> Info
                 </button>
               </div>
             </div>
@@ -249,15 +273,15 @@
           @for (desc of descendantProducts(); track desc.id) {
             <div
               class="relation-item-card is-descendant"
-              (click)="openEditProductModal(desc)"
-              title="Click to edit this product"
+              (click)="openRelationsModal(desc)"
+              title="Click to view hierarchy for this product"
             >
               <div class="relation-item-main">
                 <div class="relation-thumb">
                   @if (desc.pictureFileNames && desc.pictureFileNames.length > 0) {
                     <img [src]="'/api/products/pictures/' + desc.pictureFileNames[0]" [alt]="desc.name" />
                   } @else {
-                    <span>📦</span>
+                    <svg lucidePackage [size]="20"></svg>
                   }
                 </div>
 
@@ -280,15 +304,15 @@
                   (click)="openStockModal(desc, $event)"
                   title="View stock for this product"
                 >
-                  📊 View Stock
+                  <svg lucideBoxes [size]="14"></svg> View Stock
                 </button>
                 <button
                   type="button"
                   class="btn btn-secondary btn-sm"
                   (click)="openEditProductModal(desc, $event)"
-                  title="Edit this product"
+                  title="View product info"
                 >
-                  ✏️ Edit
+                  <svg lucideInfo [size]="14"></svg> Info
                 </button>
               </div>
             </div>

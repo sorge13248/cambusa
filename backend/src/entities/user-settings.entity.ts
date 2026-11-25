@@ -13,6 +13,9 @@ export class UserSettings {
   @Column({ type: 'integer', default: 5 })
   nextExpiringDays!: number;
 
+  @Column({ type: 'integer', default: 10 })
+  quickConsumeTimerSeconds!: number;
+
   @Column({ type: 'varchar', nullable: true })
   mealieUrl!: string | null;
 

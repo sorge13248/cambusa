@@ -2,15 +2,28 @@
   <div class="modal-header">
     <div class="header-left">
       <h3>Add Item to Pantry</h3>
-      <p class="subtitle">Search an active product and record its purchase and inventory details.</p>
+      <p class="subtitle">Search an active product or create one on the fly, then record purchase details.</p>
     </div>
-    <button type="button" class="modal-close-btn" (click)="close()">×</button>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="close()" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
   </div>
 
   <div class="modal-body">
     <!-- Product Autocomplete Input -->
     <div class="form-group product-search-group">
-      <label for="pantry-product-input">Select Product *</label>
+      <div class="label-with-action">
+        <label for="pantry-product-input">Select Product *</label>
+        @if (!selectedProductId()) {
+          <button
+            type="button"
+            class="btn-create-inline"
+            (click)="openCreateProductModal(productInput.value)"
+          >
+            + New Product
+          </button>
+        }
+      </div>
       <div class="autocomplete-input-wrapper">
         <input
           #productInput
@@ -21,6 +34,7 @@
           [selectedId]="selectedProductId()"
           (selectedIdChange)="onProductSelected($event)"
           (validityChange)="isProductValid = $event"
+          (input)="searchInputText.set(productInput.value)"
           placeholder="Search by product name or barcode..."
           autofocus
         />
@@ -30,13 +44,58 @@
             class="btn-clear-product"
             (click)="clearSelectedProduct(productInput)"
             title="Clear selection"
+            aria-label="Clear selection"
           >
-            ✕
+            <svg lucideX [size]="14"></svg>
           </button>
         }
+        <button
+          type="button"
+          class="btn-scan-camera"
+          [class.active]="isScannerOpen()"
+          (click)="toggleScanner()"
+          title="Scan barcode with camera"
+          aria-label="Scan barcode with camera"
+        >
+          <svg lucideCamera [size]="16"></svg>
+        </button>
       </div>
+
+      @if (isScannerOpen()) {
+        <div class="inline-scanner-wrapper">
+          <app-barcode-scanner
+            (scanned)="onBarcodeScanned($event)"
+            (close)="isScannerOpen.set(false)"
+          />
+        </div>
+      }
+      @if (pendingScannedBarcode(); as scannedCode) {
+        <div class="unmatched-barcode-hint" role="status">
+          <span>
+            Barcode <strong>{{ scannedCode }}</strong> was not found. Select a product above to assign it.
+          </span>
+          <button
+            type="button"
+            class="btn-dismiss-hint"
+            (click)="pendingScannedBarcode.set(null)"
+            title="Dismiss"
+            aria-label="Dismiss barcode notice"
+          >
+            <svg lucideX [size]="12"></svg>
+          </button>
+        </div>
+      }
       @if (!isProductValid && productInput.value.trim()) {
-        <span class="field-error">Please select a valid active product from the autocomplete list.</span>
+        <div class="not-found-prompt">
+          <span class="field-error">Product not found in catalog.</span>
+          <button
+            type="button"
+            class="btn btn-secondary-outline btn-xs btn-create-inline-action"
+            (click)="openCreateProductModal(productInput.value)"
+          >
+            + Create "{{ productInput.value.trim() }}" on the fly
+          </button>
+        </div>
       }
     </div>
 
@@ -44,9 +103,9 @@
     @if (selectedProduct(); as prod) {
       <app-stock-purchase-form
         [product]="prod"
-        [locations]="data.locations"
-        [stores]="data.stores"
-        [units]="data.units"
+        [locations]="locations()"
+        [stores]="stores()"
+        [units]="units()"
         [showHeader]="true"
         [headerTitle]="'Purchase Details'"
         [submitLabel]="'Confirm Purchase'"
@@ -56,8 +115,15 @@
       ></app-stock-purchase-form>
     } @else {
       <div class="empty-product-prompt">
-        <div class="prompt-icon">🔍</div>
-        <p>Type above to search among active products, then select one to enter purchase and stock details.</p>
+        <div class="prompt-icon"><svg lucideSearch [size]="28"></svg></div>
+        <p>Type above to search among active products, or create a new product on the fly.</p>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          (click)="openCreateProductModal(productInput.value)"
+        >
+          + Create Product on the fly
+        </button>
       </div>
     }
   </div>

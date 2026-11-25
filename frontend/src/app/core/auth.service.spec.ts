@@ -86,8 +86,8 @@ describe('AuthService', () => {
     expect(service.currentUser()?.displayName).toBe('User One');
   });
 
-  it('should open confirm modal on handleSessionExpired and reload page upon confirmation', () => {
-    const reloadSpy = vi.spyOn(service, 'reloadPage').mockImplementation(() => {});
+  it('should delegate to renewSession on handleSessionExpired', async () => {
+    const renewSpy = vi.spyOn(service, 'renewSession').mockResolvedValue(true);
     service.currentUser.set({
       id: 'u1',
       email: 'u1@example.com',
@@ -97,18 +97,53 @@ describe('AuthService', () => {
 
     service.handleSessionExpired();
 
-    expect(dialog.open).toHaveBeenCalledWith(
-      ConfirmModalComponent,
-      expect.objectContaining({
-        disableClose: true,
-        data: expect.objectContaining({
-          title: 'Session Expired',
-          confirmVariant: 'primary',
-        }),
-      }),
-    );
     expect(service.currentUser()).toBeNull();
-    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(renewSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should load cached user from localStorage on instantiation and persist on setCachedUser', () => {
+    service.setCachedUser({
+      id: 'u-cached',
+      displayName: 'Cached User',
+      pictureUrl: 'https://avatar.example.com/pic.webp',
+      email: null,
+    });
+
+    expect(service.hasCachedUser()).toBe(true);
+    const cached = service.getCachedUser();
+    expect(cached?.displayName).toBe('Cached User');
+    expect(cached?.pictureUrl).toBe('https://avatar.example.com/pic.webp');
+
+    service.setCachedUser(null);
+    expect(service.hasCachedUser()).toBe(false);
+    expect(service.getCachedUser()).toBeNull();
+  });
+
+  it('should perform transparent silent refresh during init if getMe fails with expired token', async () => {
+    const mockUser = {
+      id: 'u1',
+      email: 'user@example.com',
+      displayName: 'User One',
+      pictureUrl: null,
+    };
+
+    // First getMe fails with 401 (expired token), but silentRefresh succeeds, second getMe succeeds
+    vi.spyOn(api, 'getMe')
+      .mockRejectedValueOnce(new Error('Token expired'))
+      .mockResolvedValueOnce({
+        user: mockUser,
+        households: [{ id: 'hh-1', name: 'Home', role: 'owner', isOwner: true, memberCount: 1 }],
+        activeHouseholdId: 'hh-1',
+        pendingInvitationsCount: 0,
+      });
+
+    const refreshSpy = vi.spyOn(service, 'silentRefresh').mockResolvedValue(true);
+
+    await service.init();
+
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(service.currentUser()?.displayName).toBe('User One');
+    expect(service.isAuthenticated()).toBe(true);
   });
 
   it('should remember and consume return URL properly', () => {

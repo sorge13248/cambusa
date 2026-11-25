@@ -1,9 +1,11 @@
 :host {
   display: block;
+  margin: auto;
 }
 
 .confirm-modal-shell {
   width: min(440px, 92vw);
+  margin: auto;
   background-color: var(--glass-modal-bg, rgba(15, 23, 42, 0.88));
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);

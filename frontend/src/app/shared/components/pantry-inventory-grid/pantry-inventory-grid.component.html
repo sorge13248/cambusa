@@ -1,0 +1,236 @@
+<div class="pantry-inventory-grid">
+  <!-- Filters & Sorting Bar -->
+  <div class="filter-panel">
+    <div class="filter-row">
+      <div class="filter-group search-group">
+        <label>Search</label>
+        <div class="search-input-wrapper">
+          <input
+            type="text"
+            [ngModel]="searchQuery()"
+            (ngModelChange)="onSearchChange($event)"
+            placeholder="Search title or description..."
+          />
+          @if (searchQuery().trim()) {
+            <button class="btn-clear-search" (click)="clearSearch()" aria-label="Clear search">
+              <svg lucideX [size]="14"></svg>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="filter-group">
+        <label>Category</label>
+        <select [(ngModel)]="selectedGroupId" (ngModelChange)="onFilterChange()">
+          <option value="">All Categories</option>
+          @for (g of productGroups(); track g.id) {
+            <option [value]="g.id">{{ g.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Location</label>
+        <select [(ngModel)]="selectedLocationId" (ngModelChange)="onFilterChange()">
+          <option value="">All Locations</option>
+          @for (l of locations(); track l.id) {
+            <option [value]="l.id">{{ l.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Status</label>
+        <select [(ngModel)]="selectedStatus" (ngModelChange)="onFilterChange()">
+          <option value="all">All Items</option>
+          <option value="due">Expiring Soon (&le; {{ expiringSoonDays() }}d)</option>
+          <option value="overdue">Overdue / Expired</option>
+          <option value="open">Opened Items</option>
+          @if (mode() === 'pantry') {
+            <option value="out_of_stock">Out of Stock</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Sort By</label>
+        <select [(ngModel)]="sortBy" (ngModelChange)="onFilterChange()">
+          <option value="bestBeforeDate">Expiration Date (Earliest)</option>
+          <option value="name">Product Name (A-Z)</option>
+          <option value="amount">Quantity (Highest First)</option>
+          <option value="location">Storage Location</option>
+        </select>
+      </div>
+
+      <div class="filter-group filter-actions-group">
+        <label class="action-label">&nbsp;</label>
+        <button
+          type="button"
+          class="btn btn-secondary btn-clear-filters"
+          [disabled]="!hasActiveFilters()"
+          (click)="clearAllFilters()"
+          title="Clear all filters and reset view"
+        >
+          <span class="clear-icon">↺</span> Reset Filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Saved Filters Quick Chips -->
+    @if (savedFilters().length > 0) {
+      <div class="saved-presets-chips">
+        <span class="chips-label">Saved Presets:</span>
+        @for (sf of savedFilters(); track sf.id) {
+          <div class="preset-chip">
+            <button type="button" class="preset-name" (click)="applySavedFilter(sf)">{{ sf.name }}</button>
+            @if (mode() === 'pantry') {
+              <button
+                type="button"
+                class="preset-delete"
+                (click)="deleteSavedFilterClicked.emit(sf.id)"
+                title="Delete preset"
+              >
+                ×
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Stock Items Grid -->
+  @if (isLoading()) {
+    <div class="loading-state">Loading pantry stock...</div>
+  } @else if (filteredStock().length === 0) {
+    <div class="empty-state">
+      <p>No pantry items found matching your filters.</p>
+      <div class="empty-state-actions">
+        @if (hasActiveFilters()) {
+          <button type="button" class="btn btn-secondary" (click)="clearAllFilters()">Clear Filters</button>
+        }
+        @if (mode() === 'pantry') {
+          <button type="button" class="btn btn-primary" (click)="addStockClicked.emit()">Add an Item to Pantry</button>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="stock-grid">
+      @for (item of paginatedStock(); track item.id) {
+        <div
+          class="stock-card"
+          [class.is-open]="item.isOpen"
+          [class.is-out-of-stock]="item.isOutOfStock"
+          [class.is-picked]="mode() === 'picker' && selectedProductIdSet().has(item.productId)"
+          (click)="cardSelected.emit(item)"
+        >
+          <div class="card-header-with-photo">
+            <div class="card-photo">
+              @if (item.productPictureFileName) {
+                <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+              } @else {
+                <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
+              }
+            </div>
+            <div class="card-top-info">
+              <div class="product-title-row">
+                <h4 class="product-name">{{ item.productName }}</h4>
+                <div class="title-badges">
+                  @if (mode() === 'picker' && selectedProductIdSet().has(item.productId)) {
+                    <span class="badge badge-added"><svg lucideCheck [size]="11"></svg> Added</span>
+                  }
+                  @if (item.isOutOfStock) {
+                    <span class="badge badge-out-of-stock">Out of stock</span>
+                  } @else if (getUrgencyLabel(item)) {
+                    <span class="badge" [ngClass]="getUrgencyBadgeClass(item.urgency)">
+                      {{ getUrgencyLabel(item) }}
+                    </span>
+                  }
+                </div>
+              </div>
+              <div class="meta-row">
+                <span class="amount-badge" title="Total amount in pantry">{{ item.totalAmount }} {{ item.quName || 'units' }}</span>
+                @if (item.locationName) {
+                  <span class="loc-badge"><svg lucideMapPin [size]="12"></svg> {{ item.locationName }}</span>
+                }
+                @if (item.isOpen) {
+                  <span class="open-badge">
+                    <svg lucideLockOpen [size]="12"></svg> Opened@if ((item.openedCount ?? 0) >= 2) { ({{ item.openedCount }})}
+                  </span>
+                }
+              </div>
+            </div>
+          </div>
+
+          @if (mode() === 'pantry') {
+            @if (!item.isOutOfStock) {
+              <div class="card-expiry-section" (click)="$event.stopPropagation()">
+                <app-quick-date-modifier
+                  [currentDate]="item.bestBeforeDate || null"
+                  (dateChange)="dateAdjusted.emit({ item, newDate: $event })"
+                ></app-quick-date-modifier>
+              </div>
+            }
+
+            <div class="card-footer" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                class="btn btn-primary btn-sm btn-manage"
+                (click)="cardSelected.emit(item)"
+              >
+                <svg lucideZap [size]="14"></svg> Manage
+              </button>
+              <div class="footer-right">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm btn-open-one"
+                  [disabled]="item.isOutOfStock || !hasUnopenedBatch(item)"
+                  (click)="openOneClicked.emit(item)"
+                  title="Mark earliest expiring batch as opened"
+                >
+                  Open 1
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  [disabled]="item.isOutOfStock"
+                  (click)="consumeOneClicked.emit(item)"
+                >
+                  Consume 1
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Pagination Controls -->
+    @if (totalPages() > 1) {
+      <div class="pagination-bar">
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          [disabled]="currentPage() <= 1"
+          (click)="goToPage(currentPage() - 1)"
+        >
+          &lsaquo; Previous
+        </button>
+
+        <span class="page-info">
+          Page <strong>{{ currentPage() }}</strong> of <strong>{{ totalPages() }}</strong>
+          <span class="total-count">({{ totalItems() }} items)</span>
+        </span>
+
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          [disabled]="currentPage() >= totalPages()"
+          (click)="goToPage(currentPage() + 1)"
+        >
+          Next &rsaquo;
+        </button>
+      </div>
+    }
+  }
+</div>

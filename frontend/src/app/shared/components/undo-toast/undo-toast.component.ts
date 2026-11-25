@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, ElementRef, inject, OnDestroy, OnInit } from '@angular/core';
+import { LucideUndo2, LucideX } from '@lucide/angular';
 import { UndoService } from '../../../core/undo.service.js';
 
 @Component({
   selector: 'app-undo-toast',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideUndo2, LucideX],
   templateUrl: './undo-toast.component.html',
   styleUrl: './undo-toast.component.scss',
 })

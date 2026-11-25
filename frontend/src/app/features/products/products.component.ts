@@ -1,8 +1,17 @@
-import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { Dialog } from '@angular/cdk/dialog';
+import { CommonModule } from '@angular/common';
+import { Component, computed, effect, inject, OnDestroy, OnInit, signal, untracked } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import {
+  LucideChartBar,
+  LucideInfo,
+  LucideNetwork,
+  LucidePackage,
+  LucidePlus,
+  LucideSnowflake,
+  LucideTrash
+} from '@lucide/angular';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
@@ -13,21 +22,37 @@ import {
   QuantityUnit,
   Store,
 } from '../../core/models.js';
-import { ProductEditorModalComponent } from './product-editor-modal/product-editor-modal.component.js';
-import { ProductStockModalComponent } from './product-stock-modal/product-stock-modal.component.js';
-import { ProductRelationsModalComponent } from './product-relations-modal/product-relations-modal.component.js';
+import { compareByName } from '../../core/sorting.utils.js';
+import { SyncService } from '../../core/sync.service.js';
 import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component.js';
+import { QuickActionsFooterComponent } from '../../shared/components/quick-actions-footer/quick-actions-footer.component.js';
+import { ProductEditorModalComponent } from './product-editor-modal/product-editor-modal.component.js';
+import { ProductInfoModalComponent } from './product-info-modal/product-info-modal.component.js';
+import { ProductRelationsModalComponent } from './product-relations-modal/product-relations-modal.component.js';
+import { ProductStockModalComponent } from './product-stock-modal/product-stock-modal.component.js';
 
 @Component({
   selector: 'app-products',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LucideChartBar,
+    LucideInfo,
+    LucideNetwork,
+    LucidePackage,
+    LucidePlus,
+    LucideSnowflake,
+    LucideTrash,
+    QuickActionsFooterComponent,
+  ],
   templateUrl: './products.component.html',
   styleUrl: './products.component.scss',
 })
 export class ProductsComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
+  private readonly syncService = inject(SyncService, { optional: true });
   private readonly dialog = inject(Dialog);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -58,12 +83,25 @@ export class ProductsComponent implements OnInit, OnDestroy {
   });
 
   private subs = new Subscription();
+  private lastLoadedHouseholdId: string | null = null;
+  private lastSyncCount = 0;
 
   constructor() {
     effect(() => {
       const hhId = this.auth.activeHouseholdId();
-      if (hhId) {
-        this.loadData();
+      if (hhId && hhId !== this.lastLoadedHouseholdId) {
+        this.lastLoadedHouseholdId = hhId;
+        untracked(() => this.loadData());
+      }
+    });
+
+    effect(() => {
+      const syncCount = this.syncService?.onSyncCompleted() ?? 0;
+      if (syncCount > 0 && syncCount !== this.lastSyncCount) {
+        this.lastSyncCount = syncCount;
+        if (untracked(() => this.auth.activeHouseholdId())) {
+          untracked(() => this.refreshProductsFromLocal());
+        }
       }
     });
   }
@@ -71,6 +109,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.subs.add(
       this.route.queryParams.subscribe((params) => {
+        this.cancelSearchDebounce();
         this.searchQuery.set(params['q'] || '');
         this.filterGroupId = params['group'] || '';
         this.filterStatus = params['status'] || 'all';
@@ -83,10 +122,25 @@ export class ProductsComponent implements OnInit, OnDestroy {
       }),
     );
 
-    this.loadData();
+    const hhId = this.auth.activeHouseholdId();
+    if (hhId && hhId !== this.lastLoadedHouseholdId) {
+      this.lastLoadedHouseholdId = hhId;
+      this.loadData();
+    }
+  }
+
+  private async refreshProductsFromLocal(): Promise<void> {
+    try {
+      const prods = await this.api.getProducts(true);
+      this.products.set(prods);
+      this.applyFilter();
+    } catch {
+      // Ignore background refresh errors
+    }
   }
 
   ngOnDestroy() {
+    this.cancelSearchDebounce();
     this.subs.unsubscribe();
   }
 
@@ -102,10 +156,10 @@ export class ProductsComponent implements OnInit, OnDestroy {
       ]);
 
       this.products.set(prods);
-      this.productGroups.set(groups);
-      this.locations.set(locs);
-      this.units.set(units);
-      this.stores.set(stores);
+      this.productGroups.set([...groups].sort(compareByName));
+      this.locations.set([...locs].sort(compareByName));
+      this.units.set([...units].sort(compareByName));
+      this.stores.set([...stores].sort(compareByName));
 
       this.applyFilter();
     } finally {
@@ -113,7 +167,25 @@ export class ProductsComponent implements OnInit, OnDestroy {
     }
   }
 
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private debounceSyncQueryParams(delayMs = 1000): void {
+    this.cancelSearchDebounce();
+    this.searchDebounceTimer = setTimeout(() => {
+      this.searchDebounceTimer = null;
+      this.syncQueryParams();
+    }, delayMs);
+  }
+
+  private cancelSearchDebounce(): void {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+  }
+
   onFilterChange() {
+    this.cancelSearchDebounce();
     this.currentPage.set(1);
     this.syncQueryParams();
     this.applyFilter();
@@ -122,11 +194,12 @@ export class ProductsComponent implements OnInit, OnDestroy {
   onSearchChange(val: string) {
     this.searchQuery.set(val);
     this.currentPage.set(1);
-    this.syncQueryParams();
     this.applyFilter();
+    this.debounceSyncQueryParams(1000);
   }
 
   clearSearch() {
+    this.cancelSearchDebounce();
     this.searchQuery.set('');
     this.currentPage.set(1);
     this.syncQueryParams();
@@ -135,8 +208,10 @@ export class ProductsComponent implements OnInit, OnDestroy {
 
   goToPage(p: number) {
     if (p < 1 || p > this.totalPages()) return;
+    this.cancelSearchDebounce();
     this.currentPage.set(p);
     this.syncQueryParams();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   syncQueryParams() {
@@ -224,8 +299,8 @@ export class ProductsComponent implements OnInit, OnDestroy {
     });
   }
 
-  openEditProductModal(p: Product) {
-    const dialogRef = this.dialog.open(ProductEditorModalComponent, {
+  openProductInfoModal(p: Product) {
+    const dialogRef = this.dialog.open(ProductInfoModalComponent, {
       disableClose: true,
       data: {
         product: p,

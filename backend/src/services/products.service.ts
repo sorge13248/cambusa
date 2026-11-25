@@ -3,10 +3,34 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
-import { Repository } from 'typeorm';
-import { Product, ProductStore, StockItem, SyncTombstone } from '../entities/index.js';
+import { In, Repository } from 'typeorm';
+import {
+  HouseholdMember,
+  Location,
+  Product,
+  ProductRating,
+  ProductStore,
+  StockItem,
+  SyncTombstone,
+  User,
+} from '../entities/index.js';
 import { resolveUploadsDir } from '../load-env.js';
 import { MealieService } from './mealie.service.js';
+
+export interface ProductMemberRatingDto {
+  userId: string;
+  displayName: string;
+  pictureUrl: string | null;
+  rating: number | null;
+  updatedAt: Date | null;
+}
+
+export interface ProductRatingsResponseDto {
+  productId: string;
+  memberCount: number;
+  myRating: number | null;
+  otherMembersRatings: ProductMemberRatingDto[];
+}
 
 export interface ProductDetailDto extends Product {
   ancestors: Array<{ id: string; name: string }>;
@@ -30,7 +54,19 @@ export class ProductsService {
     @InjectRepository(SyncTombstone)
     private readonly tombstonesRepository: Repository<SyncTombstone>,
     @Optional()
+    @InjectRepository(Location)
+    private readonly locationsRepository?: Repository<Location>,
+    @Optional()
     private readonly mealieService?: MealieService,
+    @Optional()
+    @InjectRepository(ProductRating)
+    private readonly productRatingsRepository?: Repository<ProductRating>,
+    @Optional()
+    @InjectRepository(HouseholdMember)
+    private readonly householdMembersRepository?: Repository<HouseholdMember>,
+    @Optional()
+    @InjectRepository(User)
+    private readonly usersRepository?: Repository<User>,
   ) {
     this.uploadsDir = resolveUploadsDir();
   }
@@ -59,11 +95,24 @@ export class ProductsService {
       stockByProduct.set(item.productId, (stockByProduct.get(item.productId) ?? 0) + item.amount);
     }
 
+    const sortProductStores = (list: ProductStore[]) =>
+      list.sort((a, b) => {
+        const orderA = a.aisleOrder !== null && a.aisleOrder !== undefined ? Number(a.aisleOrder) : Number.MAX_SAFE_INTEGER;
+        const orderB = b.aisleOrder !== null && b.aisleOrder !== undefined ? Number(b.aisleOrder) : Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return (a.aisle ?? '').localeCompare(b.aisle ?? '', undefined, { sensitivity: 'base' });
+      });
+
     const storesByProduct = new Map<string, ProductStore[]>();
     for (const ps of productStores) {
       const list = storesByProduct.get(ps.productId) ?? [];
       list.push(ps);
       storesByProduct.set(ps.productId, list);
+    }
+    for (const list of storesByProduct.values()) {
+      sortProductStores(list);
     }
 
     const productMap = new Map<string, Product>();
@@ -111,9 +160,17 @@ export class ProductsService {
       stockByProduct.set(item.productId, (stockByProduct.get(item.productId) ?? 0) + item.amount);
     }
 
-    const stores = await this.productStoresRepository.find({
+    const rawStores = await this.productStoresRepository.find({
       where: { productId: id, householdId },
       order: { aisleOrder: 'ASC' },
+    });
+    const stores = [...rawStores].sort((a, b) => {
+      const orderA = a.aisleOrder !== null && a.aisleOrder !== undefined ? Number(a.aisleOrder) : Number.MAX_SAFE_INTEGER;
+      const orderB = b.aisleOrder !== null && b.aisleOrder !== undefined ? Number(b.aisleOrder) : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return (a.aisle ?? '').localeCompare(b.aisle ?? '', undefined, { sensitivity: 'base' });
     });
 
     const ancestors = this.resolveAncestors(product.id, productMap);
@@ -136,6 +193,29 @@ export class ProductsService {
       await this.validateParentProduct(data.parentProductId, null, householdId);
     }
 
+    if (data.cannotBeFrozen) {
+      data.defaultBestBeforeDaysAfterFreezing = null;
+      data.defaultBestBeforeDaysAfterThawing = null;
+
+      if (data.defaultLocationId && this.locationsRepository) {
+        const defLoc = await this.locationsRepository.findOne({
+          where: { id: data.defaultLocationId, householdId },
+        });
+        if (defLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set default location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+
+      if (data.openLocationId && this.locationsRepository) {
+        const openLoc = await this.locationsRepository.findOne({
+          where: { id: data.openLocationId, householdId },
+        });
+        if (openLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set open location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+    }
+
     const product = this.productsRepository.create({
       ...data,
       householdId,
@@ -150,6 +230,46 @@ export class ProductsService {
     if (data.parentProductId !== undefined && data.parentProductId !== product.parentProductId) {
       if (data.parentProductId) {
         await this.validateParentProduct(data.parentProductId, id, householdId);
+      }
+    }
+
+    const cannotBeFrozen = data.cannotBeFrozen !== undefined ? !!data.cannotBeFrozen : product.cannotBeFrozen;
+    if (cannotBeFrozen) {
+      data.defaultBestBeforeDaysAfterFreezing = null;
+      data.defaultBestBeforeDaysAfterThawing = null;
+      product.defaultBestBeforeDaysAfterFreezing = null;
+      product.defaultBestBeforeDaysAfterThawing = null;
+
+      const targetDefLocId = data.defaultLocationId !== undefined ? data.defaultLocationId : product.defaultLocationId;
+      if (targetDefLocId && this.locationsRepository) {
+        const defLoc = await this.locationsRepository.findOne({
+          where: { id: targetDefLocId, householdId },
+        });
+        if (defLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set default location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+
+      const targetOpenLocId = data.openLocationId !== undefined ? data.openLocationId : product.openLocationId;
+      if (targetOpenLocId && this.locationsRepository) {
+        const openLoc = await this.locationsRepository.findOne({
+          where: { id: targetOpenLocId, householdId },
+        });
+        if (openLoc?.isFreezer) {
+          throw new BadRequestException('Cannot set open location to a freezer for a product marked as cannot be frozen');
+        }
+      }
+
+      if (this.locationsRepository) {
+        const existingStock = await this.stockRepository.find({ where: { productId: id, householdId } });
+        for (const s of existingStock) {
+          if (s.locationId) {
+            const loc = await this.locationsRepository.findOne({ where: { id: s.locationId, householdId } });
+            if (loc?.isFreezer) {
+              throw new BadRequestException('Cannot mark product as cannot be frozen while items exist in a freezer location');
+            }
+          }
+        }
       }
     }
 
@@ -269,6 +389,104 @@ export class ProductsService {
     product.pictureFileNames = pictureFileNames;
     await this.productsRepository.save(product);
     return product.pictureFileNames;
+  }
+
+  async getProductRatings(
+    productId: string,
+    householdId: string,
+    currentUserId: string,
+  ): Promise<ProductRatingsResponseDto> {
+    const product = await this.productsRepository.findOne({ where: { id: productId, householdId } });
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (!this.productRatingsRepository || !this.householdMembersRepository || !this.usersRepository) {
+      return {
+        productId,
+        memberCount: 1,
+        myRating: null,
+        otherMembersRatings: [],
+      };
+    }
+
+    const members = await this.householdMembersRepository.find({ where: { householdId } });
+    const memberIds = members.map((m) => m.userId);
+    const users = memberIds.length > 0 ? await this.usersRepository.find({ where: { id: In(memberIds) } }) : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const ratings = await this.productRatingsRepository.find({
+      where: { householdId, productId },
+    });
+    const ratingByUser = new Map(ratings.map((r) => [r.userId, r]));
+
+    const myRecord = ratingByUser.get(currentUserId);
+    const otherMembersRatings: ProductMemberRatingDto[] = members
+      .filter((m) => m.userId !== currentUserId)
+      .map((m) => {
+        const user = userMap.get(m.userId);
+        const r = ratingByUser.get(m.userId);
+        return {
+          userId: m.userId,
+          displayName: user?.displayName ?? 'Member',
+          pictureUrl: user?.pictureUrl ?? null,
+          rating: r?.rating ?? null,
+          updatedAt: r?.updatedAt ?? null,
+        };
+      })
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }));
+
+    return {
+      productId,
+      memberCount: Math.max(members.length, 1),
+      myRating: myRecord?.rating ?? null,
+      otherMembersRatings,
+    };
+  }
+
+  async setProductRating(
+    productId: string,
+    householdId: string,
+    userId: string,
+    rating: number | null,
+  ): Promise<{ productId: string; userId: string; rating: number | null; updatedAt: Date }> {
+    if (rating !== null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
+      throw new BadRequestException('Rating must be null or an integer between 1 and 5');
+    }
+
+    const product = await this.productsRepository.findOne({ where: { id: productId, householdId } });
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (!this.productRatingsRepository) {
+      return { productId, userId, rating, updatedAt: new Date() };
+    }
+
+    const existing = await this.productRatingsRepository.findOne({
+      where: { householdId, productId, userId },
+    });
+
+    if (existing) {
+      existing.rating = rating;
+      const saved = await this.productRatingsRepository.save(existing);
+      return {
+        productId: saved.productId,
+        userId: saved.userId,
+        rating: saved.rating,
+        updatedAt: saved.updatedAt,
+      };
+    }
+
+    const created = this.productRatingsRepository.create({
+      householdId,
+      productId,
+      userId,
+      rating,
+    });
+    const saved = await this.productRatingsRepository.save(created);
+    return {
+      productId: saved.productId,
+      userId: saved.userId,
+      rating: saved.rating,
+      updatedAt: saved.updatedAt,
+    };
   }
 
   // Infinite Hierarchy Helpers

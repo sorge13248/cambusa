@@ -2,16 +2,14 @@
   @if (showHeader) {
     <h4>{{ headerTitle }}</h4>
   }
-  <div class="form-row">
-    <div class="form-group flex-1">
-      <label>Quantity purchased *</label>
-      <input type="number" min="1" step="1" [(ngModel)]="purchaseAmount" />
-    </div>
+  <div class="form-group">
+    <label>Quantity purchased *</label>
+    <app-number-stepper [(value)]="purchaseAmount" [min]="1" [unit]="stockUnitName" ariaLabel="Quantity purchased"></app-number-stepper>
+  </div>
 
-    <div class="form-group flex-1">
-      <label>Purchase date</label>
-      <input type="date" [(ngModel)]="purchaseDate" />
-    </div>
+  <div class="form-group">
+    <label>Purchase date</label>
+    <input type="date" [(ngModel)]="purchaseDate" />
   </div>
 
   <div class="form-group">
@@ -48,7 +46,7 @@
       <label>Store (optional)</label>
       <select [(ngModel)]="purchaseStoreId">
         <option value="">No store</option>
-        @for (s of stores; track s.id) {
+        @for (s of sortedStores; track s.id) {
           <option [value]="s.id">{{ s.name }}</option>
         }
       </select>
@@ -58,7 +56,7 @@
       <label>Storage location</label>
       <select [(ngModel)]="purchaseLocationId">
         <option value="">Select location</option>
-        @for (loc of locations; track loc.id) {
+        @for (loc of availableLocations; track loc.id) {
           <option [value]="loc.id">{{ loc.name }}{{ loc.isFreezer ? ' ❄️ (Freezer)' : '' }}</option>
         }
       </select>

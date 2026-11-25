@@ -1,0 +1,80 @@
+<div class="quick-consume-shell" role="dialog" aria-modal="true">
+  <!-- Modal Header -->
+  <div class="modal-header">
+    <div class="header-left">
+      <span class="header-icon"><svg lucideUtensils [size]="20"></svg></span>
+      <div class="header-title-box">
+        <h3>Quick Consume</h3>
+        <p class="subtitle">Scan barcode or search product to mark as opened</p>
+      </div>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="close()" title="Close dialog" aria-label="Close dialog">
+      <svg lucideX [size]="14"></svg>
+    </button>
+  </div>
+
+  <!-- Modal Body -->
+  <div class="modal-body">
+    @if (errorMessage()) {
+      <div class="alert-error" role="alert">
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <!-- Search / Scanner Input Row -->
+    <div class="search-scan-bar">
+      <div class="input-icon-wrapper">
+        <span class="search-icon"><svg lucideSearch [size]="16"></svg></span>
+        <input
+          #productInput
+          id="quick-consume-product-input"
+          type="text"
+          class="form-input"
+          [appAutocomplete]="productOptions()"
+          [selectedId]="selectedProductId()"
+          (selectedIdChange)="onProductSelected($event)"
+          (input)="searchInputText.set(productInput.value)"
+          placeholder="Scan barcode or type product name..."
+          autofocus
+        />
+        @if (selectedProductId() || searchInputText()) {
+          <button
+            type="button"
+            class="btn-clear-product"
+            (click)="resetFields(true)"
+            title="Clear selection"
+            aria-label="Clear selection"
+          >
+            <svg lucideX [size]="14"></svg>
+          </button>
+        }
+        <button
+          type="button"
+          class="btn-scan-camera"
+          [class.active]="isScannerOpen()"
+          (click)="toggleScanner()"
+          title="Toggle camera scanner"
+          aria-label="Toggle camera scanner"
+        >
+          <svg lucideCamera [size]="16"></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Barcode Scanner Box -->
+    @if (isScannerOpen()) {
+      <div class="scanner-container">
+        <app-barcode-scanner
+          (scanned)="onBarcodeScanned($event)"
+          (close)="isScannerOpen.set(false)"
+        />
+      </div>
+    }
+
+    @if (isProcessing()) {
+      <div class="processing-state">
+        <span>Processing batch opening...</span>
+      </div>
+    }
+  </div>
+</div>

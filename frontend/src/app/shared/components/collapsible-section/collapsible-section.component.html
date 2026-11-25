@@ -1,7 +1,23 @@
 <div class="collapsible-section-card" [class.is-expanded]="isSectionExpanded()">
   <div class="section-header" (click)="toggle()">
     <div class="section-title">
-      <span class="section-icon">{{ icon() }}</span>
+      @if (lucideIcon(); as lIcon) {
+        <span class="section-icon">
+          @switch (lIcon) {
+            @case ('clipboard-list') { <svg lucideClipboardList [size]="16"></svg> }
+            @case ('image') { <svg lucideImage [size]="16"></svg> }
+            @case ('map-pin') { <svg lucideMapPin [size]="16"></svg> }
+            @case ('clock') { <svg lucideClock [size]="16"></svg> }
+            @case ('scale') { <svg lucideScale [size]="16"></svg> }
+            @case ('tag') { <svg lucideTag [size]="16"></svg> }
+            @case ('store') { <svg lucideStore [size]="16"></svg> }
+            @case ('cooking-pot') { <svg lucideCookingPot [size]="16"></svg> }
+            @case ('users') { <svg lucideUsers [size]="16"></svg> }
+          }
+        </span>
+      } @else {
+        <span class="section-icon">{{ icon() }}</span>
+      }
       <span class="section-heading">{{ title() }}</span>
       @if (badge() !== null && badge() !== undefined && badge() !== '') {
         <span class="section-badge" [class.badge-warning]="badgeVariant() === 'warning'">
@@ -9,7 +25,9 @@
         </span>
       }
     </div>
-    <span class="chevron-arrow" [class.rotated]="isSectionExpanded()">▼</span>
+    <span class="chevron-arrow" [class.rotated]="isSectionExpanded()">
+      <svg lucideChevronDown [size]="16"></svg>
+    </span>
   </div>
 
   <div class="section-collapse-wrapper" [class.expanded]="isSectionExpanded()">

@@ -18,16 +18,32 @@ export class ShoppingListController {
   @Post()
   createList(
     @ActiveHousehold() householdId: string,
-    @Body() body: { name: string; storeId?: string | null },
+    @Body() body: { name: string; storeId?: string | null; isDefault?: boolean },
   ) {
     return this.shoppingListService.createList(householdId, body);
+  }
+
+  @Post('reorder')
+  reorderLists(
+    @ActiveHousehold() householdId: string,
+    @Body('listIds') listIds: string[],
+  ) {
+    return this.shoppingListService.reorderLists(householdId, listIds);
+  }
+
+  @Post('lists/reorder')
+  reorderListsAlias(
+    @ActiveHousehold() householdId: string,
+    @Body('listIds') listIds: string[],
+  ) {
+    return this.shoppingListService.reorderLists(householdId, listIds);
   }
 
   @Put(':id')
   updateList(
     @ActiveHousehold() householdId: string,
     @Param('id') id: string,
-    @Body() body: { name?: string; storeId?: string | null },
+    @Body() body: { name?: string; storeId?: string | null; isDefault?: boolean },
   ) {
     return this.shoppingListService.updateList(id, householdId, body);
   }
@@ -64,6 +80,14 @@ export class ShoppingListController {
     @Body() body: Partial<ShoppingListItem>,
   ) {
     return this.shoppingListService.updateItem(id, householdId, body);
+  }
+
+  @Post('items/reorder')
+  reorderItems(
+    @ActiveHousehold() householdId: string,
+    @Body() body: { itemIds: string[] },
+  ) {
+    return this.shoppingListService.reorderItems(householdId, body?.itemIds || []);
   }
 
   @Post('items/:id/toggle-done')

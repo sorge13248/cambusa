@@ -1,0 +1,50 @@
+<nav
+  class="tab-view-container"
+  [class]="'variant-' + variant()"
+  [class.wrap]="wrap()"
+  [attr.aria-label]="ariaLabel()"
+  cdkDropList
+  [cdkDropListOrientation]="wrap() ? 'mixed' : 'horizontal'"
+  [cdkDropListData]="tabs()"
+  [cdkDropListDisabled]="!reorderable()"
+  (cdkDropListDropped)="onDrop($event)"
+>
+  @for (tab of tabs(); track tab.id) {
+    <button
+      type="button"
+      class="tab-view-btn"
+      [class.active]="activeTabId() === tab.id"
+      [disabled]="tab.disabled"
+      (click)="selectTab(tab.id)"
+      cdkDrag
+      [cdkDragDisabled]="!reorderable() || tab.disabled"
+    >
+      @if (reorderable()) {
+        <div class="tab-drag-placeholder" *cdkDragPlaceholder></div>
+      }
+      @if (tab.lucideIcon) {
+        <span class="tab-icon">
+          @switch (tab.lucideIcon) {
+            @case ('user') { <svg lucideUser [size]="14"></svg> }
+            @case ('zap') { <svg lucideZap [size]="14"></svg> }
+            @case ('utensils') { <svg lucideUtensils [size]="14"></svg> }
+            @case ('bell') { <svg lucideBell [size]="14"></svg> }
+            @case ('key') { <svg lucideKey [size]="14"></svg> }
+            @case ('globe') { <svg lucideGlobe [size]="14"></svg> }
+            @case ('store') { <svg lucideStore [size]="14"></svg> }
+            @case ('shopping-cart') { <svg lucideShoppingCart [size]="14"></svg> }
+            @case ('package') { <svg lucidePackage [size]="14"></svg> }
+          }
+        </span>
+      } @else if (tab.icon) {
+        <span class="tab-icon">{{ tab.icon }}</span>
+      }
+      <span class="tab-label">{{ tab.label }}</span>
+      @if (tab.badge !== undefined && tab.badge !== null && tab.badge !== '') {
+        <span class="tab-badge" [class]="'badge-' + (tab.badgeVariant || 'neutral')">
+          {{ tab.badge }}
+        </span>
+      }
+    </button>
+  }
+</nav>

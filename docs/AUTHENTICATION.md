@@ -118,27 +118,28 @@ Protected endpoint returning active user context and household memberships:
 
 ## 5. Background Token Refresh & Session Resilience
 
-Cambusa features continuous proactive background token lifecycle management modeled after enterprise BFF resilience standards:
+Cambusa features continuous proactive background token lifecycle management and long-term session persistence modeled after enterprise BFF resilience standards:
 
-### 5.1 Proactive Token Refresh
+### 5.1 Long-Term Session Persistence & Profile Caching
+- **Minimal Profile Caching**: On initial authentication and session refresh, a minimal user profile representation (`displayName` and `pictureUrl` only) is stored in `localStorage` (`cambusa_auth_user`). In accordance with BFF security invariants, tokens (access, ID, or refresh), email addresses, and passwords are never written to `localStorage`.
+- **Immediate Authenticated Bootstrapping**: When returning to the application after hours or weeks, the client initializes synchronously with the cached profile, avoiding unauthenticated layout flashes and ensuring HTTP interceptors immediately recognize active session state.
+- **Idempotent Initialization with Transparent Refresh**: During `AuthService.init()`, if the access token has expired (typically after 1 hour), the client transparently invokes `silentRefresh()` using the long-lived (30-day) HttpOnly `cambusa_rt` cookie. Upon receiving a fresh access token, it completes the session handshake without interrupting the user.
+
+### 5.2 Proactive Token Refresh
 - **Focus & Visibility Watchers**: On browser tab visibility change (`document.visibilitychange`) or window focus (`window.focus`), the client checks elapsed time against `proactiveRefreshIntervalMs` (default: 4 minutes, dynamically calibrated from `expiresIn - 60s`). If elapsed, `silentRefresh()` is invoked proactively in the background before tokens can expire.
 - **Session Ping Heartbeat**: While authenticated, an interval heartbeat checks session status every 30 seconds outside Angular's zone (`runOutsideAngular`) via `/api/auth/me`. If proactive refresh is due, it renews tokens quietly.
 
-### 5.2 Transparent HTTP Interceptor (`authInterceptor`)
+### 5.3 Transparent HTTP Interceptor (`authInterceptor`)
 - All outgoing `/api/*` HTTP requests automatically attach `withCredentials: true`.
 - If any API request encounters HTTP 401/403 (excluding login/logout/refresh endpoints):
-  1. The interceptor intercepts the failure and initiates `AuthService.silentRefresh()`.
+  1. The interceptor intercepts the failure and initiates `AuthService.silentRefresh()` if the user is authenticated or holds a cached user session.
   2. If the token refresh succeeds, the original request is transparently re-executed without user interruption.
   3. If the refresh token is missing or rejected by the IdP, `handleSessionExpired()` is invoked.
 
-### 5.3 Session Expired CDK Modal Alert
-- When a session has definitively expired and cannot be refreshed silently:
-  1. User authentication state and cached household context are cleared.
-  2. A non-closable Angular CDK Dialog (`ConfirmModalComponent`) modal opens with:
-     - **Title**: *Session Expired*
-     - **Message**: *Your authentication session has expired. Please refresh the page to renew your session and continue using Cambusa.*
-     - **Action**: *Refresh Page* button with primary emphasis (`confirmVariant: 'primary'`).
-  3. Clicking *Refresh Page* immediately reloads the application and preserves the user's current route in `sessionStorage` (`cambusa_auth_return_url`) so the user returns to their active workspace upon re-authentication.
+### 5.4 Automatic Session Renewal (`renewSession()`)
+- When a session requires re-authentication:
+  1. `renewSession()` attempts a silent refresh with `/api/auth/refresh` using the 30-day `cambusa_rt` cookie. If successful, session heartbeat resumes seamlessly.
+  2. If the refresh token has expired (>30 days) or is absent, the user's active route is saved to `sessionStorage` (`cambusa_auth_return_url`), and the client redirects immediately to `/api/auth/login` for seamless single-sign-on (SSO) re-authorization, returning the user directly to their workspace without blocking modal prompts.
 
 ---
 

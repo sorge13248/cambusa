@@ -166,6 +166,7 @@ describe('ProfileService & NextService', () => {
         householdId: testHousehold.id,
         name: 'Fresh Milk',
         quStockId: unit.id,
+        pictureFileNames: ['milk-thumb.webp'],
       });
 
       const p2 = await productRepo.save({
@@ -221,10 +222,12 @@ describe('ProfileService & NextService', () => {
 
       expect(nextData.expired.length).toBe(1);
       expect(nextData.expired[0].productName).toBe('Fresh Milk');
+      expect(nextData.expired[0].productPictureFileName).toBe('milk-thumb.webp');
       expect(nextData.expired[0].daysOverdue).toBe(3);
 
       expect(nextData.expiringSoon.length).toBe(1);
       expect(nextData.expiringSoon[0].productName).toBe('Greek Yogurt');
+      expect(nextData.expiringSoon[0].productPictureFileName).toBeNull();
       expect(nextData.expiringSoon[0].daysRemaining).toBe(2);
     });
   });

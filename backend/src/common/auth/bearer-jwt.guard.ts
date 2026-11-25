@@ -183,12 +183,12 @@ export class BearerJwtGuard implements CanActivate {
     const jwks = await this.getJwksResolver(issuer);
 
     try {
-      const result = await jwtVerify(token, jwks, { issuer, audience });
+      const result = await jwtVerify(token, jwks, { issuer, audience, clockTolerance: '15s' });
       return extractClaims(result.payload as Record<string, unknown>);
     } catch {
       // Try verifying with issuer only if audience matching failed on access token
       try {
-        const result = await jwtVerify(token, jwks, { issuer });
+        const result = await jwtVerify(token, jwks, { issuer, clockTolerance: '15s' });
         return extractClaims(result.payload as Record<string, unknown>);
       } catch {
         const parts = token.split('.');

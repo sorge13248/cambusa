@@ -1,9 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Router, provideRouter } from '@angular/router';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ProductsComponent } from './products.component.js';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
+import { SyncService } from '../../core/sync.service.js';
 import { Dialog } from '@angular/cdk/dialog';
 import { signal } from '@angular/core';
 import { of } from 'rxjs';
@@ -30,17 +31,23 @@ describe('ProductsComponent', () => {
     activeHouseholdId: signal('h1'),
   };
 
+  const mockSyncService = {
+    onSyncCompleted: signal(0),
+  };
+
   const mockDialog = {
     open: vi.fn(),
   };
 
   beforeEach(async () => {
+    mockSyncService.onSyncCompleted.set(0);
     await TestBed.configureTestingModule({
       imports: [ProductsComponent],
       providers: [
         provideRouter([]),
         { provide: ApiService, useValue: mockApiService },
         { provide: AuthService, useValue: mockAuthService },
+        { provide: SyncService, useValue: mockSyncService },
         { provide: Dialog, useValue: mockDialog },
       ],
     }).compileComponents();
@@ -50,11 +57,32 @@ describe('ProductsComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create and load products', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it('should create and load products once on init', () => {
     expect(component).toBeTruthy();
-    expect(mockApiService.getProducts).toHaveBeenCalled();
+    expect(mockApiService.getProducts).toHaveBeenCalledTimes(1);
     expect(component.products().length).toBe(2);
     expect(component.filteredProducts().length).toBe(2);
+  });
+
+  it('should refresh products from local storage without triggering sync when sync completes', async () => {
+    mockApiService.getProducts.mockResolvedValueOnce([
+      { id: 'p1', name: 'Pasta Garofalo', active: true },
+      { id: 'p2', name: 'Old Vinegar', active: false },
+      { id: 'p3', name: 'Extra Virgin Olive Oil', active: true },
+    ]);
+
+    mockSyncService.onSyncCompleted.update((c) => c + 1);
+    fixture.detectChanges();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockApiService.getProducts).toHaveBeenCalledWith(true);
+    expect(component.products().length).toBe(3);
   });
 
   it('should filter products by query', () => {
@@ -67,6 +95,49 @@ describe('ProductsComponent', () => {
 
     component.clearSearch();
     expect(component.filteredProducts().length).toBe(2);
+  });
+
+  it('should debounce syncQueryParams by 1s when onSearchChange is called', () => {
+    vi.useFakeTimers();
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.onSearchChange('g');
+    component.onSearchChange('ga');
+    component.onSearchChange('garofalo');
+
+    expect(component.filteredProducts().length).toBe(1);
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+    expect(navigateSpy).toHaveBeenCalledTimes(1);
+    expect(navigateSpy).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({ q: 'garofalo' }),
+      }),
+    );
+  });
+
+  it('should sync queryParams immediately on clearSearch without waiting 1s', () => {
+    vi.useFakeTimers();
+    const router = TestBed.inject(Router);
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.onSearchChange('garofalo');
+    expect(navigateSpy).not.toHaveBeenCalled();
+
+    component.clearSearch();
+    expect(navigateSpy).toHaveBeenCalledTimes(1);
+    expect(navigateSpy).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({ q: null }),
+      }),
+    );
   });
 
   it('should filter products by status (active vs inactive)', () => {

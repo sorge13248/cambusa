@@ -4,7 +4,9 @@
     <h2>Logging in to Cambusa...</h2>
     <p>Please wait while we verify your session.</p>
   } @else if (error()) {
-    <div class="error-icon">⚠️</div>
+    <div class="error-icon">
+      <svg lucideAlertTriangle [size]="32"></svg>
+    </div>
     <h2>Authentication Failed</h2>
     <p class="error-msg">{{ error() }}</p>
     <button class="btn btn-primary" (click)="retry()">Return to Login</button>

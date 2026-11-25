@@ -1,8 +1,22 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, HostListener, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, inject, OnInit, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  LucideBoxes,
+  LucideCalendarDays,
+  LucideCheck,
+  LucideHouse,
+  LucideLayoutDashboard,
+  LucideLogOut,
+  LucideSettings,
+  LucideShoppingCart,
+  LucideTag,
+  LucideX,
+} from '@lucide/angular';
 import { AuthService } from '../core/auth.service.js';
 import { SyncService } from '../core/sync.service.js';
+import { PwaUpdateService } from '../core/pwa-update.service.js';
+import { BackNavigationService } from '../core/back-navigation.service.js';
 import { SyncIndicatorComponent } from '../shared/components/sync-indicator/sync-indicator.component.js';
 import { UndoToastComponent } from '../shared/components/undo-toast/undo-toast.component.js';
 
@@ -16,18 +30,34 @@ import { UndoToastComponent } from '../shared/components/undo-toast/undo-toast.c
     RouterLinkActive,
     SyncIndicatorComponent,
     UndoToastComponent,
+    LucideBoxes,
+    LucideCalendarDays,
+    LucideCheck,
+    LucideHouse,
+    LucideLayoutDashboard,
+    LucideLogOut,
+    LucideSettings,
+    LucideShoppingCart,
+    LucideTag,
+    LucideX,
   ],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss',
 })
-export class AppShellComponent {
+export class AppShellComponent implements OnInit {
   private readonly elementRef = inject(ElementRef);
   readonly auth = inject(AuthService);
   readonly sync = inject(SyncService);
   readonly router = inject(Router);
+  readonly pwaUpdate = inject(PwaUpdateService);
+  private readonly backNav = inject(BackNavigationService);
 
   readonly isHouseholdMenuOpen = signal<boolean>(false);
   readonly isMobileMenuOpen = signal<boolean>(false);
+
+  ngOnInit(): void {
+    this.backNav.init();
+  }
 
   toggleHouseholdMenu(event?: Event) {
     event?.stopPropagation();

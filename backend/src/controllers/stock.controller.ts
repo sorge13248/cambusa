@@ -76,6 +76,31 @@ export class StockController {
     return this.stockService.consumeStock(id, householdId, body.amount ?? 1, body);
   }
 
+  @Post('revert-open')
+  revertOpen(
+    @ActiveHousehold() householdId: string,
+    @Body()
+    body: {
+      openedStockItemId: string;
+      originalStockItemId?: string | null;
+      split: boolean;
+      amount?: number;
+      originalDate?: string | null;
+      originalLocationId?: string | null;
+    },
+  ) {
+    return this.stockService.revertOpen(householdId, body);
+  }
+
+  @Post(':id/open')
+  openStock(
+    @ActiveHousehold() householdId: string,
+    @Param('id') id: string,
+    @Body() body?: { amount?: number },
+  ) {
+    return this.stockService.openStock(id, householdId, body?.amount ?? 1);
+  }
+
   @Post(':id/toggle-open')
   toggleOpen(@ActiveHousehold() householdId: string, @Param('id') id: string) {
     return this.stockService.toggleOpen(id, householdId);

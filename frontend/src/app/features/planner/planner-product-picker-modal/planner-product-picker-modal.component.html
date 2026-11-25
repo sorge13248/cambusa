@@ -1,0 +1,41 @@
+<div class="planner-picker-shell">
+  <div class="modal-header">
+    <div class="header-left">
+      <h3>Add Food to {{ data.mealSlotLabel }}</h3>
+      <p class="subtitle">{{ data.dateLabel }} &bull; Click any product to add it to this meal</p>
+    </div>
+    <div class="header-right">
+      @if (addedCount() > 0) {
+        <span class="added-counter-badge">{{ addedCount() }} added</span>
+      }
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm modal-header-btn modal-close-btn"
+        (click)="close()"
+        aria-label="Close dialog"
+      >
+        <svg lucideX [size]="14"></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="modal-body">
+    <app-pantry-inventory-grid
+      mode="picker"
+      [stock]="data.stock"
+      [products]="data.products"
+      [locations]="data.locations"
+      [productGroups]="data.productGroups"
+      [units]="data.units"
+      [savedFilters]="data.savedFilters"
+      [expiringSoonDays]="data.expiringSoonDays"
+      [syncUrlParams]="false"
+      [selectedProductIds]="selectedProductIds()"
+      (cardSelected)="onProductPicked($event)"
+    ></app-pantry-inventory-grid>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-primary" (click)="close()">Done</button>
+  </div>
+</div>

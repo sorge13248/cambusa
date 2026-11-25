@@ -10,7 +10,7 @@
   <!-- Pending Received Invitations Banner -->
   @if (receivedInvitations().length > 0) {
     <div class="invitations-banner">
-      <h3>📬 Pending Invitations to Join Other Households</h3>
+      <h3><svg lucideMail [size]="18"></svg> Pending Invitations to Join Other Households</h3>
       <div class="received-invitations-list">
         @for (inv of receivedInvitations(); track inv.id) {
           <div class="invitation-card">
@@ -47,9 +47,9 @@
             </div>
             <div class="hh-role-strip">
               @if (hh.isOwner) {
-                <span class="role-badge badge-owner">👑 Owner</span>
+                <span class="role-badge badge-owner"><svg lucideCrown [size]="14"></svg> Owner</span>
               } @else {
-                <span class="role-badge badge-shared">👥 Shared ({{ hh.role }})</span>
+                <span class="role-badge badge-shared"><svg lucideUsers [size]="14"></svg> Shared ({{ hh.role }})</span>
               }
             </div>
           </div>
@@ -69,11 +69,11 @@
             @if (hh.isOwner) {
               <div class="actions-right">
                 <button class="btn-icon" (click)="openRenameModal(hh)" title="Rename Household">
-                  ✏️
+                  <svg lucidePencil [size]="15"></svg>
                 </button>
                 @if (auth.households().length > 1) {
                   <button class="btn-icon btn-icon-danger" (click)="confirmDeleteHousehold(hh)" title="Delete Household">
-                    🗑️
+                    <svg lucideTrash2 [size]="15"></svg>
                   </button>
                 }
               </div>
@@ -99,7 +99,7 @@
                 @if (m.pictureUrl) {
                   <img [src]="m.pictureUrl" [alt]="m.displayName" class="member-avatar-img" />
                 } @else {
-                  👤
+                  <svg lucideUser [size]="20"></svg>
                 }
               </div>
               <div class="member-info">
@@ -107,7 +107,11 @@
                 <span class="member-email">{{ m.email || 'No email' }}</span>
               </div>
               <span class="badge" [class.badge-good]="m.role === 'owner'" [class.badge-approaching]="m.role !== 'owner'">
-                {{ m.role === 'owner' ? '👑 Owner' : m.role }}
+                @if (m.role === 'owner') {
+                  <svg lucideCrown [size]="12"></svg> Owner
+                } @else {
+                  {{ m.role }}
+                }
               </span>
             </div>
           }

@@ -7,6 +7,7 @@ import {
   computed,
   effect,
   inject,
+  Injector,
   signal,
   untracked,
 } from '@angular/core';
@@ -24,7 +25,7 @@ import { ConfirmModalComponent } from '../confirm-modal/confirm-modal.component.
 })
 export class SyncIndicatorComponent implements OnDestroy {
   private readonly elementRef = inject(ElementRef);
-  private readonly dialog = inject(Dialog);
+  private readonly injector = inject(Injector);
   readonly syncService = inject(SyncService);
 
   readonly dropdownOpen = signal(false);
@@ -152,7 +153,8 @@ export class SyncIndicatorComponent implements OnDestroy {
   async onDownloadServerVersion(): Promise<void> {
     this.closeDropdown();
 
-    const dialogRef = this.dialog.open<boolean>(ConfirmModalComponent, {
+    const dialog = this.injector.get(Dialog);
+    const dialogRef = dialog.open<boolean>(ConfirmModalComponent, {
       data: {
         title: 'Download server version?',
         message:

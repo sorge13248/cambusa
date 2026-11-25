@@ -84,6 +84,7 @@ export class NextService {
       const prod = productMap.get(item.productId);
       const unit = prod?.quStockId ? unitMap.get(prod.quStockId) : null;
       const loc = item.locationId ? locationMap.get(item.locationId) : null;
+      const pictureFileNames = Array.isArray(prod?.pictureFileNames) ? prod.pictureFileNames : [];
 
       const bbd = item.bestBeforeDate;
       const itemDate = new Date(`${bbd}T00:00:00Z`);
@@ -95,6 +96,7 @@ export class NextService {
         id: item.id,
         productId: item.productId,
         productName: prod?.name || 'Unknown Product',
+        productPictureFileName: pictureFileNames[0] ?? null,
         amount: item.amount,
         quantityUnit: unit?.name || 'units',
         location: loc?.name || 'Default Location',

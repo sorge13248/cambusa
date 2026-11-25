@@ -1,6 +1,6 @@
 {
   "name": "cambusa-frontend",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "ng": "ng",
@@ -19,6 +19,9 @@
     "@angular/forms": "^22.3.0",
     "@angular/platform-browser": "^22.3.0",
     "@angular/router": "^22.3.0",
+    "@lucide/angular": "^1.79.0",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

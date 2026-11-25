@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { BearerJwtGuard } from '../common/auth/bearer-jwt.guard.js';
 import { ActiveHousehold } from '../common/household/active-household.decorator.js';
 import { HouseholdMemberGuard } from '../common/household/household-member.guard.js';
@@ -108,5 +108,48 @@ export class CatalogsController {
   @Delete('stores/:id')
   deleteStore(@ActiveHousehold() householdId: string, @Param('id') id: string) {
     return this.catalogsService.deleteStore(id, householdId);
+  }
+
+  // Aisles
+  @Get('aisles')
+  getAisles(@ActiveHousehold() householdId: string, @Query('storeId') storeId?: string) {
+    return this.catalogsService.getAisles(householdId, storeId);
+  }
+
+  @Get('stores/:storeId/aisles')
+  getStoreAisles(@ActiveHousehold() householdId: string, @Param('storeId') storeId: string) {
+    return this.catalogsService.getStoreAisles(storeId, householdId);
+  }
+
+  @Post('stores/:storeId/aisles')
+  createAisle(
+    @ActiveHousehold() householdId: string,
+    @Param('storeId') storeId: string,
+    @Body() body: { name: string; sortOrder?: number },
+  ) {
+    return this.catalogsService.createAisle(storeId, householdId, body);
+  }
+
+  @Put('aisles/:id')
+  updateAisle(
+    @ActiveHousehold() householdId: string,
+    @Param('id') id: string,
+    @Body() body: { name?: string; sortOrder?: number },
+  ) {
+    return this.catalogsService.updateAisle(id, householdId, body);
+  }
+
+  @Delete('aisles/:id')
+  deleteAisle(@ActiveHousehold() householdId: string, @Param('id') id: string) {
+    return this.catalogsService.deleteAisle(id, householdId);
+  }
+
+  @Post('stores/:storeId/aisles/reorder')
+  reorderStoreAisles(
+    @ActiveHousehold() householdId: string,
+    @Param('storeId') storeId: string,
+    @Body() body: { aisleIds: string[] },
+  ) {
+    return this.catalogsService.reorderStoreAisles(storeId, householdId, body?.aisleIds || []);
   }
 }

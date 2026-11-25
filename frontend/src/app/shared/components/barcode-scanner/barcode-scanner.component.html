@@ -1,0 +1,86 @@
+<div class="scanner-wrapper" role="region" aria-label="Barcode and QR code camera scanner">
+  @if (errorMessage()) {
+    <div class="scanner-error-panel">
+      <div class="error-icon">
+        <svg lucideAlertTriangle [size]="32"></svg>
+      </div>
+      <p class="error-text">{{ errorMessage() }}</p>
+      <div class="error-actions">
+        <button type="button" class="btn btn-secondary btn-sm" (click)="startCamera()">
+          <svg lucideRotateCw [size]="14"></svg> Try Again
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="onClose()">
+          <svg lucideX [size]="14"></svg> Close
+        </button>
+      </div>
+    </div>
+  } @else {
+    <div class="viewfinder-container">
+      <video #videoElement class="scanner-video" playsinline autoplay muted></video>
+
+      <div class="viewfinder-overlay">
+        <!-- Top Toolbar -->
+        @if (showControls()) {
+          <div class="overlay-toolbar">
+            @if (hasMultipleCameras()) {
+              <button
+                type="button"
+                class="btn-tool"
+                (click)="switchCamera()"
+                title="Switch camera (Current: {{ camera() }})"
+                aria-label="Switch camera"
+              >
+                <span class="tool-icon"><svg lucideRotateCw [size]="16"></svg></span>
+                <span class="tool-label">{{ camera() === 'rear' ? 'Rear' : 'Front' }}</span>
+              </button>
+            }
+
+            @if (isFlashAvailable()) {
+              <button
+                type="button"
+                class="btn-tool"
+                [class.active]="flash()"
+                (click)="toggleFlash()"
+                [title]="flash() ? 'Turn off flash' : 'Turn on flash'"
+                aria-label="Toggle flash"
+              >
+                <span class="tool-icon"><svg lucideZap [size]="16"></svg></span>
+                <span class="tool-label">Flash {{ flash() ? 'On' : 'Off' }}</span>
+              </button>
+            }
+
+            <button
+              type="button"
+              class="btn-tool btn-close"
+              (click)="onClose()"
+              title="Close scanner"
+              aria-label="Close scanner"
+            >
+              <svg lucideX [size]="16"></svg>
+            </button>
+          </div>
+        }
+
+        <!-- Center Reticle Frame -->
+        <div class="reticle-box">
+          <div class="corner corner-tl"></div>
+          <div class="corner corner-tr"></div>
+          <div class="corner corner-bl"></div>
+          <div class="corner corner-br"></div>
+          <div class="scan-laser"></div>
+        </div>
+
+        <!-- Bottom Feedback / Hint -->
+        <div class="overlay-footer">
+          @if (lastScannedCode()) {
+            <span class="scanned-badge">
+              <svg lucideCheck [size]="14"></svg> Scanned: <strong>{{ lastScannedCode() }}</strong>
+            </span>
+          } @else {
+            <span class="hint-text">{{ hint() }}</span>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

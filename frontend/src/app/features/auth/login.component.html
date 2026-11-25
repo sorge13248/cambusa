@@ -1,7 +1,9 @@
 <div class="login-wrapper">
   <div class="login-card">
     <div class="brand-header">
-      <div class="brand-icon">📦</div>
+      <div class="brand-icon">
+        <svg lucidePackage [size]="48"></svg>
+      </div>
       <h1 class="brand-title">Cambusa</h1>
       <p class="brand-subtitle">Smart Home Pantry &amp; Grocery Management</p>
     </div>
@@ -12,14 +14,17 @@
       </p>
 
       <button class="btn btn-primary btn-block btn-lg" (click)="signIn()">
-        <span class="btn-icon">🔐</span>
+        <span class="btn-icon">
+          <svg lucideLock [size]="18"></svg>
+        </span>
         <span>Sign in with OpenID Connect</span>
       </button>
     </div>
 
     <div class="login-footer">
       <p class="security-note">
-        <span>🛡️</span> Protected by OpenID Connect &amp; HttpOnly session cookies.
+        <svg lucideShieldCheck [size]="16"></svg>
+        <span>Protected by OpenID Connect &amp; HttpOnly session cookies.</span>
       </p>
     </div>
   </div>

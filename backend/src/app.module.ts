@@ -16,14 +16,17 @@ import { SyncController } from './controllers/sync.controller.js';
 import { ProfileController } from './controllers/profile.controller.js';
 import { NextController } from './controllers/next.controller.js';
 import { MealieController } from './controllers/mealie.controller.js';
+import { PlannerController } from './controllers/planner.controller.js';
 import {
   ApiKey,
   Household,
   HouseholdInvitation,
   HouseholdMember,
   Location,
+  MealPlanEntry,
   Product,
   ProductGroup,
+  ProductRating,
   ProductStore,
   QuantityUnit,
   SavedFilter,
@@ -31,6 +34,7 @@ import {
   ShoppingListItem,
   StockItem,
   Store,
+  Aisle,
   SyncTombstone,
   User,
   UserSettings,
@@ -47,6 +51,7 @@ import { ProfileService } from './services/profile.service.js';
 import { NextService } from './services/next.service.js';
 import { MailService } from './services/mail.service.js';
 import { MealieService } from './services/mealie.service.js';
+import { PlannerService } from './services/planner.service.js';
 
 const ENTITIES = [
   User,
@@ -57,12 +62,15 @@ const ENTITIES = [
   ProductGroup,
   Location,
   Store,
+  Aisle,
   Product,
+  ProductRating,
   ProductStore,
   StockItem,
   ShoppingList,
   ShoppingListItem,
   SavedFilter,
+  MealPlanEntry,
   SyncTombstone,
   ApiKey,
   UserSettings,
@@ -98,6 +106,7 @@ const ENTITIES = [
     ProfileController,
     NextController,
     MealieController,
+    PlannerController,
   ],
   providers: [
     UsersService,
@@ -112,6 +121,7 @@ const ENTITIES = [
     NextService,
     MailService,
     MealieService,
+    PlannerService,
     BearerJwtGuard,
     HouseholdMemberGuard,
   ],

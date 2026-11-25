@@ -1,0 +1,21 @@
+<div class="quick-actions-footer" role="toolbar" aria-label="Quick pantry actions">
+  <button
+    type="button"
+    class="quick-action-btn btn-quick-consume"
+    (click)="openQuickConsume()"
+    title="Quick Consume (Scan barcode to open batch)"
+  >
+    <svg lucideUtensils [size]="16"></svg>
+    <span class="btn-label">Quick Consume</span>
+  </button>
+
+  <button
+    type="button"
+    class="quick-action-btn btn-quick-purchase"
+    (click)="openQuickPurchase()"
+    title="Quick Purchase (Scan barcode to add batch)"
+  >
+    <svg lucideShoppingCart [size]="16"></svg>
+    <span class="btn-label">Quick Purchase</span>
+  </button>
+</div>

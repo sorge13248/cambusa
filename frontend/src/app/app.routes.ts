@@ -9,45 +9,58 @@ export const routes: Routes = [
   },
   {
     path: 'login',
+    title: 'Sign In',
     canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/login.component.js').then((m) => m.LoginComponent)
   },
   {
     path: 'auth/callback',
+    title: 'Authenticating',
     loadComponent: () => import('./features/auth/callback.component.js').then((m) => m.CallbackComponent)
   },
   {
     path: 'home',
+    title: 'Dashboard',
     canActivate: [authGuard],
     loadComponent: () => import('./features/home/home.component.js').then((m) => m.HomeComponent)
   },
   {
     path: 'pantry',
+    title: 'Pantry',
     canActivate: [authGuard],
     loadComponent: () => import('./features/pantry/pantry.component.js').then((m) => m.PantryComponent)
   },
   {
+    path: 'planner',
+    title: 'Planner',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/planner/planner.component.js').then((m) => m.PlannerComponent)
+  },
+  {
     path: 'shopping',
+    title: 'Shopping List',
     canActivate: [authGuard],
     loadComponent: () => import('./features/shopping/shopping.component.js').then((m) => m.ShoppingComponent)
   },
   {
     path: 'products',
+    title: 'Products Catalog',
     canActivate: [authGuard],
     loadComponent: () => import('./features/products/products.component.js').then((m) => m.ProductsComponent)
   },
   {
     path: 'stores',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/stores/stores.component.js').then((m) => m.StoresComponent)
+    redirectTo: 'profile'
   },
   {
     path: 'households',
+    title: 'Households',
     canActivate: [authGuard],
     loadComponent: () => import('./features/households/households.component.js').then((m) => m.HouseholdsComponent)
   },
   {
     path: 'profile',
+    title: 'Profile & Settings',
     canActivate: [authGuard],
     loadComponent: () => import('./features/profile/profile.component.js').then((m) => m.ProfileComponent)
   },

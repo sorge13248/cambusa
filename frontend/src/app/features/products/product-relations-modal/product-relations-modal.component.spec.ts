@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ProductRelationsModalComponent, ProductRelationsModalData } from './product-relations-modal.component.js';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
-import { ProductEditorModalComponent } from '../product-editor-modal/product-editor-modal.component.js';
+import { ProductInfoModalComponent } from '../product-info-modal/product-info-modal.component.js';
 import { ProductStockModalComponent } from '../product-stock-modal/product-stock-modal.component.js';
 import { of } from 'rxjs';
 
@@ -127,7 +127,7 @@ describe('ProductRelationsModalComponent', () => {
     await Promise.resolve();
 
     expect(mockDialog.open).toHaveBeenCalledWith(
-      ProductEditorModalComponent,
+      ProductInfoModalComponent,
       expect.objectContaining({
         data: expect.objectContaining({
           product: child,
@@ -138,6 +138,57 @@ describe('ProductRelationsModalComponent', () => {
     expect(component.hasChanges).toBe(true);
     expect(component.childProducts().find((c) => c.id === child.id)?.name).toBe(
       'Super Organic Bananas',
+    );
+  });
+
+  it('should open a new ProductRelationsModalComponent when a parent card is clicked and propagate changes', async () => {
+    const parent = component.ancestorProducts()[0];
+    const expectedAllProducts = component.allProductsList();
+    const updatedProducts = mockProducts.map((p) =>
+      p.id === 'target-bananas' ? { ...p, name: 'Updated Bananas' } : p,
+    );
+    mockDialog.open.mockReturnValue({
+      closed: of({ hasChanges: true, products: updatedProducts }),
+    });
+
+    const parentCard = fixture.nativeElement.querySelector('.relation-item-card.is-parent');
+    expect(parentCard).toBeTruthy();
+
+    parentCard.click();
+    await Promise.resolve();
+
+    expect(mockDialog.open).toHaveBeenCalledWith(
+      ProductRelationsModalComponent,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          product: parent,
+          allProducts: expectedAllProducts,
+        }),
+      }),
+    );
+    expect(component.hasChanges).toBe(true);
+    expect(component.currentProduct().name).toBe('Updated Bananas');
+  });
+
+  it('should open a new ProductRelationsModalComponent when a child card is clicked', () => {
+    const child = component.childProducts()[0];
+    mockDialog.open.mockReturnValue({
+      closed: of(undefined),
+    });
+
+    const childCard = fixture.nativeElement.querySelector('.relation-item-card.is-child');
+    expect(childCard).toBeTruthy();
+
+    childCard.click();
+
+    expect(mockDialog.open).toHaveBeenCalledWith(
+      ProductRelationsModalComponent,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          product: child,
+          allProducts: component.allProductsList(),
+        }),
+      }),
     );
   });
 

@@ -1,0 +1,241 @@
+.scanner-wrapper {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: #000;
+  box-shadow: var(--glass-card-shadow);
+  border: 1px solid var(--border);
+}
+
+.viewfinder-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 340px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.viewfinder-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: radial-gradient(circle at center, transparent 40%, rgba(0, 0, 0, 0.6) 85%);
+  pointer-events: none;
+}
+
+/* Floating Toolbar */
+.overlay-toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.btn-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: var(--glass-blur-sm);
+  -webkit-backdrop-filter: var(--glass-blur-sm);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(30, 41, 59, 0.9);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.btn-close {
+  padding: 6px 10px;
+  font-size: 1rem;
+  line-height: 1;
+  margin-left: auto;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.85);
+    border-color: rgba(239, 68, 68, 1);
+    color: #fff;
+  }
+}
+
+/* Reticle Target Frame */
+.reticle-box {
+  position: relative;
+  width: min(72%, 260px);
+  aspect-ratio: 1.35;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.25);
+}
+
+.corner {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-color: var(--primary);
+  border-style: solid;
+}
+
+.corner-tl {
+  top: -2px;
+  left: -2px;
+  border-width: 3px 0 0 3px;
+  border-top-left-radius: 6px;
+}
+
+.corner-tr {
+  top: -2px;
+  right: -2px;
+  border-width: 3px 3px 0 0;
+  border-top-right-radius: 6px;
+}
+
+.corner-bl {
+  bottom: -2px;
+  left: -2px;
+  border-width: 0 0 3px 3px;
+  border-bottom-left-radius: 6px;
+}
+
+.corner-br {
+  bottom: -2px;
+  right: -2px;
+  border-width: 0 3px 3px 0;
+  border-bottom-right-radius: 6px;
+}
+
+/* Laser scan animation */
+.scan-laser {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--primary) 50%, transparent 100%);
+  box-shadow: 0 0 8px 1px var(--primary);
+  animation: scanline 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes scanline {
+  0% {
+    top: 6%;
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 92%;
+    opacity: 0.8;
+  }
+}
+
+/* Overlay Footer */
+.overlay-footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.hint-text {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: var(--glass-blur-sm);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scanned-badge {
+  background: rgba(16, 185, 129, 0.88);
+  backdrop-filter: var(--glass-blur-sm);
+  color: #fff;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.5);
+  animation: pulse-success 0.3s ease;
+}
+
+@keyframes pulse-success {
+  0% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Error State Panel */
+.scanner-error-panel {
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  background: var(--glass-card-bg);
+  backdrop-filter: var(--glass-blur);
+
+  .error-icon {
+    font-size: 2rem;
+  }
+
+  .error-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    max-width: 380px;
+    line-height: 1.45;
+  }
+
+  .error-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+}

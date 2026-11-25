@@ -40,11 +40,15 @@ erDiagram
     Household ||--o{ StockItem : "inventories"
     Household ||--o{ ShoppingList : "owns"
     Household ||--o{ SavedFilter : "owns"
+    Household ||--o{ MealPlanEntry : "plans meals"
     Household ||--o{ SyncTombstone : "tracks deletions"
 
     Product ||--o{ Product : "parent/sub-products"
+    Product ||--o{ ProductRating : "rated by users"
+    User ||--o{ ProductRating : "rates"
     Product ||--o{ ProductStore : "sold at"
     Store ||--o{ ProductStore : "stocks"
+    Store ||--o{ Aisle : "contains"
     Store ||--o{ ShoppingList : "associated store"
     Product ||--o{ StockItem : "instances in pantry"
     Product ||--o{ ShoppingListItem : "requested"
@@ -183,15 +187,15 @@ Primary catalog entity supporting infinite recursive parent hierarchies, multi-p
 | `pictureFileNames` | TEXT (JSON) | DEFAULT '[]' | Ordered JSON array of WebP filenames in `uploads/products/` |
 | `mealieFoods` | TEXT (JSON) | DEFAULT '[]' | JSON array of mapped Mealie food entities (`[{ id, name }]`) |
 | `mealieRecipes` | TEXT (JSON) | DEFAULT '[]' | JSON array of explicitly mapped Mealie recipes (`[{ id, slug, name }]`) |
-| `cannotBeFrozen` | BOOLEAN | DEFAULT FALSE | If true, prevents transfers to freezer locations |
+| `cannotBeFrozen` | BOOLEAN | DEFAULT FALSE | If true, prevents assignment or transfers to freezer locations, omits freezer options from storage selectors, and forces freezing/thawing shelf-life fields to NULL |
 | `openLocationId` | VARCHAR | NULLABLE, FK &rarr; `locations(id)` ON DELETE SET NULL | Destination location when item is unsealed |
 | `moveOnOpen` | BOOLEAN | DEFAULT FALSE | Automatically move item to `openLocationId` upon opening |
 | `defaultStoreId` | VARCHAR | NULLABLE, FK &rarr; `stores(id)` ON DELETE SET NULL | Preferred retail store |
 | `dueType` | VARCHAR | DEFAULT 'best_before' | Expiration mode (`best_before` or `use_by`) |
 | `defaultBestBeforeDays` | INTEGER | DEFAULT 0 | Shelf life in days from purchase date |
 | `defaultBestBeforeDaysAfterOpen` | INTEGER | NULLABLE | Shelf life in days after unsealing |
-| `defaultBestBeforeDaysAfterFreezing` | INTEGER | NULLABLE | Shelf life in days when placed in freezer |
-| `defaultBestBeforeDaysAfterThawing` | INTEGER | NULLABLE | Shelf life in days after thawing from freezer |
+| `defaultBestBeforeDaysAfterFreezing` | INTEGER | NULLABLE | Shelf life in days when placed in freezer (enforced NULL if `cannotBeFrozen` is true) |
+| `defaultBestBeforeDaysAfterThawing` | INTEGER | NULLABLE | Shelf life in days after thawing from freezer (enforced NULL if `cannotBeFrozen` is true) |
 | `minStockAmount` | REAL | DEFAULT 0 | Minimum desired pantry threshold |
 | `treatOpenedAsOutOfStock` | BOOLEAN | DEFAULT FALSE | Exclude opened packages from stock thresholds |
 | `productGroupId` | VARCHAR | NULLABLE, FK &rarr; `product_groups(id)` ON DELETE SET NULL | Associated product group / category |
@@ -219,6 +223,20 @@ Physical or online grocery retail store.
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
+#### `Aisle` (`aisles`)
+Physical aisle or section within a specific store/supermarket, supporting customizable sequential drag-and-drop route ordering.
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | Aisle ID |
+| `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
+| `storeId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `stores(id)` ON DELETE CASCADE | Parent store scope |
+| `name` | VARCHAR | NOT NULL | Aisle designation (e.g. "Produce", "Bakery", "Aisle 4") |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Sequential position for shopping routing |
+| `createdAt` | DATETIME | NOT NULL | Creation timestamp |
+| `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+> **Unique & Ordering Constraints**: Enforces `UNIQUE(householdId, storeId, name)` and an index on `(householdId, storeId, sortOrder)`. Deletions trigger mandatory `SyncTombstone` records (`entityType: 'aisle'`) to maintain offline sync consistency.
+
 #### `ProductStore` (`product_stores`)
 Product-to-store mapping with store-specific aisle order and price history.
 | Column | Type | Constraints | Description |
@@ -233,6 +251,20 @@ Product-to-store mapping with store-specific aisle order and price history.
 | `isPreferred` | BOOLEAN | DEFAULT FALSE | Preferred supermarket for this product |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+#### `ProductRating` (`product_ratings`)
+Per-user star rating for a catalog product within a household (`null` for unrated, or `1` to `5`).
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | Rating record ID |
+| `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
+| `productId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `products(id)` ON DELETE CASCADE | Rated product |
+| `userId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `users(id)` ON DELETE CASCADE | Rating author |
+| `rating` | INTEGER | NULLABLE | Star rating (`1` to `5`, or `null` when cleared) |
+| `createdAt` | DATETIME | NOT NULL | Creation timestamp |
+| `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+> **Unique & Index Constraints**: Enforces `UNIQUE(productId, userId)` and composite indexes on `(householdId, productId)` and `(householdId, userId)`.
 
 ---
 
@@ -281,6 +313,7 @@ Shopping list definition for a household, optionally linked to a store.
 | `name` | VARCHAR | NOT NULL | List name (e.g. "Weekly Groceries") |
 | `storeId` | VARCHAR | INDEX, NULLABLE, FK &rarr; `stores(id)` ON DELETE SET NULL | Associated store for aisle route sorting |
 | `isDefault` | BOOLEAN | DEFAULT TRUE | Whether this is the default list |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Sequential position for custom drag-and-drop shopping list ordering |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
@@ -297,6 +330,7 @@ Line items within a shopping list.
 | `quId` | VARCHAR | NULLABLE, FK &rarr; `quantity_units(id)` ON DELETE SET NULL | Unit of measure |
 | `storeId` | VARCHAR | INDEX, NULLABLE, FK &rarr; `stores(id)` ON DELETE SET NULL | Supermarket where item should be bought |
 | `note` | TEXT | NULLABLE | Item shopping note |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Sequential position for custom drag-and-drop item reordering |
 | `done` | BOOLEAN | DEFAULT FALSE | Strikethrough state (item completed in cart) |
 | `doneAt` | DATETIME | NULLABLE | Timestamp when item was marked done |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
@@ -306,7 +340,25 @@ Line items within a shopping list.
 
 ---
 
-### 3.5 Offline Synchronization Entities
+### 3.5 Meal Planner Entities
+
+#### `MealPlanEntry` (`meal_plan_entries`)
+Scheduled food entry for a specific calendar date and meal slot within a household.
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | Meal plan entry ID |
+| `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
+| `date` | VARCHAR(10) | INDEX, NOT NULL | Calendar date (`YYYY-MM-DD`) |
+| `mealSlot` | VARCHAR(32) | INDEX, NOT NULL | Meal slot (`breakfast`, `morning_snack`, `lunch`, `afternoon_snack`, `dinner`) |
+| `productId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `products(id)` ON DELETE CASCADE | Planned product |
+| `userId` | VARCHAR | NULLABLE, FK &rarr; `users(id)` ON DELETE SET NULL | Household member who added the entry |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Display order within the slot |
+| `createdAt` | DATETIME | NOT NULL | Creation timestamp |
+| `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+---
+
+### 3.6 Offline Synchronization Entities
 
 #### `SyncTombstone` (`sync_tombstones`)
 Records deletions to reconcile state with disconnected offline clients.
@@ -314,6 +366,6 @@ Records deletions to reconcile state with disconnected offline clients.
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | PRIMARY KEY | Tombstone ID |
 | `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
-| `entityType` | VARCHAR | NOT NULL | Entity name (`product`, `stock`, `shopping_item`, `shopping_list`, `store`) |
+| `entityType` | VARCHAR | NOT NULL | Entity name (`product`, `stock_item`, `shopping_item`, `shopping_list`, `meal_plan_entry`, `store`) |
 | `entityId` | VARCHAR | NOT NULL | ID of deleted entity |
 | `deletedAt` | DATETIME | INDEX, NOT NULL | Timestamp of deletion |

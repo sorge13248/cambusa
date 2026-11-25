@@ -1,0 +1,18 @@
+<section class="card glass-card user-card">
+  <div class="card-body account-body">
+    <div class="user-identity-row">
+      <div class="user-avatar-large">
+        @if (user()?.pictureUrl) {
+          <img [src]="user()!.pictureUrl!" [alt]="user()?.displayName || 'User'" class="user-avatar-img" />
+        } @else {
+          {{ user()?.displayName?.charAt(0) || 'U' }}
+        }
+      </div>
+      <div class="identity-info">
+        <h3 class="display-name">{{ user()?.displayName }}</h3>
+        <p class="user-email">{{ user()?.email || 'No email provided' }}</p>
+        <span class="user-subject-badge">Sub: {{ user()?.id }}</span>
+      </div>
+    </div>
+  </div>
+</section>

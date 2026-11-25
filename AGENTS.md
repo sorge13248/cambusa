@@ -91,6 +91,10 @@ Whenever **ANY** modification is made to the software (including features, archi
 8. **10-Second Reversible Stock Mutations**:
    - All stock inventory alterations (consume, purchase, move, quick expiration adjustments) MUST register an inverse compensation closure with `UndoService` to provide a persistent 10-second undo window via `UndoToastComponent`.
 
+9. **Offline-First Mutation Pipeline (Zero Direct API Mutations)**:
+   - Every mutation MUST write directly to IndexedDB via `OfflineStorageService` first, enqueue the operation to `sync_queue`, and trigger `SyncService.sync()` in the background (`POST /api/sync`).
+   - Never perform direct REST `POST`/`PUT`/`DELETE` mutation calls from the frontend.
+
 ---
 
 ## 4. Verification and Test Protocol

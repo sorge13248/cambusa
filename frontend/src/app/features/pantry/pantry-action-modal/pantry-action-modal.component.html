@@ -3,12 +3,23 @@
     <div class="header-left">
       <h3>{{ data.product.name }}</h3>
       @if (productGroupName()) {
-        <span class="product-group-badge">{{ productGroupName() }}</span>
+        <button
+          type="button"
+          class="product-group-badge product-group-badge-link"
+          (click)="navigateToGroupPantry()"
+          [title]="'View ' + productGroupName() + ' in Pantry'"
+        >
+          {{ productGroupName() }}
+        </button>
       }
     </div>
     <div class="header-right">
-      <button type="button" class="btn btn-secondary btn-sm" (click)="openEditProduct()">✏️ Edit Product</button>
-      <button type="button" class="modal-close-btn" (click)="requestClose()">×</button>
+      <button type="button" class="btn btn-secondary btn-sm modal-header-btn" (click)="openEditProduct()" title="Product info" aria-label="Product info">
+        <svg lucideInfo [size]="14"></svg>
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm modal-header-btn modal-close-btn" (click)="requestClose()" aria-label="Close dialog">
+        <svg lucideX [size]="14"></svg>
+      </button>
     </div>
   </div>
 
@@ -21,7 +32,7 @@
         [class.active]="activeAction() === 'consume'"
         (click)="setAction('consume')"
       >
-        <span class="action-emoji">🍽️</span>
+        <span class="action-emoji"><svg lucideUtensils [size]="24"></svg></span>
         <span class="action-label">Consume</span>
       </button>
 
@@ -31,7 +42,7 @@
         [class.active]="activeAction() === 'purchase'"
         (click)="setAction('purchase')"
       >
-        <span class="action-emoji">🛒</span>
+        <span class="action-emoji"><svg lucideShoppingCart [size]="24"></svg></span>
         <span class="action-label">Purchase</span>
       </button>
 
@@ -41,7 +52,7 @@
         [class.active]="activeAction() === 'move'"
         (click)="setAction('move')"
       >
-        <span class="action-emoji">📦</span>
+        <span class="action-emoji"><svg lucidePackage [size]="24"></svg></span>
         <span class="action-label">Move</span>
       </button>
     </div>
@@ -49,26 +60,20 @@
     <!-- Action Specific Form -->
     @if (activeAction() === 'consume') {
       <div class="action-form consume-form">
-        <h4>Consume Item</h4>
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Quantity to consume *</label>
-            <div class="amount-stepper">
-              <button type="button" class="stepper-btn" (click)="adjustConsumeAmount(-1)">-</button>
-              <input type="number" min="1" step="1" [(ngModel)]="consumeAmount" />
-              <button type="button" class="stepper-btn" (click)="adjustConsumeAmount(1)">+</button>
-            </div>
-          </div>
+        <h4>{{ consumeMarkAsOpen ? 'Open Item' : 'Consume Item' }}</h4>
+        <div class="form-group">
+          <label>{{ consumeMarkAsOpen ? 'Quantity to open *' : 'Quantity to consume *' }}</label>
+          <app-number-stepper [(value)]="consumeAmount" [min]="1" [unit]="stockUnitName()" [ariaLabel]="consumeMarkAsOpen ? 'Quantity to open' : 'Quantity to consume'"></app-number-stepper>
+        </div>
 
-          <div class="form-group flex-1">
-            <label>From Location</label>
-            <select [(ngModel)]="consumeLocationId">
-              <option value="">Any / FIFO</option>
-              @for (loc of availableLocations(); track loc.id) {
-                <option [value]="loc.id">{{ loc.name }}</option>
-              }
-            </select>
-          </div>
+        <div class="form-group">
+          <label>From Location</label>
+          <select [(ngModel)]="consumeLocationId">
+            <option value="">Any / FIFO</option>
+            @for (loc of availableLocations(); track loc.id) {
+              <option [value]="loc.id">{{ loc.name }}</option>
+            }
+          </select>
         </div>
 
         <div class="form-group">
@@ -85,15 +90,31 @@
 
         <div class="form-group-checkbox">
           <label>
-            <input type="checkbox" [(ngModel)]="consumeIsSpoiled" />
-            <span>Mark as spoiled / expired</span>
+            <input type="checkbox" [(ngModel)]="consumeMarkAsOpen" />
+            <span>Mark as opened instead of consumed</span>
           </label>
         </div>
 
+        @if (!consumeMarkAsOpen) {
+          <div class="form-group-checkbox">
+            <label>
+              <input type="checkbox" [(ngModel)]="consumeIsSpoiled" />
+              <span>Mark as spoiled / expired</span>
+            </label>
+          </div>
+        }
+
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" (click)="setAction('none')">Cancel</button>
-          <button type="button" class="btn btn-danger" [disabled]="consumeAmount <= 0" (click)="submitConsume()">
-            Confirm Consume
+          <button
+            type="button"
+            class="btn"
+            [class.btn-primary]="consumeMarkAsOpen"
+            [class.btn-danger]="!consumeMarkAsOpen"
+            [disabled]="consumeAmount <= 0"
+            (click)="submitConsume()"
+          >
+            {{ consumeMarkAsOpen ? 'Confirm Open' : 'Confirm Consume' }}
           </button>
         </div>
       </div>
@@ -113,31 +134,29 @@
     @if (activeAction() === 'move') {
       <div class="action-form move-form">
         <h4>Move Item</h4>
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>From Location</label>
-            <select [(ngModel)]="moveFromLocationId">
-              <option value="">Any location</option>
-              @for (loc of availableLocations(); track loc.id) {
-                <option [value]="loc.id">{{ loc.name }}</option>
-              }
-            </select>
-          </div>
+        <div class="form-group">
+          <label>From Location</label>
+          <select [(ngModel)]="moveFromLocationId">
+            <option value="">Any location</option>
+            @for (loc of availableLocations(); track loc.id) {
+              <option [value]="loc.id">{{ loc.name }}</option>
+            }
+          </select>
+        </div>
 
-          <div class="form-group flex-1">
-            <label>To Location *</label>
-            <select [(ngModel)]="moveToLocationId" (ngModelChange)="onTargetLocationChanged()">
-              <option value="" disabled>Select destination</option>
-              @for (loc of data.locations; track loc.id) {
-                <option [value]="loc.id">{{ loc.name }}{{ loc.isFreezer ? ' ❄️ (Freezer)' : '' }}</option>
-              }
-            </select>
-          </div>
+        <div class="form-group">
+          <label>To Location *</label>
+          <select [(ngModel)]="moveToLocationId" (ngModelChange)="onTargetLocationChanged()">
+            <option value="" disabled>Select destination</option>
+            @for (loc of moveTargetLocations(); track loc.id) {
+              <option [value]="loc.id">{{ loc.name }}{{ loc.isFreezer ? ' ❄️ (Freezer)' : '' }}</option>
+            }
+          </select>
         </div>
 
         @if (moveFreezerWarning()) {
           <div class="freezer-alert" role="alert">
-            ⚠️ Warning: This product is configured as "Cannot be frozen". It cannot be moved into a freezer location!
+            <svg lucideAlertTriangle [size]="14"></svg> Warning: This product is configured as "Cannot be frozen". It cannot be moved into a freezer location!
           </div>
         }
 
@@ -147,23 +166,21 @@
           </div>
         }
 
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label>Quantity to move *</label>
-            <input type="number" min="1" step="1" [(ngModel)]="moveAmount" />
-          </div>
+        <div class="form-group">
+          <label>Quantity to move *</label>
+          <app-number-stepper [(value)]="moveAmount" [min]="1" [unit]="stockUnitName()" ariaLabel="Quantity to move"></app-number-stepper>
+        </div>
 
-          <div class="form-group flex-1">
-            <label>Specific batch (optional)</label>
-            <select [(ngModel)]="moveStockItemId">
-              <option value="">Any batch</option>
-              @for (item of productStockItems(); track item.id) {
-                <option [value]="item.id">
-                  {{ item.amount }}x &bull; Exp: {{ (item.bestBeforeDate | localDate) || 'Never' }} &bull; {{ item.locationName || 'N/A' }}
-                </option>
-              }
-            </select>
-          </div>
+        <div class="form-group">
+          <label>Specific batch (optional)</label>
+          <select [(ngModel)]="moveStockItemId">
+            <option value="">Any batch</option>
+            @for (item of productStockItems(); track item.id) {
+              <option [value]="item.id">
+                {{ item.amount }}x &bull; Exp: {{ (item.bestBeforeDate | localDate) || 'Never' }} &bull; {{ item.locationName || 'N/A' }}
+              </option>
+            }
+          </select>
         </div>
 
         <div class="form-actions">
@@ -187,7 +204,7 @@
           @if (mainPhotoUrl()) {
             <img [src]="mainPhotoUrl()" [alt]="data.product.name" class="main-photo-img" />
           } @else {
-            <div class="no-photo-placeholder">📦</div>
+            <div class="no-photo-placeholder"><svg lucidePackage [size]="28"></svg></div>
           }
         </div>
 
@@ -205,14 +222,14 @@
             <span class="stat-val" [class.danger]="nextExpirationUrgent()">{{ (nextExpirationDate() | localDate) || 'No expiration date' }}</span>
           </div>
           @if (data.product.cannotBeFrozen) {
-            <div class="badge-nofreeze">❄️ Cannot be frozen</div>
+            <div class="badge-nofreeze">Cannot be frozen</div>
           }
         </div>
       </div>
 
       @if (productStockItems().length > 0) {
         <div class="batches-section">
-          <h5>Batches in pantry:</h5>
+          <h5>Batches in pantry ({{ productStockItems().length }}):</h5>
           <div class="batches-list">
             @for (item of productStockItems(); track item.id) {
               <div class="batch-chip">
@@ -221,13 +238,15 @@
                   <span class="batch-loc">{{ item.locationName || 'No location' }}</span>
                   <span class="batch-date">{{ item.bestBeforeDate ? 'Exp: ' + (item.bestBeforeDate | localDate) : 'Never expires' }}</span>
                   @if (item.isOpen) {
-                    <span class="open-badge">Opened</span>
+                    <span class="open-badge">Opened@if (item.amount >= 2) { ({{ item.amount }})}</span>
                   }
                 </div>
                 <div class="batch-right-actions">
                   <!-- Reusable Quick Date Modifier inside modal -->
                   <div class="batch-quick-date">
                     <app-quick-date-modifier
+                      [showDateDisplay]="false"
+                      [bare]="true"
                       [currentDate]="item.bestBeforeDate"
                       (dateChange)="onQuickDateChange(item, $event)"
                     ></app-quick-date-modifier>
@@ -237,8 +256,9 @@
                     class="btn btn-secondary btn-xs btn-edit-batch"
                     (click)="openEditStockItem(item)"
                     title="Edit batch (expiration, location, price, notes)"
+                    aria-label="Edit batch"
                   >
-                    ✏️ Edit
+                    <svg lucidePencil [size]="12"></svg>
                   </button>
                 </div>
               </div>
@@ -246,92 +266,94 @@
           </div>
         </div>
       }
+    </div>
 
-      <!-- Mealie Integration Section (Visible only when Mealie is configured) -->
-      @if (isMealieConfigured()) {
-        <div class="mealie-pantry-card">
-          <div class="mealie-card-header">
-            <div class="header-left">
-              <h5>🍲 Mealie Recipes & Foods</h5>
-              @if (mealieRecipes().length > 0) {
-                <span class="badge-count">{{ mealieRecipes().length }} recipes</span>
-              }
-            </div>
-            <button
-              type="button"
-              class="btn-refresh-mealie"
-              [disabled]="isLoadingMealie() || isRefreshingMealie()"
-              (click)="loadMealieRecipes(true)"
-              title="Force refresh recipes directly from Mealie"
-            >
-              <span class="refresh-icon" [class.spinning]="isRefreshingMealie()">🔄</span>
-              {{ isRefreshingMealie() ? 'Refreshing...' : 'Refresh' }}
-            </button>
+    <!-- Mealie Integration Section (Visible only when Mealie is configured and product has associated recipes or foods) -->
+    @if (hasMealieAssociations()) {
+      <div class="mealie-pantry-card">
+        <div class="mealie-card-header">
+          <div class="header-left">
+            <h5><svg lucideUtensils [size]="15"></svg> Mealie Recipes &amp; Foods</h5>
+            @if (mealieRecipes().length > 0) {
+              <span class="badge-count">{{ mealieRecipes().length }} recipes</span>
+            }
           </div>
+          <button
+            type="button"
+            class="btn-refresh-mealie"
+            [disabled]="isLoadingMealie() || isRefreshingMealie()"
+            (click)="loadMealieRecipes(true)"
+            title="Force refresh recipes directly from Mealie"
+            aria-label="Force refresh recipes directly from Mealie"
+          >
+            <span class="refresh-icon" [class.spinning]="isRefreshingMealie()">
+              <svg lucideRotateCw [size]="15"></svg>
+            </span>
+          </button>
+        </div>
 
-          @if (isLoadingMealie()) {
-            <div class="mealie-loading">
-              <span class="spinner">⏳</span> Checking Mealie recipes...
-            </div>
-          } @else if (mealieError()) {
-            <div class="mealie-alert-error">
-              ⚠️ {{ mealieError() }}
-            </div>
-          } @else {
-            <!-- Recipes Subsection: max 3 per row -->
-            <div class="mealie-recipes-section">
-              <span class="section-label">Recipes</span>
-              @if (mealieRecipes().length === 0) {
-                <p class="empty-hint">No recipes found for this product on Mealie.</p>
-              } @else {
-                <div class="recipes-grid">
-                  @for (recipe of mealieRecipes(); track recipe.id) {
-                    <div
-                      class="recipe-card"
-                      (click)="openRecipe(recipe.slug)"
-                      title="Open recipe on Mealie in a new tab"
-                    >
-                      <div class="recipe-thumb-box">
-                        @if (recipe.imageUrl) {
-                          <img [src]="recipe.imageUrl" [alt]="recipe.name" class="recipe-img" loading="lazy" />
-                        } @else {
-                          <div class="recipe-placeholder">🍽️</div>
-                        }
-                      </div>
-                      <div class="recipe-meta">
-                        <span class="recipe-title">{{ recipe.name }}</span>
-                        @if (recipe.totalTime) {
-                          <span class="recipe-time">⏱️ {{ recipe.totalTime }}</span>
-                        }
-                      </div>
+        @if (isLoadingMealie()) {
+          <div class="mealie-loading">
+            <span class="spinner">⏳</span> Checking Mealie recipes...
+          </div>
+        } @else if (mealieError()) {
+          <div class="mealie-alert-error">
+            <svg lucideAlertCircle [size]="14"></svg> {{ mealieError() }}
+          </div>
+        } @else {
+          <!-- Recipes Subsection: max 3 per row -->
+          <div class="mealie-recipes-section">
+            <span class="section-label">Recipes</span>
+            @if (mealieRecipes().length === 0) {
+              <p class="empty-hint">No recipes found for this product on Mealie.</p>
+            } @else {
+              <div class="recipes-grid">
+                @for (recipe of mealieRecipes(); track recipe.id) {
+                  <div
+                    class="recipe-card"
+                    (click)="openRecipe(recipe.slug)"
+                    title="Open recipe on Mealie in a new tab"
+                  >
+                    <div class="recipe-thumb-box">
+                      @if (recipe.imageUrl) {
+                        <img [src]="recipe.imageUrl" [alt]="recipe.name" class="recipe-img" loading="lazy" />
+                      } @else {
+                        <div class="recipe-placeholder"><svg lucideUtensils [size]="24"></svg></div>
+                      }
                     </div>
-                  }
-                </div>
-              }
-            </div>
-
-            <!-- Foods Subsection: links to ENDPOINT/g/home?foods=UUID -->
-            @if (mealieFoods().length > 0) {
-              <div class="mealie-foods-section">
-                <span class="section-label">Foods</span>
-                <div class="foods-chips-row">
-                  @for (food of mealieFoods(); track food.id) {
-                    <a
-                      [href]="getMealieFoodUrl(food.id)"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="food-link-pill"
-                      title="View all recipes for this food on Mealie"
-                    >
-                      🥗 {{ food.name }} ↗
-                    </a>
-                  }
-                </div>
+                    <div class="recipe-meta">
+                      <span class="recipe-title">{{ recipe.name }}</span>
+                      @if (recipe.totalTime) {
+                        <span class="recipe-time"><svg lucideClock [size]="12"></svg> {{ recipe.totalTime }}</span>
+                      }
+                    </div>
+                  </div>
+                }
               </div>
             }
+          </div>
+
+          <!-- Foods Subsection: links to ENDPOINT/g/home?foods=UUID -->
+          @if (mealieFoods().length > 0) {
+            <div class="mealie-foods-section">
+              <span class="section-label">Foods</span>
+              <div class="foods-chips-row">
+                @for (food of mealieFoods(); track food.id) {
+                  <a
+                    [href]="getMealieFoodUrl(food.id)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="food-link-pill"
+                    title="View all recipes for this food on Mealie"
+                  >
+                    <svg lucideUtensils [size]="12"></svg> {{ food.name }} ↗
+                  </a>
+                }
+              </div>
+            </div>
           }
-        </div>
+        }
+      </div>
       }
-    </div>
   </div>
 </div>

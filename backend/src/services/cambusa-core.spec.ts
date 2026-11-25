@@ -7,6 +7,7 @@ import {
   Location,
   Product,
   ProductGroup,
+  ProductRating,
   ProductStore,
   QuantityUnit,
   SavedFilter,
@@ -14,6 +15,7 @@ import {
   ShoppingListItem,
   StockItem,
   Store,
+  Aisle,
   SyncTombstone,
   User,
 } from '../entities/index.js';
@@ -22,6 +24,7 @@ import { HouseholdsService } from './households.service.js';
 import { ProductsService } from './products.service.js';
 import { ShoppingListService } from './shopping-list.service.js';
 import { StockService } from './stock.service.js';
+import { SyncService } from './sync.service.js';
 import { UsersService } from './users.service.js';
 
 describe('Cambusa Core Business Logic & Invariants', () => {
@@ -32,6 +35,7 @@ describe('Cambusa Core Business Logic & Invariants', () => {
   let productsService: ProductsService;
   let stockService: StockService;
   let shoppingListService: ShoppingListService;
+  let syncService: SyncService;
 
   beforeEach(async () => {
     dataSource = new DataSource({
@@ -46,7 +50,9 @@ describe('Cambusa Core Business Logic & Invariants', () => {
         ProductGroup,
         Location,
         Store,
+        Aisle,
         Product,
+        ProductRating,
         ProductStore,
         StockItem,
         ShoppingList,
@@ -70,7 +76,9 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     const groupRepo = dataSource.getRepository(ProductGroup);
     const locationRepo = dataSource.getRepository(Location);
     const storeRepo = dataSource.getRepository(Store);
+    const aisleRepo = dataSource.getRepository(Aisle);
     const productRepo = dataSource.getRepository(Product);
+    const productRatingRepo = dataSource.getRepository(ProductRating);
     const productStoreRepo = dataSource.getRepository(ProductStore);
     const stockRepo = dataSource.getRepository(StockItem);
     const shoppingListRepo = dataSource.getRepository(ShoppingList);
@@ -79,8 +87,18 @@ describe('Cambusa Core Business Logic & Invariants', () => {
 
     usersService = new UsersService(userRepo, householdRepo, memberRepo);
     householdsService = new HouseholdsService(householdRepo, memberRepo, invitationRepo, userRepo);
-    catalogsService = new CatalogsService(unitRepo, groupRepo, locationRepo, storeRepo, tombstoneRepo);
-    productsService = new ProductsService(productRepo, productStoreRepo, stockRepo, tombstoneRepo);
+    catalogsService = new CatalogsService(unitRepo, groupRepo, locationRepo, storeRepo, aisleRepo, tombstoneRepo);
+    productsService = new ProductsService(
+      productRepo,
+      productStoreRepo,
+      stockRepo,
+      tombstoneRepo,
+      locationRepo,
+      undefined,
+      productRatingRepo,
+      memberRepo,
+      userRepo,
+    );
     stockService = new StockService(stockRepo, productRepo, locationRepo, unitRepo, tombstoneRepo);
     shoppingListService = new ShoppingListService(
       shoppingListRepo,
@@ -90,7 +108,20 @@ describe('Cambusa Core Business Logic & Invariants', () => {
       stockRepo,
       storeRepo,
       unitRepo,
+      groupRepo,
       tombstoneRepo,
+    );
+    syncService = new SyncService(
+      productRepo,
+      stockRepo,
+      shoppingItemRepo,
+      shoppingListRepo,
+      unitRepo,
+      groupRepo,
+      locationRepo,
+      storeRepo,
+      tombstoneRepo,
+      productRatingRepo,
     );
   });
 
@@ -233,17 +264,40 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     await shoppingListService.addItem(hh.id, { shoppingListId: defaultList.id, productId: apples.id, amount: 5 });
     await shoppingListService.addItem(hh.id, { shoppingListId: defaultList.id, productId: pasta.id, amount: 3 });
 
-    // Query shopping list items filtered by Coop
-    const items = await shoppingListService.getItems(defaultList.id, hh.id, coop.id);
+    // When defaultList is NOT associated with any store, store aisles must NEVER be used
+    const unassociatedItems = await shoppingListService.getItems(defaultList.id, hh.id);
+    expect(unassociatedItems).toHaveLength(3);
+    expect(unassociatedItems[0].aisle).toBeNull();
+    expect(unassociatedItems[0].aisleOrder).toBeNull();
+    expect(unassociatedItems[1].aisle).toBeNull();
+    expect(unassociatedItems[1].aisleOrder).toBeNull();
+    expect(unassociatedItems[2].aisle).toBeNull();
+    expect(unassociatedItems[2].aisleOrder).toBeNull();
+
+    // Associate Coop Supermarket with the shopping list
+    await shoppingListService.updateList(defaultList.id, hh.id, { storeId: coop.id });
+
+    // Query shopping list items now that Coop is associated with the list
+    const items = await shoppingListService.getItems(defaultList.id, hh.id);
 
     expect(items).toHaveLength(3);
     // Verified aisle order: Apples (10) -> Spaghetti (40) -> Frozen Pizza (80)
     expect(items[0].productName).toBe('Apples');
+    expect(items[0].aisle).toBe('Aisle 1 - Produce');
     expect(items[0].aisleOrder).toBe(10);
     expect(items[1].productName).toBe('Spaghetti');
+    expect(items[1].aisle).toBe('Aisle 4 - Dry Pasta');
     expect(items[1].aisleOrder).toBe(40);
     expect(items[2].productName).toBe('Frozen Pizza');
+    expect(items[2].aisle).toBe('Aisle 8 - Freezers');
     expect(items[2].aisleOrder).toBe(80);
+
+    // Create another list without store association and verify Coop's aisles are NOT leaked
+    const generalList = await shoppingListService.createList(hh.id, { name: 'General Market' });
+    await shoppingListService.addItem(hh.id, { shoppingListId: generalList.id, productId: apples.id, amount: 1 });
+    const generalItems = await shoppingListService.getItems(generalList.id, hh.id);
+    expect(generalItems[0].aisle).toBeNull();
+    expect(generalItems[0].aisleOrder).toBeNull();
   });
 
   it('5. Shopping list Done button is strictly non-destructive and DOES NOT mutate pantry stock', async () => {
@@ -325,12 +379,49 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     const pantryLoc = await catalogsService.createLocation(hh!.id, { name: 'Pantry Shelf', isFreezer: false });
     const freezerLoc = await catalogsService.createLocation(hh!.id, { name: 'Deep Freezer', isFreezer: true });
 
+    // Product marked with cannotBeFrozen nullifies freezing/thawing expiration days on create
+    const productWithFreezingFields = await productsService.createProduct(hh!.id, {
+      name: 'Lettuce',
+      cannotBeFrozen: true,
+      defaultBestBeforeDaysAfterFreezing: 30,
+      defaultBestBeforeDaysAfterThawing: 5,
+    });
+    expect(productWithFreezingFields.defaultBestBeforeDaysAfterFreezing).toBeNull();
+    expect(productWithFreezingFields.defaultBestBeforeDaysAfterThawing).toBeNull();
+
+    // Setting defaultLocationId or openLocationId to a freezer location when cannotBeFrozen: true must fail
+    await expect(
+      productsService.createProduct(hh!.id, {
+        name: 'Iceberg Salad',
+        cannotBeFrozen: true,
+        defaultLocationId: freezerLoc.id,
+      }),
+    ).rejects.toThrow('Cannot set default location to a freezer');
+
+    await expect(
+      productsService.createProduct(hh!.id, {
+        name: 'Arugula',
+        cannotBeFrozen: true,
+        openLocationId: freezerLoc.id,
+      }),
+    ).rejects.toThrow('Cannot set open location to a freezer');
+
     // Product that cannot be frozen
     const unfrozenProduct = await productsService.createProduct(hh!.id, {
       name: 'Fresh Salad',
       cannotBeFrozen: true,
       defaultLocationId: pantryLoc.id,
     });
+
+    // Attempting to add stock to a freezer location directly must fail
+    await expect(
+      stockService.addStock(hh!.id, {
+        productId: unfrozenProduct.id,
+        amount: 1,
+        locationId: freezerLoc.id,
+      }),
+    ).rejects.toThrow('cannot be frozen');
+
     const saladStock = await stockService.addStock(hh!.id, {
       productId: unfrozenProduct.id,
       amount: 2,
@@ -352,6 +443,7 @@ describe('Cambusa Core Business Logic & Invariants', () => {
       name: 'Ground Beef',
       cannotBeFrozen: false,
       defaultBestBeforeDaysAfterFreezing: 90,
+      defaultBestBeforeDaysAfterThawing: 3,
     });
     const meatStock = await stockService.addStock(hh!.id, {
       productId: meatProduct.id,
@@ -374,6 +466,26 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     // Calculated date: today + 90 days
     expect(transferResult.targetStockItem.bestBeforeDate).toBeTruthy();
     expect(transferResult.targetStockItem.bestBeforeDate).not.toBe('2026-11-25');
+
+    // Cannot update meatProduct to cannotBeFrozen while it has items in the freezer
+    await expect(
+      productsService.updateProduct(meatProduct.id, hh!.id, {
+        cannotBeFrozen: true,
+      }),
+    ).rejects.toThrow('Cannot mark product as cannot be frozen while items exist in a freezer location');
+
+    // Updating a product to cannotBeFrozen clears existing freeze/thaw days
+    const soupProduct = await productsService.createProduct(hh!.id, {
+      name: 'Soup',
+      cannotBeFrozen: false,
+      defaultBestBeforeDaysAfterFreezing: 60,
+      defaultBestBeforeDaysAfterThawing: 3,
+    });
+    const updatedSoup = await productsService.updateProduct(soupProduct.id, hh!.id, {
+      cannotBeFrozen: true,
+    });
+    expect(updatedSoup.defaultBestBeforeDaysAfterFreezing).toBeNull();
+    expect(updatedSoup.defaultBestBeforeDaysAfterThawing).toBeNull();
   });
 
   it('8. Enforces owner-only rename and delete on households', async () => {
@@ -493,5 +605,280 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     const stock10d = await stockService.getStock(hh!.id, 10);
     expect(stock10d).toHaveLength(1);
     expect(stock10d[0].urgency).toBe('due_soon');
+  });
+
+  it('12. Manages store aisles and drag-and-drop reordering with tenant isolation and tombstone tracking', async () => {
+    const user = await usersService.ensureUser({ id: 'u12', subject: 'sub-u12', email: 'u12@example.com', displayName: 'User 12' });
+    const hh = await householdsService.getDefaultHousehold(user.id);
+    expect(hh).toBeTruthy();
+
+    const store = await catalogsService.createStore(hh!.id, { name: 'Supermarket Esselunga' });
+    expect(store.id).toBeTruthy();
+
+    const a1 = await catalogsService.createAisle(store.id, hh!.id, { name: 'Produce' });
+    const a2 = await catalogsService.createAisle(store.id, hh!.id, { name: 'Bakery' });
+    const a3 = await catalogsService.createAisle(store.id, hh!.id, { name: 'Dairy & Cheese' });
+
+    expect(a1.sortOrder).toBe(1);
+    expect(a2.sortOrder).toBe(2);
+    expect(a3.sortOrder).toBe(3);
+
+    // Reorder: Bakery first, then Dairy, then Produce
+    const reordered = await catalogsService.reorderStoreAisles(store.id, hh!.id, [a2.id, a3.id, a1.id]);
+    expect(reordered[0].name).toBe('Bakery');
+    expect(reordered[0].sortOrder).toBe(1);
+    expect(reordered[1].name).toBe('Dairy & Cheese');
+    expect(reordered[1].sortOrder).toBe(2);
+    expect(reordered[2].name).toBe('Produce');
+    expect(reordered[2].sortOrder).toBe(3);
+
+    // Update aisle name
+    const updated = await catalogsService.updateAisle(a2.id, hh!.id, { name: 'Fresh Bakery & Pastry' });
+    expect(updated.name).toBe('Fresh Bakery & Pastry');
+
+    // Delete aisle with tombstone tracking
+    await catalogsService.deleteAisle(a1.id, hh!.id);
+    const remaining = await catalogsService.getStoreAisles(store.id, hh!.id);
+    expect(remaining).toHaveLength(2);
+    expect(remaining.find((a) => a.id === a1.id)).toBeUndefined();
+  });
+
+  it('13. Reorders shopping lists with custom sortOrder and persists sequence', async () => {
+    const user = await usersService.ensureUser({ id: 'u13', subject: 'sub-u13', email: 'u13@example.com', displayName: 'User 13' });
+    const hh = await householdsService.getDefaultHousehold(user.id);
+    expect(hh).toBeTruthy();
+
+    const l1 = await shoppingListService.createList(hh!.id, { name: 'Alpha List' });
+    const l2 = await shoppingListService.createList(hh!.id, { name: 'Beta List' });
+    const l3 = await shoppingListService.createList(hh!.id, { name: 'Gamma List' });
+
+    // Initial default list exists + 3 created
+    const initialLists = await shoppingListService.getLists(hh!.id);
+    expect(initialLists.length).toBeGreaterThanOrEqual(3);
+
+    // Reorder: Gamma first, then Alpha, then Beta
+    await shoppingListService.reorderLists(hh!.id, [l3.id, l1.id, l2.id]);
+
+    const reorderedLists = await shoppingListService.getLists(hh!.id);
+    const gamma = reorderedLists.find((l) => l.id === l3.id);
+    const alpha = reorderedLists.find((l) => l.id === l1.id);
+    const beta = reorderedLists.find((l) => l.id === l2.id);
+
+    expect(gamma?.sortOrder).toBe(0);
+    expect(alpha?.sortOrder).toBe(1);
+    expect(beta?.sortOrder).toBe(2);
+  });
+
+  it('14. Opens single item from batch (splits batch when amount > 1) and supports clean revert', async () => {
+    const user = await usersService.ensureUser({ id: 'u14', subject: 'sub-u14', email: 'u14@example.com', displayName: 'User 14' });
+    const hh = await householdsService.getDefaultHousehold(user.id);
+    expect(hh).toBeTruthy();
+
+    const openLoc = await dataSource.getRepository(Location).save({ householdId: hh!.id, name: 'Fridge Door', active: true });
+    const prod = await productsService.createProduct(hh!.id, {
+      name: 'Milk Carton',
+      moveOnOpen: true,
+      openLocationId: openLoc.id,
+      defaultBestBeforeDaysAfterOpen: 4,
+    });
+
+    const stock = await stockService.addStock(hh!.id, {
+      productId: prod.id,
+      amount: 3,
+      bestBeforeDate: '2026-12-31',
+    });
+
+    // Open 1: should split the batch because initial amount is 3
+    const result = await stockService.openStock(stock.id, hh!.id, 1);
+    expect(result.split).toBe(true);
+    expect(result.openedStockItem.amount).toBe(1);
+    expect(result.openedStockItem.isOpen).toBe(true);
+    expect(result.openedStockItem.locationId).toBe(openLoc.id);
+    expect(result.openedStockItem.bestBeforeDate).not.toBe('2026-12-31');
+
+    // Original batch is decremented to 2 and remains unopened
+    const remainingOrig = await dataSource.getRepository(StockItem).findOne({ where: { id: stock.id } });
+    expect(remainingOrig?.amount).toBe(2);
+    expect(remainingOrig?.isOpen).toBe(false);
+
+    // Revert open
+    const revertResult = await stockService.revertOpen(hh!.id, {
+      openedStockItemId: result.openedStockItem.id,
+      originalStockItemId: stock.id,
+      split: true,
+      amount: 1,
+      originalDate: result.originalDate,
+      originalLocationId: result.originalLocationId,
+    });
+    expect(revertResult.reverted).toBe(true);
+
+    // Opened item deleted with tombstone
+    const checkOpened = await dataSource.getRepository(StockItem).findOne({ where: { id: result.openedStockItem.id } });
+    expect(checkOpened).toBeNull();
+
+    // Original restored to 3
+    const restoredOrig = await dataSource.getRepository(StockItem).findOne({ where: { id: stock.id } });
+    expect(restoredOrig?.amount).toBe(3);
+  });
+
+  it('15. Sorts product groups, locations, stores, and quantity units alphabetically by name, and aisles numerically by user-defined sortOrder', async () => {
+    const user = await usersService.ensureUser({ id: 'u15', subject: 'sub-u15', email: 'u15@example.com', displayName: 'User 15' });
+    const hh = await householdsService.getDefaultHousehold(user.id);
+    expect(hh).toBeTruthy();
+
+    await catalogsService.createGroup(hh!.id, { name: 'Snacks' });
+    await catalogsService.createGroup(hh!.id, { name: 'bakery' });
+    await catalogsService.createGroup(hh!.id, { name: 'Dairy' });
+    const groups = await catalogsService.getGroups(hh!.id);
+    expect(groups.map((g) => g.name)).toEqual(['bakery', 'Dairy', 'Snacks']);
+
+    await catalogsService.createLocation(hh!.id, { name: 'Pantry' });
+    await catalogsService.createLocation(hh!.id, { name: 'cellar' });
+    await catalogsService.createLocation(hh!.id, { name: 'Fridge' });
+    const locations = await catalogsService.getLocations(hh!.id);
+    expect(locations.map((l) => l.name)).toEqual(['cellar', 'Fridge', 'Pantry']);
+
+    const storeZ = await catalogsService.createStore(hh!.id, { name: 'Zeta Market' });
+    await catalogsService.createStore(hh!.id, { name: 'aldi' });
+    await catalogsService.createStore(hh!.id, { name: 'Coop' });
+    const stores = await catalogsService.getStores(hh!.id);
+    expect(stores.map((s) => s.name)).toEqual(['aldi', 'Coop', 'Zeta Market']);
+
+    await catalogsService.createUnit(hh!.id, { name: 'Piece' });
+    await catalogsService.createUnit(hh!.id, { name: 'bag' });
+    await catalogsService.createUnit(hh!.id, { name: 'Kilogram' });
+    const units = await catalogsService.getUnits(hh!.id);
+    expect(units.map((u) => u.name)).toEqual(['bag', 'Kilogram', 'Piece']);
+
+    // Aisles sorted numerically by sortOrder (1, 2, 10 - not lexicographic '1', '10', '2')
+    await catalogsService.createAisle(storeZ.id, hh!.id, { name: 'Aisle Ten', sortOrder: 10 });
+    await catalogsService.createAisle(storeZ.id, hh!.id, { name: 'Aisle Two', sortOrder: 2 });
+    await catalogsService.createAisle(storeZ.id, hh!.id, { name: 'Aisle One', sortOrder: 1 });
+    const storeAisles = await catalogsService.getStoreAisles(storeZ.id, hh!.id);
+    expect(storeAisles.map((a) => [a.sortOrder, a.name])).toEqual([
+      [1, 'Aisle One'],
+      [2, 'Aisle Two'],
+      [10, 'Aisle Ten'],
+    ]);
+
+    const allAisles = await catalogsService.getAisles(hh!.id, storeZ.id);
+    expect(allAisles.map((a) => a.sortOrder)).toEqual([1, 2, 10]);
+
+    const syncRes = await syncService.sync(hh!.id, { lastSyncAt: null });
+    expect(syncRes.serverChanges.catalogs.groups.map((g) => g.name)).toEqual(['bakery', 'Dairy', 'Snacks']);
+    expect(syncRes.serverChanges.catalogs.locations.map((l) => l.name)).toEqual(['cellar', 'Fridge', 'Pantry']);
+    expect(syncRes.serverChanges.catalogs.stores.map((s) => s.name)).toEqual(['aldi', 'Coop', 'Zeta Market']);
+    expect(syncRes.serverChanges.catalogs.units.map((u) => u.name)).toEqual(['bag', 'Kilogram', 'Piece']);
+  });
+
+  it('16. Supports per-user product star ratings (null..5), tenant isolation, household member resolution, and sync', async () => {
+    const alice = await usersService.ensureUser({
+      id: 'u16-alice',
+      subject: 'sub-u16-alice',
+      email: 'alice@example.com',
+      displayName: 'Alice',
+      pictureUrl: 'https://example.com/alice.png',
+    });
+    const bob = await usersService.ensureUser({
+      id: 'u16-bob',
+      subject: 'sub-u16-bob',
+      email: 'bob@example.com',
+      displayName: 'Bob',
+      pictureUrl: null,
+    });
+    const charlie = await usersService.ensureUser({
+      id: 'u16-charlie',
+      subject: 'sub-u16-charlie',
+      email: 'charlie@example.com',
+      displayName: 'Charlie',
+      pictureUrl: null,
+    });
+
+    const hh = await householdsService.getDefaultHousehold(alice.id);
+    const otherHh = await householdsService.getDefaultHousehold(charlie.id);
+    expect(hh).toBeTruthy();
+    expect(otherHh).toBeTruthy();
+
+    // Add Bob to Alice's household
+    const memberRepo = dataSource.getRepository(HouseholdMember);
+    await memberRepo.save(memberRepo.create({ householdId: hh!.id, userId: bob.id, role: 'member' }));
+
+    const product = await productsService.createProduct(hh!.id, { name: 'Artisan Olive Oil' });
+
+    // Validation: out-of-range ratings rejected
+    await expect(productsService.setProductRating(product.id, hh!.id, alice.id, 0)).rejects.toThrow();
+    await expect(productsService.setProductRating(product.id, hh!.id, alice.id, 6)).rejects.toThrow();
+    await expect(productsService.setProductRating(product.id, hh!.id, alice.id, 3.5)).rejects.toThrow();
+
+    // Tenant isolation: Charlie's household cannot rate or read Alice's product
+    await expect(productsService.setProductRating(product.id, otherHh!.id, charlie.id, 5)).rejects.toThrow();
+    await expect(productsService.getProductRatings(product.id, otherHh!.id, charlie.id)).rejects.toThrow();
+
+    // Alice rates 4, Bob has not rated yet
+    await productsService.setProductRating(product.id, hh!.id, alice.id, 4);
+    const aliceView = await productsService.getProductRatings(product.id, hh!.id, alice.id);
+    expect(aliceView.memberCount).toBe(2);
+    expect(aliceView.myRating).toBe(4);
+    expect(aliceView.otherMembersRatings).toEqual([
+      expect.objectContaining({
+        userId: bob.id,
+        displayName: 'Bob',
+        pictureUrl: null,
+        rating: null,
+      }),
+    ]);
+
+    // Bob rates 5 independently
+    await productsService.setProductRating(product.id, hh!.id, bob.id, 5);
+    const aliceViewAfterBob = await productsService.getProductRatings(product.id, hh!.id, alice.id);
+    expect(aliceViewAfterBob.myRating).toBe(4);
+    expect(aliceViewAfterBob.otherMembersRatings[0].rating).toBe(5);
+
+    // Alice clears her rating back to null
+    await productsService.setProductRating(product.id, hh!.id, alice.id, null);
+    const aliceCleared = await productsService.getProductRatings(product.id, hh!.id, alice.id);
+    expect(aliceCleared.myRating).toBeNull();
+    expect(aliceCleared.otherMembersRatings[0].rating).toBe(5);
+
+    // Sync push & pull for productRatings
+    const syncRes = await syncService.sync(
+      hh!.id,
+      {
+        lastSyncAt: null,
+        changes: {
+          productRatings: [{ productId: product.id, rating: 3 }],
+        },
+      },
+      alice.id,
+    );
+    expect(syncRes.serverChanges.productRatings?.length).toBeGreaterThanOrEqual(2);
+    const aliceSynced = syncRes.serverChanges.productRatings?.find((r) => r.userId === alice.id);
+    expect(aliceSynced?.rating).toBe(3);
+  });
+
+  it('15. Evaluates missing/out-of-stock products across arbitrary descendant hierarchy depth', async () => {
+    const user = await usersService.ensureUser({
+      id: 'u-hier-missing',
+      subject: 'sub-hier-missing',
+      email: 'hier@example.com',
+      displayName: 'Elena',
+      pictureUrl: null,
+    });
+    const [hh] = await householdsService.getUserHouseholds(user.id);
+
+    const dairy = await productsService.createProduct(hh.id, { name: 'Dairy', minStockAmount: 3 });
+    const milk = await productsService.createProduct(hh.id, { name: 'Milk', parentProductId: dairy.id });
+    const wholeMilk = await productsService.createProduct(hh.id, { name: 'Whole Milk', parentProductId: milk.id });
+    const dryPasta = await productsService.createProduct(hh.id, { name: 'Dry Pasta', minStockAmount: 2 });
+
+    // Stock only on grandchild (Whole Milk = 3), satisfying Dairy's minStockAmount (3)
+    await stockService.addStock(hh.id, { productId: wholeMilk.id, amount: 3 });
+
+    const missing = await shoppingListService.getMissingProducts(hh.id);
+    expect(missing.find((m) => m.productId === dairy.id)).toBeUndefined();
+    const pastaMissing = missing.find((m) => m.productId === dryPasta.id);
+    expect(pastaMissing).toBeDefined();
+    expect(pastaMissing?.currentStock).toBe(0);
+    expect(pastaMissing?.amountMissing).toBe(2);
   });
 });

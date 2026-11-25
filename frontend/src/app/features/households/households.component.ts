@@ -3,6 +3,7 @@ import { Component, effect, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Dialog } from '@angular/cdk/dialog';
 import { firstValueFrom } from 'rxjs';
+import { LucideCrown, LucideMail, LucidePencil, LucideTrash2, LucideUser, LucideUsers } from '@lucide/angular';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
 import {
@@ -17,7 +18,16 @@ import { ConfirmModalComponent } from '../../shared/components/confirm-modal/con
 @Component({
   selector: 'app-households',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LucideCrown,
+    LucideMail,
+    LucidePencil,
+    LucideTrash2,
+    LucideUser,
+    LucideUsers,
+  ],
   templateUrl: './households.component.html',
   styleUrl: './households.component.scss',
 })

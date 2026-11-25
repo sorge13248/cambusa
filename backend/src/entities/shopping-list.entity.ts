@@ -5,6 +5,7 @@ import { Store } from './store.entity.js';
 @Entity({ name: 'shopping_lists' })
 @Index(['householdId'])
 @Index(['householdId', 'storeId'])
+@Index(['householdId', 'sortOrder'])
 export class ShoppingList {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -28,6 +29,9 @@ export class ShoppingList {
 
   @Column({ type: 'boolean', default: false })
   isDefault!: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  sortOrder!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

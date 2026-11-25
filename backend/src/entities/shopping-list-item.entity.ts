@@ -58,6 +58,9 @@ export class ShoppingListItem {
   @Column({ type: 'text', nullable: true })
   note!: string | null;
 
+  @Column({ type: 'integer', default: 0 })
+  sortOrder!: number;
+
   @Column({ type: 'boolean', default: false })
   done!: boolean;
 

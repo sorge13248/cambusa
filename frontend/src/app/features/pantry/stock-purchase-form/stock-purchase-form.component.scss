@@ -128,3 +128,37 @@
     cursor: not-allowed;
   }
 }
+
+@media (max-width: 640px) {
+  .action-form {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .price-mode-group .radio-row {
+    padding-top: 4px;
+    gap: 12px;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+
+    .btn {
+      width: 100%;
+      padding: 10px 14px;
+      text-align: center;
+      justify-content: center;
+    }
+  }
+}
+

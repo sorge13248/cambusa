@@ -17,7 +17,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { createReadStream, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { AuthUser } from '../common/auth/auth.types.js';
 import { BearerJwtGuard } from '../common/auth/bearer-jwt.guard.js';
+import { CurrentUser } from '../common/auth/current-user.decorator.js';
 import { ActiveHousehold } from '../common/household/active-household.decorator.js';
 import { HouseholdMemberGuard } from '../common/household/household-member.guard.js';
 import { Product } from '../entities/index.js';
@@ -61,6 +63,27 @@ export class ProductsController {
     @Query('includeInactive') includeInactive?: string,
   ) {
     return this.productsService.getProducts(householdId, includeInactive === 'true' || includeInactive === '1');
+  }
+
+  @Get(':id/ratings')
+  @UseGuards(BearerJwtGuard, HouseholdMemberGuard)
+  getProductRatings(
+    @ActiveHousehold() householdId: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.productsService.getProductRatings(id, householdId, user.id);
+  }
+
+  @Put(':id/rating')
+  @UseGuards(BearerJwtGuard, HouseholdMemberGuard)
+  setProductRating(
+    @ActiveHousehold() householdId: string,
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { rating: number | null },
+  ) {
+    return this.productsService.setProductRating(id, householdId, user.id, body?.rating ?? null);
   }
 
   @Get(':id')

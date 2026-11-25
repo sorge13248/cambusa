@@ -80,21 +80,6 @@
       }
     }
 
-    .modal-close-btn {
-      background: none;
-      border: none;
-      font-size: 1.4rem;
-      line-height: 1;
-      cursor: pointer;
-      color: var(--text-secondary, #94a3b8);
-      padding: 2px 6px;
-      border-radius: 4px;
-
-      &:hover {
-        background: var(--bg-subtle, rgba(255, 255, 255, 0.1));
-        color: var(--text-primary, #ffffff);
-      }
-    }
   }
 }
 

@@ -1,4 +1,4 @@
-<div class="home-container">
+<div class="home-page">
   <!-- Top Welcome Banner -->
   <section class="welcome-banner glass-card">
     <div class="welcome-left">
@@ -6,36 +6,20 @@
         @if (auth.currentUser()?.pictureUrl) {
           <img [src]="auth.currentUser()!.pictureUrl!" [alt]="auth.currentUser()?.displayName || 'User'" class="welcome-avatar-img" />
         } @else {
-          {{ auth.currentUser()?.displayName?.charAt(0) || '👋' }}
+          {{ auth.currentUser()?.displayName?.charAt(0) || 'U' }}
         }
       </div>
       <div class="welcome-text">
         <h1 class="welcome-title">
           {{ getGreeting() }}, {{ auth.currentUser()?.displayName || 'Friend' }}!
         </h1>
-        <p class="welcome-subtitle">
-          Here is what needs your attention today in
-          <strong class="household-highlight">{{ auth.activeHousehold()?.name || nextData()?.household?.name || 'your pantry' }}</strong>.
-        </p>
       </div>
-    </div>
-    <div class="welcome-right">
-      <button
-        type="button"
-        class="btn btn-secondary btn-sm refresh-btn"
-        (click)="loadDashboardData()"
-        [disabled]="isLoading()"
-        title="Refresh dashboard metrics"
-      >
-        <span class="refresh-icon" [class.spinning]="isLoading()">🔄</span>
-        <span>Refresh</span>
-      </button>
     </div>
   </section>
 
   @if (errorMessage()) {
     <div class="alert-box alert-error">
-      <span>⚠️ {{ errorMessage() }}</span>
+      <span><svg lucideAlertCircle [size]="14"></svg> {{ errorMessage() }}</span>
       <button type="button" class="btn btn-secondary btn-xs" (click)="loadDashboardData()">Retry</button>
     </div>
   }
@@ -52,7 +36,7 @@
       <div class="kpi-card glass-card">
         <div class="kpi-header">
           <span class="kpi-title">Distinct Products</span>
-          <span class="kpi-icon icon-emerald">🥫</span>
+          <span class="kpi-icon icon-emerald"><svg lucideBoxes [size]="20"></svg></span>
         </div>
         <div class="kpi-value">{{ data.summary.totalUniqueProductsInStock }}</div>
         <div class="kpi-footer">Unique items stocked in pantry</div>
@@ -62,7 +46,7 @@
       <div class="kpi-card glass-card">
         <div class="kpi-header">
           <span class="kpi-title">Total Inventory Units</span>
-          <span class="kpi-icon icon-sky">📦</span>
+          <span class="kpi-icon icon-sky"><svg lucidePackage [size]="20"></svg></span>
         </div>
         <div class="kpi-value">{{ data.summary.totalStockItems }}</div>
         <div class="kpi-footer">Total physical units on shelves</div>
@@ -72,7 +56,7 @@
       <div class="kpi-card glass-card kpi-warning" [class.has-items]="data.summary.expiringSoonCount > 0">
         <div class="kpi-header">
           <span class="kpi-title">Expiring Soon</span>
-          <span class="kpi-icon icon-amber">⏳</span>
+          <span class="kpi-icon icon-amber"><svg lucideClock [size]="20"></svg></span>
         </div>
         <div class="kpi-value">{{ data.summary.expiringSoonCount }}</div>
         <div class="kpi-footer">Within next {{ data.summary.configuredDays }} days</div>
@@ -82,196 +66,136 @@
       <div class="kpi-card glass-card kpi-danger" [class.has-items]="data.summary.expiredCount > 0">
         <div class="kpi-header">
           <span class="kpi-title">Expired Products</span>
-          <span class="kpi-icon icon-rose">⚠️</span>
+          <span class="kpi-icon icon-rose"><svg lucideAlertTriangle [size]="20"></svg></span>
         </div>
         <div class="kpi-value">{{ data.summary.expiredCount }}</div>
         <div class="kpi-footer">Requires immediate check</div>
       </div>
     </section>
 
-    <!-- Main Content Grid -->
+    <!-- Main Content 2-Column Grid: Expired on Left, Expiring Soon on Right -->
     <div class="dashboard-content-grid">
-      <!-- Expirations & Action Items Section -->
-      <section class="card glass-card alerts-section">
+      <!-- Column 1: Expired Items -->
+      <section class="card glass-card alerts-column expired-column">
         <div class="alerts-header">
           <div class="alerts-title-group">
-            <h2 class="section-title">Pantry Attention Feed</h2>
-          </div>
-
-          <!-- Filter Pills -->
-          <div class="filter-pills">
-            <button
-              type="button"
-              class="pill-btn"
-              [class.active]="activeTab() === 'all'"
-              (click)="setTab('all')"
-            >
-              All ({{ data.expired.length + data.expiringSoon.length }})
-            </button>
-            <button
-              type="button"
-              class="pill-btn pill-danger"
-              [class.active]="activeTab() === 'expired'"
-              (click)="setTab('expired')"
-            >
-              Expired ({{ data.expired.length }})
-            </button>
-            <button
-              type="button"
-              class="pill-btn pill-warning"
-              [class.active]="activeTab() === 'expiring'"
-              (click)="setTab('expiring')"
-            >
-              Expiring Soon ({{ data.expiringSoon.length }})
-            </button>
+            <h2 class="section-title">
+              <span class="column-icon"><svg lucideAlertTriangle [size]="16"></svg></span> Expired Products ({{ data.expired.length }})
+            </h2>
           </div>
         </div>
 
-        <!-- Empty Feed State -->
-        @if ((activeTab() === 'all' && data.expired.length === 0 && data.expiringSoon.length === 0) ||
-             (activeTab() === 'expired' && data.expired.length === 0) ||
-             (activeTab() === 'expiring' && data.expiringSoon.length === 0)) {
+        @if (data.expired.length === 0) {
           <div class="empty-feed">
-            <span class="empty-feed-icon">🎉</span>
-            <h3 class="empty-feed-title">Everything is in order!</h3>
-            <p class="empty-feed-desc">No products require immediate attention under the selected filter.</p>
+            <span class="empty-feed-icon"><svg lucideCheckCircle2 [size]="24"></svg></span>
+            <h3 class="empty-feed-title">No expired products!</h3>
+            <p class="empty-feed-desc">All stock items in your pantry are within their best-before dates.</p>
           </div>
         } @else {
           <div class="items-list">
-            <!-- Expired Items -->
-            @if (activeTab() === 'all' || activeTab() === 'expired') {
-              @for (item of data.expired; track item.id) {
-                <div
-                  class="item-card item-expired"
-                  role="button"
-                  tabindex="0"
-                  (click)="openProductActionModal(item)"
-                  (keydown.enter)="openProductActionModal(item)"
-                  title="Click to manage stock, consume, move, or adjust expiration"
-                >
-                  <div class="item-indicator-bar danger-bar"></div>
-                  <div class="item-main">
-                    <div class="item-name-row">
-                      <span class="product-name">{{ item.productName }}</span>
-                      <span class="badge badge-expired">Expired {{ item.daysOverdue }}d ago</span>
-                    </div>
-                    <div class="item-details-row">
-                      <span class="item-qty">
-                        <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
-                      </span>
-                      <span class="item-dot">•</span>
-                      <span class="item-loc">📍 {{ item.location }}</span>
-                      <span class="item-dot">•</span>
-                      <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
-                      @if (item.isOpened) {
-                        <span class="badge badge-opened">Opened</span>
-                      }
-                    </div>
+            @for (item of data.expired; track item.id) {
+              <div
+                class="item-card item-expired"
+                role="button"
+                tabindex="0"
+                (click)="openProductActionModal(item)"
+                (keydown.enter)="openProductActionModal(item)"
+                title="Click to manage stock, consume, move, or adjust expiration"
+              >
+                <div class="item-indicator-bar danger-bar"></div>
+                <div class="card-photo">
+                  @if (item.productPictureFileName) {
+                    <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+                  } @else {
+                    <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
+                  }
+                </div>
+                <div class="item-main">
+                  <div class="item-name-row">
+                    <span class="product-name">{{ item.productName }}</span>
+                    <span class="badge badge-expired">Expired {{ item.daysOverdue }}d ago</span>
                   </div>
-                  <div class="item-action">
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-xs action-link"
-                      (click)="openProductActionModal(item); $event.stopPropagation()"
-                    >
-                      Manage...
-                    </button>
+                  <div class="item-details-row">
+                    <span class="item-qty">
+                      <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
+                    </span>
+                    <span class="item-dot">•</span>
+                    <span class="item-loc"><svg lucideMapPin [size]="12"></svg> {{ item.location }}</span>
+                    <span class="item-dot">•</span>
+                    <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
+                    @if (item.isOpened) {
+                      <span class="badge badge-opened">Opened@if (item.amount >= 2) { ({{ item.amount }})}</span>
+                    }
                   </div>
                 </div>
-              }
-            }
-
-            <!-- Expiring Soon Items -->
-            @if (activeTab() === 'all' || activeTab() === 'expiring') {
-              @for (item of data.expiringSoon; track item.id) {
-                <div
-                  class="item-card item-expiring"
-                  role="button"
-                  tabindex="0"
-                  (click)="openProductActionModal(item)"
-                  (keydown.enter)="openProductActionModal(item)"
-                  title="Click to manage stock, consume, move, or adjust expiration"
-                >
-                  <div class="item-indicator-bar warning-bar"></div>
-                  <div class="item-main">
-                    <div class="item-name-row">
-                      <span class="product-name">{{ item.productName }}</span>
-                      <span class="badge badge-expiring">
-                        {{ item.daysRemaining === 0 ? 'Expires Today!' : (item.daysRemaining === 1 ? 'Expires Tomorrow' : 'Expires in ' + item.daysRemaining + ' days') }}
-                      </span>
-                    </div>
-                    <div class="item-details-row">
-                      <span class="item-qty">
-                        <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
-                      </span>
-                      <span class="item-dot">•</span>
-                      <span class="item-loc">📍 {{ item.location }}</span>
-                      <span class="item-dot">•</span>
-                      <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
-                      @if (item.isOpened) {
-                        <span class="badge badge-opened">Opened</span>
-                      }
-                    </div>
-                  </div>
-                  <div class="item-action">
-                    <button
-                      type="button"
-                      class="btn btn-secondary btn-xs action-link"
-                      (click)="openProductActionModal(item); $event.stopPropagation()"
-                    >
-                      Manage...
-                    </button>
-                  </div>
-                </div>
-              }
+              </div>
             }
           </div>
         }
       </section>
 
-      <!-- Sidebar / Quick Actions Section -->
-      <aside class="sidebar-shortcuts">
-        <div class="card glass-card shortcuts-card">
-          <h3 class="shortcuts-title">Quick Actions</h3>
-          <div class="shortcuts-list">
-            <a routerLink="/pantry" class="shortcut-item">
-              <span class="shortcut-icon icon-emerald">🥫</span>
-              <div class="shortcut-text">
-                <span class="shortcut-name">Pantry Inventory</span>
-                <span class="shortcut-desc">Track stock, locations and batches</span>
-              </div>
-              <span class="shortcut-arrow">→</span>
-            </a>
-
-            <a routerLink="/shopping" class="shortcut-item">
-              <span class="shortcut-icon icon-sky">🛒</span>
-              <div class="shortcut-text">
-                <span class="shortcut-name">Shopping List</span>
-                <span class="shortcut-desc">Check off groceries and missing items</span>
-              </div>
-              <span class="shortcut-arrow">→</span>
-            </a>
-
-            <a routerLink="/products" class="shortcut-item">
-              <span class="shortcut-icon icon-indigo">🏷️</span>
-              <div class="shortcut-text">
-                <span class="shortcut-name">Product Master Data</span>
-                <span class="shortcut-desc">Barcodes, pictures and categories</span>
-              </div>
-              <span class="shortcut-arrow">→</span>
-            </a>
-
-            <a routerLink="/profile" class="shortcut-item">
-              <span class="shortcut-icon icon-amber">⚡</span>
-              <div class="shortcut-text">
-                <span class="shortcut-name">Your profile</span>
-                <span class="shortcut-desc">Notifications, dashboard and account settings</span>
-              </div>
-              <span class="shortcut-arrow">→</span>
-            </a>
+      <!-- Column 2: Expiring Soon Items -->
+      <section class="card glass-card alerts-column expiring-column">
+        <div class="alerts-header">
+          <div class="alerts-title-group">
+            <h2 class="section-title">
+              <span class="column-icon"><svg lucideClock [size]="16"></svg></span> Expiring Soon ({{ data.expiringSoon.length }})
+            </h2>
           </div>
         </div>
-      </aside>
+
+        @if (data.expiringSoon.length === 0) {
+          <div class="empty-feed">
+            <span class="empty-feed-icon"><svg lucideSparkles [size]="24"></svg></span>
+            <h3 class="empty-feed-title">Nothing expiring soon!</h3>
+            <p class="empty-feed-desc">No products are approaching expiration within {{ data.summary.configuredDays }} days.</p>
+          </div>
+        } @else {
+          <div class="items-list">
+            @for (item of data.expiringSoon; track item.id) {
+              <div
+                class="item-card item-expiring"
+                role="button"
+                tabindex="0"
+                (click)="openProductActionModal(item)"
+                (keydown.enter)="openProductActionModal(item)"
+                title="Click to manage stock, consume, move, or adjust expiration"
+              >
+                <div class="item-indicator-bar warning-bar"></div>
+                <div class="card-photo">
+                  @if (item.productPictureFileName) {
+                    <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+                  } @else {
+                    <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
+                  }
+                </div>
+                <div class="item-main">
+                  <div class="item-name-row">
+                    <span class="product-name">{{ item.productName }}</span>
+                    <span class="badge badge-expiring">
+                      {{ item.daysRemaining === 0 ? 'Expires Today!' : (item.daysRemaining === 1 ? 'Expires Tomorrow' : 'Expires in ' + item.daysRemaining + ' days') }}
+                    </span>
+                  </div>
+                  <div class="item-details-row">
+                    <span class="item-qty">
+                      <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
+                    </span>
+                    <span class="item-dot">•</span>
+                    <span class="item-loc"><svg lucideMapPin [size]="12"></svg> {{ item.location }}</span>
+                    <span class="item-dot">•</span>
+                    <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
+                    @if (item.isOpened) {
+                      <span class="badge badge-opened">Opened@if (item.amount >= 2) { ({{ item.amount }})}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
     </div>
   }
+
+  <app-quick-actions-footer (stockChanged)="onQuickStockChanged()"></app-quick-actions-footer>
 </div>

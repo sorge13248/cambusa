@@ -15,6 +15,8 @@ export class QuickDateModifierComponent {
   readonly currentDate = input<string | null>(null);
   readonly label = input<string>('Best Before:');
   readonly compact = input<boolean>(false);
+  readonly showDateDisplay = input<boolean>(true);
+  readonly bare = input<boolean>(false);
 
   readonly dateChange = output<string>();
 

@@ -115,11 +115,12 @@ describe('authInterceptor', () => {
     expect(errorReceived).toBeTruthy();
   });
 
-  it('should not attempt refresh when unauthenticated and 401 is received', () => {
+  it('should not attempt refresh when unauthenticated and without cached user and 401 is received', () => {
     const refreshSpy = vi.spyOn(authService, 'silentRefresh');
     const expiredSpy = vi.spyOn(authService, 'handleSessionExpired');
 
     expect(authService.isAuthenticated()).toBe(false);
+    expect(authService.hasCachedUser()).toBe(false);
 
     let errorReceived: any = null;
     http.get('/api/stock').subscribe({
@@ -134,5 +135,26 @@ describe('authInterceptor', () => {
     expect(refreshSpy).not.toHaveBeenCalled();
     expect(expiredSpy).not.toHaveBeenCalled();
     expect(errorReceived).toBeTruthy();
+  });
+
+  it('should attempt silent refresh when hasCachedUser is true even if currentUser signal is initially null', async () => {
+    vi.spyOn(authService, 'hasCachedUser').mockReturnValue(true);
+    const refreshSpy = vi.spyOn(authService, 'silentRefresh').mockResolvedValue(true);
+
+    let result: any = null;
+    http.get('/api/stock').subscribe((res) => {
+      result = res;
+    });
+
+    const req1 = httpTesting.expectOne('/api/stock');
+    req1.flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
+
+    await Promise.resolve();
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+    const req2 = httpTesting.expectOne('/api/stock');
+    req2.flush({ data: 'ok' });
+
+    expect(result).toEqual({ data: 'ok' });
   });
 });

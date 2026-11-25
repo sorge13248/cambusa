@@ -1,16 +1,22 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { computed, DestroyRef, effect, inject, Injectable, NgZone, signal, untracked } from '@angular/core';
-import { Dialog } from '@angular/cdk/dialog';
+import { computed, DestroyRef, effect, inject, Injectable, Injector, NgZone, signal, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 import { ApiService } from './api.service.js';
 import { User, UserHouseholdSummary } from './models.js';
-import { ConfirmModalComponent } from '../shared/components/confirm-modal/confirm-modal.component.js';
 
+export interface MinimalCachedUser {
+  id: string;
+  displayName: string;
+  pictureUrl?: string | null;
+}
+
+const AUTH_STORAGE_KEY = 'cambusa_auth_user';
 const RETURN_URL_STORAGE_KEY = 'cambusa_auth_return_url';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly api = inject(ApiService);
-  private readonly dialog = inject(Dialog);
+  private readonly injector = inject(Injector);
   private readonly ngZone = inject(NgZone);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -37,8 +43,8 @@ export class AuthService {
   private sessionPingTimer: ReturnType<typeof setTimeout> | null = null;
   private isRenewingSession = false;
   private silentRefreshPromise: Promise<boolean> | null = null;
+  private initPromise: Promise<void> | null = null;
   private lastRefreshedAt = Date.now();
-  private sessionExpiredModalOpen = false;
 
   sessionPingIntervalMs = 30_000;
   proactiveRefreshIntervalMs = 4 * 60_000;
@@ -50,16 +56,25 @@ export class AuthService {
   });
 
   constructor() {
-    effect(() => {
-      const authenticated = this.isAuthenticated();
-      untracked(() => {
-        if (authenticated) {
-          this.startSessionPing();
-        } else {
-          this.stopSessionPing();
-        }
-      });
-    });
+    const cached = this.getCachedUser();
+    if (cached) {
+      this.currentUser.set(cached);
+      this.isLoading.set(false);
+    }
+
+    effect(
+      () => {
+        const authenticated = this.isAuthenticated();
+        untracked(() => {
+          if (authenticated) {
+            this.startSessionPing();
+          } else {
+            this.stopSessionPing();
+          }
+        });
+      },
+      { injector: this.injector },
+    );
 
     this.destroyRef.onDestroy(() => {
       this.stopSessionPing();
@@ -86,11 +101,97 @@ export class AuthService {
     }
   }
 
-  async init(): Promise<void> {
-    this.isLoading.set(true);
+  getCachedUser(): User | null {
     try {
-      const data = await this.api.getMe();
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<MinimalCachedUser>;
+          if (parsed && typeof parsed.displayName === 'string' && parsed.displayName.trim()) {
+            return {
+              id: typeof parsed.id === 'string' ? parsed.id : '',
+              displayName: parsed.displayName,
+              pictureUrl: typeof parsed.pictureUrl === 'string' ? parsed.pictureUrl : null,
+              email: null,
+            };
+          }
+        }
+      }
+    } catch {
+      // Ignored
+    }
+    return null;
+  }
+
+  hasCachedUser(): boolean {
+    return this.getCachedUser() !== null;
+  }
+
+  setCachedUser(user: User | null): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (user?.displayName) {
+          const minimal: MinimalCachedUser = {
+            id: user.id,
+            displayName: user.displayName,
+            pictureUrl: user.pictureUrl ?? null,
+          };
+          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(minimal));
+        } else {
+          window.localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+      }
+    } catch {
+      // Ignored
+    }
+  }
+
+  async waitUntilInitialized(timeoutMs = 5000): Promise<void> {
+    if (!this.isLoading()) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      const startedAt = Date.now();
+      const timer = setInterval(() => {
+        if (!this.isLoading() || Date.now() - startedAt >= timeoutMs) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 25);
+    });
+  }
+
+  init(): Promise<void> {
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    this.initPromise = this.doInit().finally(() => {
+      this.initPromise = null;
+    });
+    return this.initPromise;
+  }
+
+  private async doInit(): Promise<void> {
+    if (!this.currentUser()) {
+      this.isLoading.set(true);
+    }
+    try {
+      let data;
+      try {
+        data = await this.api.getMe();
+      } catch (err) {
+        // Access token expired, attempt transparent silent refresh using the 30-day refresh token cookie
+        const refreshed = await this.silentRefresh();
+        if (refreshed) {
+          data = await this.api.getMe();
+        } else {
+          throw err;
+        }
+      }
+
       this.currentUser.set(data.user);
+      this.setCachedUser(data.user);
       this.households.set(data.households);
       this.pendingInvitationsCount.set(data.pendingInvitationsCount);
 
@@ -103,6 +204,7 @@ export class AuthService {
       this.lastRefreshedAt = Date.now();
     } catch {
       this.currentUser.set(null);
+      this.setCachedUser(null);
       this.households.set([]);
       this.activeHouseholdId.set(null);
     } finally {
@@ -141,6 +243,7 @@ export class AuthService {
 
   async logout(): Promise<void> {
     this.stopSessionPing();
+    this.setCachedUser(null);
     await this.api.logout();
     this.currentUser.set(null);
     this.households.set([]);
@@ -151,7 +254,7 @@ export class AuthService {
   startSessionPing(): void {
     this.stopSessionPing();
 
-    if (!this.isAuthenticated() || this.isRenewingSession || this.sessionExpiredModalOpen) {
+    if (!this.isAuthenticated() || this.isRenewingSession) {
       return;
     }
 
@@ -159,7 +262,7 @@ export class AuthService {
       this.sessionPingTimer = setTimeout(async () => {
         this.sessionPingTimer = null;
         await this.checkSession();
-        if (this.isAuthenticated() && !this.isRenewingSession && !this.sessionExpiredModalOpen) {
+        if (this.isAuthenticated() && !this.isRenewingSession) {
           this.startSessionPing();
         }
       }, this.sessionPingIntervalMs);
@@ -174,7 +277,7 @@ export class AuthService {
   }
 
   async checkSession(): Promise<boolean> {
-    if (!this.isAuthenticated() || this.isRenewingSession || this.sessionExpiredModalOpen) {
+    if (!this.isAuthenticated() || this.isRenewingSession) {
       return false;
     }
 
@@ -189,13 +292,14 @@ export class AuthService {
 
     try {
       const data = await this.api.getMe();
-      if (!this.isAuthenticated() || this.isRenewingSession || this.sessionExpiredModalOpen) {
+      if (!this.isAuthenticated() || this.isRenewingSession) {
         return false;
       }
 
       if (data?.user) {
         this.ngZone.run(() => {
           this.currentUser.set(data.user);
+          this.setCachedUser(data.user);
           this.households.set(data.households);
           this.pendingInvitationsCount.set(data.pendingInvitationsCount);
         });
@@ -205,7 +309,7 @@ export class AuthService {
       this.handleSessionExpired();
       return false;
     } catch (err: unknown) {
-      if (!this.isAuthenticated() || this.isRenewingSession || this.sessionExpiredModalOpen) {
+      if (!this.isAuthenticated() || this.isRenewingSession) {
         return false;
       }
 
@@ -253,6 +357,7 @@ export class AuthService {
       if (data?.user) {
         this.ngZone.run(() => {
           this.currentUser.set(data.user);
+          this.setCachedUser(data.user);
           this.households.set(data.households);
           this.pendingInvitationsCount.set(data.pendingInvitationsCount);
         });
@@ -266,42 +371,47 @@ export class AuthService {
 
   handleSessionExpired(): void {
     this.stopSessionPing();
+    this.setCachedUser(null);
+    this.currentUser.set(null);
+    this.households.set([]);
+    this.switchHousehold(null);
 
-    this.ngZone.run(() => {
-      this.currentUser.set(null);
-      this.households.set([]);
-      this.switchHousehold(null);
-
-      if (this.sessionExpiredModalOpen) {
-        return;
-      }
-      this.sessionExpiredModalOpen = true;
-
-      const dialogRef = this.dialog.open<boolean>(ConfirmModalComponent, {
-        disableClose: true,
-        data: {
-          title: 'Session Expired',
-          message: 'Your authentication session has expired. Please refresh the page to renew your session and continue using Cambusa.',
-          confirmLabel: 'Refresh Page',
-          showCancel: false,
-          confirmVariant: 'primary',
-        },
-      });
-
-      dialogRef.closed.subscribe(() => {
-        this.sessionExpiredModalOpen = false;
-        this.reloadPage();
-      });
-    });
+    void this.renewSession();
   }
 
-  reloadPage(): void {
-    if (typeof window !== 'undefined' && window.location) {
-      try {
-        window.location.reload();
-      } catch {
-        // Ignored in non-browser or test environments
+  async renewSession(): Promise<boolean> {
+    if (this.isRenewingSession) {
+      return false;
+    }
+    this.isRenewingSession = true;
+    this.stopSessionPing();
+
+    try {
+      // 1. Prova prima il refresh silenzioso con token endpoint (/api/auth/refresh)
+      const refreshed = await this.silentRefresh();
+      if (refreshed && this.isAuthenticated()) {
+        this.startSessionPing();
+        return true;
       }
+
+      // 2. Se il refresh token non è presente o è scaduto, rinnova immediatamente la sessione via OIDC SSO
+      this.setCachedUser(null);
+      this.currentUser.set(null);
+      this.rememberCurrentUrl();
+      this.login();
+      return true;
+    } catch {
+      this.setCachedUser(null);
+      this.currentUser.set(null);
+      try {
+        const router = this.injector.get(Router);
+        void router.navigateByUrl('/login');
+      } catch {
+        // Fallback in environments without Router
+      }
+      return false;
+    } finally {
+      this.isRenewingSession = false;
     }
   }
 

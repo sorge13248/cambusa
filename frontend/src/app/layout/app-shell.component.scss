@@ -78,6 +78,10 @@
   font-weight: 500;
   border-radius: 9999px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
 
   &:hover {
     color: var(--text-primary);
@@ -89,6 +93,47 @@
     color: #ffffff;
     background-color: var(--primary);
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+  }
+}
+
+.update-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28) 0%, rgba(16, 185, 129, 0.12) 100%);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(16, 185, 129, 0.2) 100%);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  .update-pill-icon {
+    width: 14px;
+    height: 14px;
+    animation: pwa-spin 6s linear infinite;
+  }
+}
+
+@keyframes pwa-spin {
+  100% {
+    transform: rotate(360deg);
   }
 }
 
@@ -305,7 +350,7 @@
   padding: 12px 24px 36px;
   max-width: 1400px;
   width: 100%;
-  margin: 0 auto;
+  margin: 1rem auto;
 }
 
 .hamburger-btn {
@@ -587,6 +632,10 @@
   }
 }
 
+.mobile-quick-nav {
+  display: none;
+}
+
 .mobile-logout-btn {
   width: 100%;
 }
@@ -600,11 +649,50 @@
     height: 52px;
   }
 
+  .navbar-left,
+  .navbar-right {
+    gap: 8px;
+  }
+
   .nav-links,
   .household-dropdown-container,
   .user-profile,
   .status-label {
     display: none;
+  }
+
+  .mobile-quick-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 4px;
+  }
+
+  .quick-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9999px;
+    font-size: 1.05rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: var(--glass-bg-hover, rgba(255, 255, 255, 0.1));
+      transform: translateY(-1px);
+    }
+
+    &.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
   }
 
   .hamburger-btn {
@@ -618,16 +706,41 @@
 }
 
 @media (max-width: 480px) {
+  .update-pill-btn {
+    padding: 0 8px;
+    height: 28px;
+
+    .update-pill-text {
+      display: none;
+    }
+  }
+
   .navbar {
     width: calc(100% - 8px);
     margin: 4px auto 6px auto;
     border-radius: 12px;
-    padding: 0 8px;
+    padding: 0 6px;
     height: 48px;
   }
 
   .brand-name {
-    font-size: 1.1rem;
+    display: none;
+  }
+
+  .navbar-left,
+  .navbar-right {
+    gap: 6px;
+  }
+
+  .mobile-quick-nav {
+    gap: 3px;
+    margin-left: 2px;
+  }
+
+  .quick-nav-btn {
+    width: 31px;
+    height: 31px;
+    font-size: 0.95rem;
   }
 
   .hh-name {

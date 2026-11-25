@@ -76,6 +76,16 @@ export interface Store {
   active: boolean;
 }
 
+export interface Aisle {
+  id: string;
+  householdId: string;
+  storeId: string;
+  name: string;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ProductStore {
   id?: string;
   householdId?: string;
@@ -191,6 +201,7 @@ export interface ShoppingList {
   name: string;
   storeId: string | null;
   isDefault: boolean;
+  sortOrder?: number;
 }
 
 export interface ShoppingListItem {
@@ -210,6 +221,7 @@ export interface ShoppingListItem {
   storeName: string | null;
   aisle: string | null;
   aisleOrder: number | null;
+  sortOrder?: number;
   estimatedPrice: number | null;
   currentStock: number;
   minStockAmount: number;
@@ -245,7 +257,7 @@ export interface SavedFilter {
 export interface FilterConfig {
   productGroupIds?: string[];
   locationIds?: string[];
-  status?: 'all' | 'due' | 'overdue' | 'missing' | 'open';
+  status?: 'all' | 'due' | 'overdue' | 'missing' | 'open' | 'out_of_stock';
   sortBy?: 'bestBeforeDate' | 'name' | 'category' | 'amount';
   sortDirection?: 'ASC' | 'DESC';
 }
@@ -264,6 +276,7 @@ export interface CreatedApiKeyDto extends ApiKeyDto {
 
 export interface UserSettingsDto {
   nextExpiringDays: number;
+  quickConsumeTimerSeconds?: number;
   mealieUrl: string | null;
   mealieLinked: boolean;
   hasMealieToken: boolean;
@@ -290,6 +303,7 @@ export interface NextItemDto {
   id: string;
   productId: string;
   productName: string;
+  productPictureFileName?: string | null;
   amount: number;
   quantityUnit: string;
   location: string;
@@ -314,4 +328,55 @@ export interface NextResponseDto {
     name: string;
   };
   generatedAt: string;
+}
+
+export interface ProductMemberRatingDto {
+  userId: string;
+  displayName: string;
+  pictureUrl: string | null;
+  rating: number | null;
+  updatedAt: string | null;
+}
+
+export interface ProductRatingsResponseDto {
+  productId: string;
+  memberCount: number;
+  myRating: number | null;
+  otherMembersRatings: ProductMemberRatingDto[];
+}
+
+export interface ProductRatingSyncDto {
+  id: string;
+  householdId: string;
+  productId: string;
+  userId: string;
+  rating: number | null;
+  updatedAt?: string;
+}
+
+export type MealSlot = 'breakfast' | 'morning_snack' | 'lunch' | 'afternoon_snack' | 'dinner';
+
+export interface MealSlotConfig {
+  key: MealSlot;
+  label: string;
+}
+
+export const MEAL_SLOTS: MealSlotConfig[] = [
+  { key: 'breakfast', label: 'Breakfast' },
+  { key: 'morning_snack', label: 'Morning Snack' },
+  { key: 'lunch', label: 'Lunch' },
+  { key: 'afternoon_snack', label: 'Afternoon Snack' },
+  { key: 'dinner', label: 'Dinner' },
+];
+
+export interface MealPlanEntry {
+  id: string;
+  householdId: string;
+  date: string; // YYYY-MM-DD
+  mealSlot: MealSlot;
+  productId: string;
+  userId: string | null;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }

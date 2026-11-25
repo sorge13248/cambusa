@@ -85,7 +85,18 @@ describe('PantryActionModalComponent', () => {
 
   it('should close dialog when purchase is submitted', () => {
     component.onPurchaseSubmitted({ id: 's-purchase' } as any);
-    expect(mockDialogRef.close).toHaveBeenCalledWith({ refreshed: true, updatedProduct: undefined });
+    expect(mockDialogRef.close).toHaveBeenCalledWith(
+      expect.objectContaining({ refreshed: true, updatedProduct: undefined }),
+    );
+  });
+
+  it('should update productModified and currentStockItems on quick date change', async () => {
+    const item = component.productStockItems()[0];
+    await component.onQuickDateChange(item, '2026-12-31');
+    expect(mockApiService.adjustDate).toHaveBeenCalledWith(item.id, { explicitDate: '2026-12-31' });
+    expect(component.productModified).toBe(true);
+    expect(component.currentStockItems().find((s) => s.id === item.id)?.bestBeforeDate).toBe('2026-12-31');
+    expect(mockUndoService.register).toHaveBeenCalled();
   });
 
   it('should open stock item editor modal when openEditStockItem is called', async () => {
@@ -143,5 +154,10 @@ describe('PantryActionModalComponent', () => {
     expect(component.data.product).toBe(updatedProduct);
     expect(component.productModified).toBe(true);
     expect(mockApiService.getProductMealieRecipes).toHaveBeenCalledWith('p1', true);
+  });
+
+  it('should exclude freezer locations from moveTargetLocations when product cannot be frozen', () => {
+    component.data.product.cannotBeFrozen = true;
+    expect(component.moveTargetLocations().map((l) => l.id)).toEqual(['l1']);
   });
 });

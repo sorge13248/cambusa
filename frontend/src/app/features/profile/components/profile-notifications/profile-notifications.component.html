@@ -1,0 +1,105 @@
+<section class="card glass-card notifications-card">
+  <div class="card-header">
+    <div class="card-icon"><svg lucideBell [size]="20"></svg></div>
+    <div>
+      <div class="title-with-badge">
+        <h2 class="card-title">Daily Morning Digest Notifications</h2>
+        @if (settings()?.smtpConfigured) {
+          <span class="badge badge-success">SMTP Active</span>
+        } @else {
+          <span class="badge badge-warning">SMTP Not Configured</span>
+        }
+      </div>
+      <p class="card-subtitle">Automated morning email summary with expiring and expired items</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="section-desc">
+      Receive an automated daily morning email digest featuring graphical cards and embedded product photos for items in your active household that require attention (from the Next engine).
+      @if (!settings()?.smtpConfigured) {
+        <br /><strong class="text-warning"><svg lucideAlertTriangle [size]="14"></svg> Note: SMTP environment variables are not configured on the server. Email delivery will be unavailable until SMTP credentials are provided in .env.</strong>
+      }
+    </p>
+
+    <div class="form-grid">
+      <div class="form-group toggle-group">
+        <label class="toggle-label" for="emailDigestToggle">
+          <input
+            id="emailDigestToggle"
+            type="checkbox"
+            class="toggle-checkbox"
+            [ngModel]="emailNotificationsEnabled()"
+            (ngModelChange)="emailNotificationsEnabled.set($event)"
+          />
+          <span class="toggle-slider"></span>
+          <span class="toggle-text">Enable Daily Morning Email Digest</span>
+        </label>
+        <p class="field-hint">When active, Cambusa sends a daily summary of expired and expiring items at your chosen time.</p>
+      </div>
+
+      <div class="form-group">
+        <label for="notificationTime" class="form-label">Dispatch Time (24-Hour):</label>
+        <input
+          id="notificationTime"
+          type="time"
+          class="form-input time-input"
+          [ngModel]="notificationTime()"
+          (ngModelChange)="notificationTime.set($event)"
+        />
+        <p class="field-hint">Default is 06:00 (6:00 AM). Dispatched in server local time.</p>
+      </div>
+
+      <div class="form-group full-width">
+        <label for="notificationEmail" class="form-label">Recipient Email Address:</label>
+        <input
+          id="notificationEmail"
+          type="email"
+          class="form-input"
+          [placeholder]="accountEmail() || 'e.g. user@example.com'"
+          [ngModel]="notificationEmail()"
+          (ngModelChange)="notificationEmail.set($event)"
+        />
+        <p class="field-hint">
+          Leave blank to default to your account email address (<code>{{ accountEmail() || 'None' }}</code>).
+        </p>
+      </div>
+    </div>
+
+    @if (testStatus(); as status) {
+      <div class="test-feedback" [class.test-ok]="status.ok" [class.test-err]="!status.ok">
+        <span>
+          @if (status.ok) {
+            <svg lucideCheck [size]="14"></svg>
+          } @else {
+            <svg lucideAlertTriangle [size]="14"></svg>
+          }
+        </span>
+        <span>{{ status.message }}</span>
+      </div>
+    }
+
+    <div class="card-actions-row">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        [disabled]="isTesting() || !settings()?.smtpConfigured"
+        (click)="testNotification()"
+        title="Send a sample digest email right now"
+      >
+        @if (isTesting()) {
+          Sending Test Email...
+        } @else {
+          <svg lucideMail [size]="14"></svg> Send Test Email Now
+        }
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        [disabled]="isSaving()"
+        (click)="saveSettings()"
+      >
+        {{ isSaving() ? 'Saving...' : 'Save Notification Settings' }}
+      </button>
+    </div>
+  </div>
+</section>

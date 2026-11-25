@@ -1,0 +1,88 @@
+<section class="card glass-card mealie-card">
+  <div class="card-header">
+    <div class="card-icon"><svg lucideUtensils [size]="20"></svg></div>
+    <div>
+      <div class="title-with-badge">
+        <h2 class="card-title">Smart Mealie Recipe Integration</h2>
+        @if (settings()?.mealieLinked) {
+          <span class="badge badge-success">Linked</span>
+        } @else {
+          <span class="badge badge-neutral">Not Configured</span>
+        }
+      </div>
+      <p class="card-subtitle">Connect your self-hosted Mealie recipe manager</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="section-desc">
+      Enables Cambusa to synchronize ingredient requirements with your Mealie recipe book, discover recipe missing ingredients, and automate pantry replenishments.
+    </p>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="mealieUrl" class="form-label">Mealie Instance Base URL:</label>
+        <input
+          id="mealieUrl"
+          type="url"
+          class="form-input"
+          placeholder="https://mealie.yourdomain.com"
+          [ngModel]="mealieUrl()"
+          (ngModelChange)="mealieUrl.set($event)"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="mealieToken" class="form-label">
+          API Token:
+          @if (settings()?.hasMealieToken) {
+            <span class="sub-hint">(Existing token configured. Leave blank to keep current.)</span>
+          }
+        </label>
+        <input
+          id="mealieToken"
+          type="password"
+          class="form-input"
+          placeholder="Enter Mealie Bearer API Token"
+          [ngModel]="mealieToken()"
+          (ngModelChange)="mealieToken.set($event)"
+        />
+      </div>
+    </div>
+
+    @if (testStatus(); as status) {
+      <div class="test-feedback" [class.test-ok]="status.ok" [class.test-err]="!status.ok">
+        <span>
+          @if (status.ok) {
+            <svg lucideCheck [size]="14"></svg>
+          } @else {
+            <svg lucideAlertTriangle [size]="14"></svg>
+          }
+        </span>
+        <span>{{ status.message }}</span>
+      </div>
+    }
+
+    <div class="card-actions-row">
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        [disabled]="isTesting() || !mealieUrl()"
+        (click)="testMealieConnection()"
+      >
+        @if (isTesting()) {
+          Testing Connection...
+        } @else {
+          <svg lucidePlug [size]="14"></svg> Test Connection
+        }
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        [disabled]="isSaving()"
+        (click)="saveMealieSettings()"
+      >
+        {{ isSaving() ? 'Saving...' : 'Save Mealie Settings' }}
+      </button>
+    </div>
+  </div>
+</section>

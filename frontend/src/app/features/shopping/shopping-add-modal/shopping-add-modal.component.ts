@@ -1,12 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, computed, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { firstValueFrom, Subscription } from 'rxjs';
+import { LucideCamera, LucidePackage, LucideSparkles, LucideX } from '@lucide/angular';
 import { Product, ShoppingListItem, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName } from '../../../core/sorting.utils.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
 import { LocalDatePipe } from '../../../shared/pipes/local-date.pipe.js';
+import { BarcodeScannerComponent } from '../../../shared/components/barcode-scanner/barcode-scanner.component.js';
+import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
 
 export interface ShoppingAddModalData {
   products: Product[];
@@ -19,19 +23,32 @@ export interface ShoppingAddModalData {
 @Component({
   selector: 'app-shopping-add-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, LocalDatePipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LocalDatePipe,
+    BarcodeScannerComponent,
+    NumberStepperComponent,
+    LucideCamera,
+    LucidePackage,
+    LucideSparkles,
+    LucideX,
+  ],
   templateUrl: './shopping-add-modal.component.html',
   styleUrl: './shopping-add-modal.component.scss',
 })
-export class ShoppingAddModalComponent implements OnInit, OnDestroy {
+export class ShoppingAddModalComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly data = inject<ShoppingAddModalData>(DIALOG_DATA);
   private readonly dialogRef = inject(DialogRef);
   private readonly dialog = inject(Dialog);
   private readonly api = inject(ApiService);
 
+  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
+
   readonly isEditMode = computed(() => !!this.data.itemToEdit);
 
   readonly searchQuery = signal<string>('');
+  readonly isScannerOpen = signal<boolean>(false);
   readonly selectedProduct = signal<Product | null>(null);
   readonly isCustom = signal<boolean>(false);
   customName = '';
@@ -42,6 +59,10 @@ export class ShoppingAddModalComponent implements OnInit, OnDestroy {
 
   readonly earliestExpDate = signal<string | null>(null);
   readonly isSaving = signal<boolean>(false);
+
+  get sortedStores(): Store[] {
+    return [...(this.data.stores || [])].sort(compareByName);
+  }
 
   private initialSnapshot = '';
   private subs = new Subscription();
@@ -84,6 +105,12 @@ export class ShoppingAddModalComponent implements OnInit, OnDestroy {
     );
   }
 
+  ngAfterViewInit() {
+    setTimeout(() => {
+      this.searchInput?.nativeElement?.focus();
+    }, 50);
+  }
+
   ngOnDestroy() {
     this.subs.unsubscribe();
   }
@@ -116,6 +143,24 @@ export class ShoppingAddModalComponent implements OnInit, OnDestroy {
       )
       .slice(0, 8);
   });
+
+  toggleScanner(): void {
+    this.isScannerOpen.set(!this.isScannerOpen());
+  }
+
+  onBarcodeScanned(code: string): void {
+    const val = code.trim();
+    if (val) {
+      this.searchQuery.set(val);
+      const match = this.data.products.find((p) =>
+        p.barcodes?.some((bc) => bc.toLowerCase() === val.toLowerCase()),
+      );
+      if (match) {
+        this.selectProduct(match);
+      }
+    }
+    this.isScannerOpen.set(false);
+  }
 
   async selectProduct(p: Product) {
     this.selectedProduct.set(p);

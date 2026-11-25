@@ -35,6 +35,7 @@ export class ProfileController {
     @Body()
     body: {
       nextExpiringDays?: number;
+      quickConsumeTimerSeconds?: number;
       mealieUrl?: string | null;
       mealieApiToken?: string | null;
       notificationEmail?: string | null;

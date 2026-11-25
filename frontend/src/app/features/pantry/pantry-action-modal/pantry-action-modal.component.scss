@@ -40,32 +40,42 @@
   border-radius: var(--radius-sm);
   display: inline-block;
   margin-top: 4px;
+
+  &.product-group-badge-link {
+    border: none;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: rgba(56, 189, 248, 0.24);
+    }
+  }
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
-}
+  gap: 8px;
 
-.modal-close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  line-height: 1;
-
-  &:hover {
-    color: var(--text-primary);
+  .modal-header-btn {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
+
 
 .big-buttons-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  margin-bottom: 4px;
+  margin-bottom: 0.5rem;
 }
 
 .big-action-btn {
@@ -158,16 +168,30 @@
 .form-row {
   display: flex;
   gap: 12px;
+
+  .form-group, .flex-1 {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
 .flex-1 {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 
   label {
     font-size: 0.8rem;
@@ -269,6 +293,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: 1rem;
 }
 
 .details-top {
@@ -408,8 +433,8 @@
 }
 
 .btn-xs {
-  padding: 3px 8px;
-  font-size: 0.72rem;
+  padding: 2px 6px;
+  font-size: 0.7rem;
   border-radius: 4px;
 }
 
@@ -417,6 +442,11 @@
   background-color: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border, #334155);
   color: var(--text-primary, #f8fafc);
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 
   &:hover {
     background-color: rgba(255, 255, 255, 0.16);

@@ -1,18 +1,33 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { firstValueFrom, Subscription } from 'rxjs';
+import {
+  LucideAlertCircle,
+  LucideAlertTriangle,
+  LucideClock,
+  LucideInfo,
+  LucidePackage,
+  LucidePencil,
+  LucideRotateCw,
+  LucideShoppingCart,
+  LucideUtensils,
+  LucideX,
+} from '@lucide/angular';
 import { Location, MealieLinkedFood, MealieRecipeSummary, Product, QuantityUnit, StockItem, Store } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByName } from '../../../core/sorting.utils.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { calculateProductTotalStock } from '../../../core/stock-utils.js';
 import { QuickDateModifierComponent } from '../../../shared/components/quick-date-modifier/quick-date-modifier.component.js';
-import { ProductEditorModalComponent } from '../../products/product-editor-modal/product-editor-modal.component.js';
+import { ProductInfoModalComponent } from '../../products/product-info-modal/product-info-modal.component.js';
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
 import { LocalDatePipe } from '../../../shared/pipes/local-date.pipe.js';
 import { StockPurchaseFormComponent } from '../stock-purchase-form/stock-purchase-form.component.js';
 import { StockItemEditorModalComponent } from '../stock-item-editor-modal/stock-item-editor-modal.component.js';
+import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
 
 export interface PantryActionModalData {
   product: Product;
@@ -29,7 +44,24 @@ export type ActionType = 'none' | 'consume' | 'purchase' | 'move';
 @Component({
   selector: 'app-pantry-action-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, QuickDateModifierComponent, LocalDatePipe, StockPurchaseFormComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    NumberStepperComponent,
+    QuickDateModifierComponent,
+    LocalDatePipe,
+    StockPurchaseFormComponent,
+    LucideAlertCircle,
+    LucideAlertTriangle,
+    LucideClock,
+    LucideInfo,
+    LucidePackage,
+    LucidePencil,
+    LucideRotateCw,
+    LucideShoppingCart,
+    LucideUtensils,
+    LucideX,
+  ],
   templateUrl: './pantry-action-modal.component.html',
   styleUrl: './pantry-action-modal.component.scss',
 })
@@ -37,12 +69,14 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   readonly data = inject<PantryActionModalData>(DIALOG_DATA);
   private readonly dialogRef = inject(DialogRef);
   private readonly dialog = inject(Dialog);
+  private readonly router = inject(Router);
   private readonly api = inject(ApiService);
   private readonly undoService = inject(UndoService);
 
   readonly activeAction = signal<ActionType>('none');
   readonly currentStockItems = signal<StockItem[]>([...this.data.stockItems]);
   productModified = false;
+  lastAction: any = null;
   private subs = new Subscription();
 
   // Consume state
@@ -50,6 +84,7 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   consumeLocationId = '';
   consumeStockItemId = '';
   consumeIsSpoiled = false;
+  consumeMarkAsOpen = false;
 
   // Move state
   moveFromLocationId = '';
@@ -68,6 +103,10 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   readonly mealieUrl = signal<string>('');
   readonly mealieError = signal<string | null>(null);
 
+  readonly hasMealieAssociations = computed(() => {
+    return this.isMealieConfigured() && (this.mealieRecipes().length > 0 || this.mealieFoods().length > 0);
+  });
+
   readonly productStockItems = computed(() => {
     return this.currentStockItems().filter((s) => s.productId === this.data.product.id);
   });
@@ -78,7 +117,14 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
 
   readonly availableLocations = computed(() => {
     const locIds = new Set(this.productStockItems().map((s) => s.locationId).filter(Boolean));
-    return this.data.locations.filter((l) => locIds.has(l.id));
+    return this.data.locations.filter((l) => locIds.has(l.id)).sort(compareByName);
+  });
+
+  readonly moveTargetLocations = computed(() => {
+    const base = this.data.product.cannotBeFrozen
+      ? this.data.locations.filter((l) => !l.isFreezer)
+      : [...this.data.locations];
+    return base.sort(compareByName);
   });
 
   readonly productGroupName = computed(() => {
@@ -169,8 +215,15 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     }
   }
 
+  navigateToGroupPantry(): void {
+    const groupId = this.data.product.productGroupId;
+    if (!groupId) return;
+    this.dialog.closeAll();
+    void this.router.navigate(['/pantry'], { queryParams: { group: groupId } });
+  }
+
   async openEditProduct(): Promise<void> {
-    const dialogRef = this.dialog.open(ProductEditorModalComponent, {
+    const dialogRef = this.dialog.open(ProductInfoModalComponent, {
       disableClose: true,
       data: {
         product: this.data.product,
@@ -269,12 +322,27 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     const previousDate = item.bestBeforeDate;
     await this.api.adjustDate(item.id, { explicitDate: newDate || undefined });
     item.bestBeforeDate = newDate;
+    this.productModified = true;
+    this.lastAction = {
+      action: 'adjustDate',
+      stockItemId: item.id,
+      newDate,
+      previousDate,
+      productId: this.data.product.id,
+    };
+    this.currentStockItems.update((items) =>
+      items.map((s) => (s.id === item.id ? { ...s, bestBeforeDate: newDate } : s)),
+    );
 
     this.undoService.register({
       description: `Updated expiration for ${this.data.product.name} to ${newDate || 'Never'}`,
       onUndo: async () => {
         await this.api.adjustDate(item.id, { explicitDate: previousDate || undefined });
         item.bestBeforeDate = previousDate;
+        this.productModified = true;
+        this.currentStockItems.update((items) =>
+          items.map((s) => (s.id === item.id ? { ...s, bestBeforeDate: previousDate } : s)),
+        );
       },
     });
   }
@@ -289,33 +357,76 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
 
     if (!targetItem) return;
 
-    const amountConsumed = this.consumeAmount;
-    await this.api.consumeStock(targetItem.id, amountConsumed, {
-      isSpoiled: this.consumeIsSpoiled,
-      locationId: this.consumeLocationId || undefined,
-    });
+    const amount = this.consumeAmount;
 
-    this.undoService.register({
-      description: `Consumed ${amountConsumed} ${this.stockUnitName()} of ${this.data.product.name}`,
-      onUndo: async () => {
-        await this.api.addStock({
-          productId: this.data.product.id,
-          amount: amountConsumed,
-          locationId: targetItem.locationId,
-          bestBeforeDate: targetItem.bestBeforeDate,
-        });
-      },
-    });
+    if (this.consumeMarkAsOpen) {
+      const result = await this.api.openStock(targetItem.id, amount);
+      this.undoService.register({
+        description: `Opened ${amount} ${this.stockUnitName()} of ${this.data.product.name}`,
+        onUndo: async () => {
+          await this.api.revertOpen({
+            openedStockItemId: result.openedStockItem.id,
+            originalStockItemId: result.originalStockItem ? result.originalStockItem.id : targetItem.id,
+            split: result.split,
+            amount,
+            originalDate: result.originalDate,
+            originalLocationId: result.originalLocationId,
+          });
+        },
+      });
 
-    this.dialogRef.close({ refreshed: true, updatedProduct: this.productModified ? this.data.product : undefined });
+      this.dialogRef.close({
+        refreshed: true,
+        action: 'open',
+        stockItemId: targetItem.id,
+        amount,
+        productId: this.data.product.id,
+        updatedProduct: this.productModified ? this.data.product : undefined,
+      });
+    } else {
+      await this.api.consumeStock(targetItem.id, amount, {
+        isSpoiled: this.consumeIsSpoiled,
+        locationId: this.consumeLocationId || undefined,
+      });
+
+      this.undoService.register({
+        description: `Consumed ${amount} ${this.stockUnitName()} of ${this.data.product.name}`,
+        onUndo: async () => {
+          await this.api.addStock({
+            productId: this.data.product.id,
+            amount,
+            locationId: targetItem.locationId,
+            bestBeforeDate: targetItem.bestBeforeDate,
+          });
+        },
+      });
+
+      this.dialogRef.close({
+        refreshed: true,
+        action: 'consume',
+        stockItemId: targetItem.id,
+        amount,
+        productId: this.data.product.id,
+        updatedProduct: this.productModified ? this.data.product : undefined,
+      });
+    }
   }
 
   onPurchaseSubmitted(_item: StockItem): void {
-    this.dialogRef.close({ refreshed: true, updatedProduct: this.productModified ? this.data.product : undefined });
+    this.dialogRef.close({
+      refreshed: true,
+      action: 'purchase',
+      stockItem: _item,
+      amount: _item.amount,
+      productId: this.data.product.id,
+      updatedProduct: this.productModified ? this.data.product : undefined,
+    });
   }
 
   async submitMove(): Promise<void> {
     if (!this.moveToLocationId || this.moveFreezerWarning()) return;
+    const destLoc = this.data.locations.find((l) => l.id === this.moveToLocationId);
+    if (destLoc?.isFreezer && this.data.product.cannotBeFrozen) return;
 
     const items = this.productStockItems();
     const sourceLocId = this.moveFromLocationId || (items[0]?.locationId ?? null);
@@ -344,7 +455,15 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
       },
     });
 
-    this.dialogRef.close({ refreshed: true, updatedProduct: this.productModified ? this.data.product : undefined });
+    this.dialogRef.close({
+      refreshed: true,
+      action: 'move',
+      stockItemId: this.moveStockItemId || items[0]?.id,
+      locationName: destLoc?.name || 'New Location',
+      amount: this.moveAmount,
+      productId: this.data.product.id,
+      updatedProduct: this.productModified ? this.data.product : undefined,
+    });
   }
 
   async requestClose(): Promise<void> {
@@ -364,6 +483,12 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
   }
 
   close(): void {
-    this.dialogRef.close(this.productModified ? { refreshed: true, updatedProduct: this.data.product } : undefined);
+    this.dialogRef.close(
+      this.lastAction
+        ? { refreshed: true, ...this.lastAction, updatedProduct: this.data.product }
+        : this.productModified
+          ? { refreshed: true, updatedProduct: this.data.product }
+          : undefined,
+    );
   }
 }

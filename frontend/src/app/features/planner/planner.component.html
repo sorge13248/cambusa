@@ -1,0 +1,74 @@
+<div class="planner-page">
+  <div class="page-header">
+    <div>
+      <h2>Meal Planner</h2>
+      <p class="subtitle">Plan your weekly meals and manage pantry stock directly from each slot.</p>
+    </div>
+
+    <div class="week-controls">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="previousWeek()" title="Previous week">
+        <svg lucideChevronLeft [size]="16"></svg>
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="goToToday()">Today</button>
+      <span class="week-range-label">{{ weekRangeLabel() }}</span>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="nextWeek()" title="Next week">
+        <svg lucideChevronRight [size]="16"></svg>
+      </button>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">Loading meal planner...</div>
+  } @else {
+    <div class="calendar-wrapper">
+      <div class="calendar-grid">
+        <!-- Header Row -->
+        <div class="calendar-corner">Meal</div>
+        @for (day of weekDays(); track day.date) {
+          <div class="day-header" [class.is-today]="day.isToday">
+            <span class="day-name">{{ day.dayName }}</span>
+            <span class="day-date">{{ day.dateShort }}</span>
+          </div>
+        }
+
+        <!-- Meal Slot Rows -->
+        @for (slot of mealSlots; track slot.key) {
+          <div class="slot-label-cell">
+            <span class="slot-label">{{ slot.label }}</span>
+          </div>
+
+          @for (day of weekDays(); track day.date) {
+            <button
+              type="button"
+              class="calendar-cell"
+              [class.is-today]="day.isToday"
+              (click)="openSlotModal(day, slot)"
+            >
+              @let items = getCellEntries(day.date, slot.key);
+              @if (items.length > 0) {
+                <div class="cell-items">
+                  @for (item of items; track item.entry.id) {
+                    <div class="cell-food-chip">
+                      @if (item.member) {
+                        <span class="chip-avatar" [title]="'Planned by ' + item.member.displayName">
+                          @if (item.member.pictureUrl) {
+                            <img [src]="item.member.pictureUrl" [alt]="item.member.displayName" />
+                          } @else {
+                            <span class="avatar-initials">{{ item.initials }}</span>
+                          }
+                        </span>
+                      }
+                      <span class="chip-name">{{ item.productName }}</span>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <span class="cell-empty-hint"><svg lucidePlus [size]="14"></svg></span>
+              }
+            </button>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>

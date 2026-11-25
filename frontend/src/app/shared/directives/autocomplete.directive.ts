@@ -81,8 +81,13 @@ export class AutocompleteDirective implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  private isReadOnlyOrDisabled(): boolean {
+    return this.el.nativeElement.disabled || this.el.nativeElement.readOnly;
+  }
+
   @HostListener('click')
   onClick() {
+    if (this.isReadOnlyOrDisabled()) return;
     if (!this.isOpen) {
       this.showOptionsForCurrentInput();
     }
@@ -90,6 +95,7 @@ export class AutocompleteDirective implements OnInit, OnChanges, OnDestroy {
 
   @HostListener('focus')
   onFocus() {
+    if (this.isReadOnlyOrDisabled()) return;
     this.showOptionsForCurrentInput();
   }
 
@@ -110,6 +116,7 @@ export class AutocompleteDirective implements OnInit, OnChanges, OnDestroy {
 
   @HostListener('input')
   onInput() {
+    if (this.isReadOnlyOrDisabled()) return;
     const query = this.el.nativeElement.value.trim().toLowerCase();
     this.activeIndex = -1;
 
@@ -151,6 +158,7 @@ export class AutocompleteDirective implements OnInit, OnChanges, OnDestroy {
 
   @HostListener('keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
+    if (this.isReadOnlyOrDisabled()) return;
     if (!this.isOpen && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
       event.preventDefault();
       this.showOptionsForCurrentInput();
@@ -198,8 +206,10 @@ export class AutocompleteDirective implements OnInit, OnChanges, OnDestroy {
     const matched = this.options.find((o) => o.label.toLowerCase() === text.toLowerCase());
     if (matched) {
       this.el.nativeElement.value = matched.label;
-      this.selectedId = matched.id;
-      this.selectedIdChange.emit(matched.id);
+      if (this.selectedId !== matched.id) {
+        this.selectedId = matched.id;
+        this.selectedIdChange.emit(matched.id);
+      }
       this.validityChange.emit(true);
     } else {
       this.selectedId = null;

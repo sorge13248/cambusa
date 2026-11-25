@@ -1,0 +1,75 @@
+<section class="card glass-card next-card">
+  <div class="card-header">
+    <div class="card-icon"><svg lucideZap [size]="20"></svg></div>
+    <div>
+      <h2 class="card-title">Next Engine Configuration</h2>
+      <p class="card-subtitle">Automated expiration detection thresholds</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="section-desc">
+      Controls how many days in advance pantry products are marked as "Expiring Soon" on the homepage dashboard and in the external <code>/api/next</code> integration feed.
+    </p>
+    <div class="form-group next-input-group">
+      <label for="nextExpiringDays" class="form-label">Scan Horizon (Days):</label>
+      <div class="input-with-action">
+        <input
+          id="nextExpiringDays"
+          type="number"
+          min="1"
+          max="365"
+          class="form-input number-input"
+          [ngModel]="days()"
+          (ngModelChange)="days.set($event)"
+        />
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="isSaving()"
+          (click)="saveSettings()"
+        >
+          {{ isSaving() ? 'Saving...' : 'Save Horizon' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card glass-card next-card mt-3">
+  <div class="card-header">
+    <div class="card-icon"><svg lucideClock [size]="20"></svg></div>
+    <div>
+      <h2 class="card-title">Quick Consume Confirmation Timer</h2>
+      <p class="card-subtitle">Auto-approve countdown duration when consuming pantry items</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="section-desc">
+      When using Quick Consume to scan and consume a batch, a confirmation modal appears with a countdown. Once this countdown elapses, the item is automatically confirmed and consumed. A "Mark as Open" button is also available to open the item immediately without waiting.
+    </p>
+    <div class="form-group next-input-group">
+      <label class="form-label">Auto-Approval Countdown:</label>
+      <div class="input-with-action">
+        <div style="width: 150px;">
+          <app-number-stepper
+            [value]="timerSeconds()"
+            (valueChange)="onTimerValueChange($event)"
+            [min]="1"
+            [max]="120"
+            [step]="1"
+            unit="sec"
+            ariaLabel="Quick consume auto-approve countdown seconds"
+          ></app-number-stepper>
+        </div>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="isSavingTimer()"
+          (click)="saveTimerSettings()"
+        >
+          {{ isSavingTimer() ? 'Saving...' : 'Save Timer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
