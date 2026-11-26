@@ -1,14 +1,50 @@
+<section class="card glass-card notifications-card recipient-card">
+  <div class="card-header">
+    <div class="card-icon"><svg lucideMail [size]="20"></svg></div>
+    <div>
+      <div class="title-with-badge">
+        <h2 class="card-title">Notification Recipient Email</h2>
+      </div>
+      <p class="card-subtitle">Destination email address used for all automated Cambusa notifications</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="form-group full-width">
+      <label for="notificationEmail" class="form-label">Recipient Email Address:</label>
+      <input
+        id="notificationEmail"
+        type="email"
+        class="form-input"
+        [placeholder]="accountEmail() || 'e.g. user@example.com'"
+        [ngModel]="notificationEmail()"
+        (ngModelChange)="notificationEmail.set($event)"
+      />
+      <p class="field-hint">
+        Leave blank to default to your account email address (<code>{{ accountEmail() || 'None' }}</code>).
+      </p>
+    </div>
+
+    <div class="card-actions-row">
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        [disabled]="isSavingEmail()"
+        (click)="saveRecipientEmail()"
+      >
+        {{ isSavingEmail() ? 'Saving...' : 'Save Email Address' }}
+      </button>
+    </div>
+  </div>
+</section>
+
+
+@if (settings()?.smtpConfigured) {
 <section class="card glass-card notifications-card">
   <div class="card-header">
     <div class="card-icon"><svg lucideBell [size]="20"></svg></div>
     <div>
       <div class="title-with-badge">
         <h2 class="card-title">Daily Morning Digest Notifications</h2>
-        @if (settings()?.smtpConfigured) {
-          <span class="badge badge-success">SMTP Active</span>
-        } @else {
-          <span class="badge badge-warning">SMTP Not Configured</span>
-        }
       </div>
       <p class="card-subtitle">Automated morning email summary with expiring and expired items</p>
     </div>
@@ -16,9 +52,6 @@
   <div class="card-body">
     <p class="section-desc">
       Receive an automated daily morning email digest featuring graphical cards and embedded product photos for items in your active household that require attention (from the Next engine).
-      @if (!settings()?.smtpConfigured) {
-        <br /><strong class="text-warning"><svg lucideAlertTriangle [size]="14"></svg> Note: SMTP environment variables are not configured on the server. Email delivery will be unavailable until SMTP credentials are provided in .env.</strong>
-      }
     </p>
 
     <div class="form-grid">
@@ -47,21 +80,6 @@
           (ngModelChange)="notificationTime.set($event)"
         />
         <p class="field-hint">Default is 06:00 (6:00 AM). Dispatched in server local time.</p>
-      </div>
-
-      <div class="form-group full-width">
-        <label for="notificationEmail" class="form-label">Recipient Email Address:</label>
-        <input
-          id="notificationEmail"
-          type="email"
-          class="form-input"
-          [placeholder]="accountEmail() || 'e.g. user@example.com'"
-          [ngModel]="notificationEmail()"
-          (ngModelChange)="notificationEmail.set($event)"
-        />
-        <p class="field-hint">
-          Leave blank to default to your account email address (<code>{{ accountEmail() || 'None' }}</code>).
-        </p>
       </div>
     </div>
 
@@ -103,3 +121,103 @@
     </div>
   </div>
 </section>
+
+<section class="card glass-card notifications-card meal-slots-card">
+  <div class="card-header">
+    <div class="card-icon"><svg lucideCalendar [size]="20"></svg></div>
+    <div>
+      <div class="title-with-badge">
+        <h2 class="card-title">Meal Planner Slot Notifications</h2>
+      </div>
+      <p class="card-subtitle">Automated per-slot meal reminders sent for each household you belong to</p>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="section-desc">
+      Configure an email reminder for each Meal Planner time slot. Emails are sent to the recipient address configured above using the same pantry card format, with one email per household you are a member of.
+    </p>
+
+    <div class="meal-slots-list">
+      @for (slot of mealSlots; track slot.key) {
+        @let cfg = mealPlanEmailSettings()[slot.key];
+        <div class="meal-slot-row" [class.slot-enabled]="cfg.enabled">
+          <div class="meal-slot-main">
+            <label class="toggle-label" [for]="'mealSlotToggle-' + slot.key">
+              <input
+                [id]="'mealSlotToggle-' + slot.key"
+                type="checkbox"
+                class="toggle-checkbox"
+                [ngModel]="cfg.enabled"
+                (ngModelChange)="updateMealSlotConfig(slot.key, { enabled: $event })"
+              />
+              <span class="toggle-slider"></span>
+              <span class="toggle-text">{{ slot.label }}</span>
+            </label>
+
+            <div class="meal-slot-controls">
+              <div class="slot-time-wrap">
+                <label class="slot-inline-label" [for]="'mealSlotTime-' + slot.key">Time:</label>
+                <input
+                  [id]="'mealSlotTime-' + slot.key"
+                  type="time"
+                  class="form-input time-input"
+                  [ngModel]="cfg.time"
+                  (ngModelChange)="updateMealSlotConfig(slot.key, { time: $event })"
+                />
+              </div>
+
+              <label class="slot-checkbox-label" [for]="'mealSlotOnlyIf-' + slot.key">
+                <input
+                  [id]="'mealSlotOnlyIf-' + slot.key"
+                  type="checkbox"
+                  [ngModel]="cfg.onlyIfHasEntries"
+                  (ngModelChange)="updateMealSlotConfig(slot.key, { onlyIfHasEntries: $event })"
+                />
+                <span>Send only if meals are planned</span>
+              </label>
+
+              <button
+                type="button"
+                class="btn btn-secondary btn-xs"
+                [disabled]="testingSlot() !== null || !settings()?.smtpConfigured"
+                (click)="testMealSlot(slot.key)"
+                title="Send a test email for this meal slot"
+              >
+                @if (testingSlot() === slot.key) {
+                  Sending...
+                } @else {
+                  <svg lucideMail [size]="12"></svg> Test
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (mealSlotTestStatus(); as status) {
+      <div class="test-feedback" [class.test-ok]="status.ok" [class.test-err]="!status.ok">
+        <span>
+          @if (status.ok) {
+            <svg lucideCheck [size]="14"></svg>
+          } @else {
+            <svg lucideAlertTriangle [size]="14"></svg>
+          }
+        </span>
+        <span>{{ status.message }}</span>
+      </div>
+    }
+
+    <div class="card-actions-row">
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        [disabled]="isSavingMealSlots()"
+        (click)="saveMealSlotSettings()"
+      >
+        {{ isSavingMealSlots() ? 'Saving...' : 'Save Meal Planner Notifications' }}
+      </button>
+    </div>
+  </div>
+</section>
+}

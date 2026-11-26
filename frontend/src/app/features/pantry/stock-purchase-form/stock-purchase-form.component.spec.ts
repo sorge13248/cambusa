@@ -125,4 +125,76 @@ describe('StockPurchaseFormComponent', () => {
     expect(component.availableLocations.map((l) => l.id)).toEqual(['loc-1']);
     expect(component.purchaseLocationId).toBe('loc-1');
   });
+
+  it('should recalculate bestBeforeDate to TODAY + defaultBestBeforeDaysAfterFreezing when freezer location is selected and update UI', async () => {
+    component.locations = [
+      { id: 'loc-1', name: 'Pantry', isFreezer: false } as any,
+      { id: 'loc-2', name: 'Deep Freezer', isFreezer: true } as any,
+    ];
+    component.product = {
+      ...mockProduct,
+      cannotBeFrozen: false,
+      defaultLocationId: 'loc-1',
+      defaultBestBeforeDays: 10,
+      defaultBestBeforeDaysAfterFreezing: 90,
+    };
+    component.ngOnChanges({
+      product: new SimpleChange(null, component.product, false),
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const expectedDefault = new Date();
+    expectedDefault.setDate(expectedDefault.getDate() + 10);
+    const expectedDefaultStr = expectedDefault.toISOString().slice(0, 10);
+    expect(component.purchaseBestBeforeDate).toBe(expectedDefaultStr);
+
+    // Switch storage to freezer
+    const select: HTMLSelectElement = fixture.nativeElement.querySelectorAll('select')[1];
+    select.value = 'loc-2';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const expectedFreezer = new Date();
+    expectedFreezer.setDate(expectedFreezer.getDate() + 90);
+    const expectedFreezerStr = expectedFreezer.toISOString().slice(0, 10);
+
+    expect(component.purchaseLocationId).toBe('loc-2');
+    expect(component.purchaseBestBeforeDate).toBe(expectedFreezerStr);
+    const dateInput: HTMLInputElement = fixture.nativeElement.querySelector('app-cdk-datepicker input[type="date"]');
+    expect(dateInput.value).toBe(expectedFreezerStr);
+
+    // Switch storage back to non-freezer
+    select.value = 'loc-1';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.purchaseBestBeforeDate).toBe(expectedDefaultStr);
+    expect(dateInput.value).toBe(expectedDefaultStr);
+  });
+
+  it('should use defaultBestBeforeDaysAfterFreezing on init when defaultLocationId is a freezer', () => {
+    component.locations = [
+      { id: 'loc-1', name: 'Pantry', isFreezer: false } as any,
+      { id: 'loc-2', name: 'Deep Freezer', isFreezer: true } as any,
+    ];
+    component.product = {
+      ...mockProduct,
+      cannotBeFrozen: false,
+      defaultLocationId: 'loc-2',
+      defaultBestBeforeDays: 10,
+      defaultBestBeforeDaysAfterFreezing: 120,
+    };
+    component.ngOnChanges({
+      product: new SimpleChange(null, component.product, false),
+    });
+    fixture.detectChanges();
+
+    const expectedFreezer = new Date();
+    expectedFreezer.setDate(expectedFreezer.getDate() + 120);
+    expect(component.purchaseLocationId).toBe('loc-2');
+    expect(component.purchaseBestBeforeDate).toBe(expectedFreezer.toISOString().slice(0, 10));
+  });
 });

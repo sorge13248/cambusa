@@ -160,4 +160,14 @@ describe('PantryActionModalComponent', () => {
     component.data.product.cannotBeFrozen = true;
     expect(component.moveTargetLocations().map((l) => l.id)).toEqual(['l1']);
   });
+
+  it('should hide Consume and Move buttons when stock is 0 while keeping Purchase', () => {
+    component.currentStockItems.set([]);
+    fixture.detectChanges();
+
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.querySelector('.btn-consume')).toBeNull();
+    expect(el.querySelector('.btn-move')).toBeNull();
+    expect(el.querySelector('.btn-purchase')).toBeTruthy();
+  });
 });

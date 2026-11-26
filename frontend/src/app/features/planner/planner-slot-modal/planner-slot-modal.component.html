@@ -106,6 +106,15 @@
               </button>
               <button
                 type="button"
+                class="btn btn-secondary btn-sm"
+                (click)="openPantryInfoModal(item)"
+                title="Open Pantry actions (Purchase, Consume, Move)"
+                aria-label="Open Pantry actions"
+              >
+                <svg lucideInfo [size]="14"></svg>
+              </button>
+              <button
+                type="button"
                 class="btn btn-secondary btn-sm btn-remove"
                 (click)="removeEntry(item)"
                 title="Remove from meal plan"

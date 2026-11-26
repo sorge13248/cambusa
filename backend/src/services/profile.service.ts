@@ -2,8 +2,40 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
-import { ApiKey, User, UserSettings } from '../entities/index.js';
+import {
+  ApiKey,
+  MealPlanEmailSettingsMap,
+  MealSlot,
+  MealSlotEmailConfig,
+  User,
+  UserSettings,
+} from '../entities/index.js';
 import { AuthUser } from '../common/auth/auth.types.js';
+
+export const DEFAULT_MEAL_PLAN_EMAIL_SETTINGS: MealPlanEmailSettingsMap = {
+  breakfast: { enabled: false, time: '07:30', onlyIfHasEntries: true },
+  morning_snack: { enabled: false, time: '10:00', onlyIfHasEntries: true },
+  lunch: { enabled: false, time: '12:00', onlyIfHasEntries: true },
+  afternoon_snack: { enabled: false, time: '16:00', onlyIfHasEntries: true },
+  dinner: { enabled: false, time: '19:00', onlyIfHasEntries: true },
+};
+
+export function normalizeMealPlanEmailSettings(
+  raw?: Partial<Record<MealSlot, Partial<MealSlotEmailConfig>>> | null,
+): MealPlanEmailSettingsMap {
+  const result = {} as MealPlanEmailSettingsMap;
+  for (const slot of Object.keys(DEFAULT_MEAL_PLAN_EMAIL_SETTINGS) as MealSlot[]) {
+    const def = DEFAULT_MEAL_PLAN_EMAIL_SETTINGS[slot];
+    const incoming = raw?.[slot];
+    result[slot] = {
+      enabled: incoming?.enabled !== undefined ? Boolean(incoming.enabled) : def.enabled,
+      time: typeof incoming?.time === 'string' && incoming.time.trim() ? incoming.time.trim() : def.time,
+      onlyIfHasEntries:
+        incoming?.onlyIfHasEntries !== undefined ? Boolean(incoming.onlyIfHasEntries) : def.onlyIfHasEntries,
+    };
+  }
+  return result;
+}
 
 export interface CreateApiKeyResult {
   id: string;
@@ -72,6 +104,7 @@ export class ProfileService {
         notificationEmail: settings.notificationEmail,
         emailNotificationsEnabled: settings.emailNotificationsEnabled,
         notificationTime: settings.notificationTime || '06:00',
+        mealPlanEmailSettings: normalizeMealPlanEmailSettings(settings.mealPlanEmailSettings),
         smtpConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT),
       },
       apiKeys: apiKeys.map((k) => ({
@@ -137,6 +170,7 @@ export class ProfileService {
       notificationEmail?: string | null;
       emailNotificationsEnabled?: boolean;
       notificationTime?: string;
+      mealPlanEmailSettings?: Partial<Record<MealSlot, Partial<MealSlotEmailConfig>>>;
     },
   ) {
     let settings = await this.settingsRepo.findOne({ where: { userId: user.id } });
@@ -173,6 +207,17 @@ export class ProfileService {
       settings.notificationTime = dto.notificationTime.trim();
     }
 
+    if (dto.mealPlanEmailSettings !== undefined) {
+      const current = normalizeMealPlanEmailSettings(settings.mealPlanEmailSettings);
+      const merged: Partial<Record<MealSlot, Partial<MealSlotEmailConfig>>> = { ...current };
+      for (const slot of Object.keys(DEFAULT_MEAL_PLAN_EMAIL_SETTINGS) as MealSlot[]) {
+        if (dto.mealPlanEmailSettings[slot]) {
+          merged[slot] = { ...current[slot], ...dto.mealPlanEmailSettings[slot] };
+        }
+      }
+      settings.mealPlanEmailSettings = normalizeMealPlanEmailSettings(merged);
+    }
+
     await this.settingsRepo.save(settings);
 
     return {
@@ -184,6 +229,7 @@ export class ProfileService {
       notificationEmail: settings.notificationEmail,
       emailNotificationsEnabled: settings.emailNotificationsEnabled,
       notificationTime: settings.notificationTime,
+      mealPlanEmailSettings: normalizeMealPlanEmailSettings(settings.mealPlanEmailSettings),
       smtpConfigured: Boolean(process.env.SMTP_HOST && process.env.SMTP_PORT),
     };
   }

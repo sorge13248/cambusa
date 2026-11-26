@@ -4,6 +4,7 @@ import { CurrentUser } from '../common/auth/current-user.decorator.js';
 import { AuthUser } from '../common/auth/auth.types.js';
 import { ProfileService } from '../services/profile.service.js';
 import { MailService } from '../services/mail.service.js';
+import { MealSlot, MealSlotEmailConfig } from '../entities/index.js';
 
 @Controller('profile')
 @UseGuards(BearerJwtGuard)
@@ -41,6 +42,7 @@ export class ProfileController {
       notificationEmail?: string | null;
       emailNotificationsEnabled?: boolean;
       notificationTime?: string;
+      mealPlanEmailSettings?: Partial<Record<MealSlot, Partial<MealSlotEmailConfig>>>;
     },
   ) {
     return this.profileService.updateSettings(user, body);
@@ -59,5 +61,13 @@ export class ProfileController {
   @Post('notifications/test')
   testNotification(@CurrentUser() user: AuthUser) {
     return this.mailService.sendTestNotification(user);
+  }
+
+  @Post('notifications/test-meal-slot')
+  testMealSlotNotification(
+    @CurrentUser() user: AuthUser,
+    @Body() body: { mealSlot: MealSlot },
+  ) {
+    return this.mailService.sendTestMealSlotNotification(user, body?.mealSlot);
   }
 }

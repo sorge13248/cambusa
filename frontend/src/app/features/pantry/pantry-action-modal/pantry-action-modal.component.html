@@ -26,15 +26,17 @@
   <div class="modal-body">
     <!-- Big Action Buttons -->
     <div class="big-buttons-grid">
-      <button
-        type="button"
-        class="big-action-btn btn-consume"
-        [class.active]="activeAction() === 'consume'"
-        (click)="setAction('consume')"
-      >
-        <span class="action-emoji"><svg lucideUtensils [size]="24"></svg></span>
-        <span class="action-label">Consume</span>
-      </button>
+      @if (totalStockAmount() > 0) {
+        <button
+          type="button"
+          class="big-action-btn btn-consume"
+          [class.active]="activeAction() === 'consume'"
+          (click)="setAction('consume')"
+        >
+          <span class="action-emoji"><svg lucideUtensils [size]="24"></svg></span>
+          <span class="action-label">Consume</span>
+        </button>
+      }
 
       <button
         type="button"
@@ -46,15 +48,17 @@
         <span class="action-label">Purchase</span>
       </button>
 
-      <button
-        type="button"
-        class="big-action-btn btn-move"
-        [class.active]="activeAction() === 'move'"
-        (click)="setAction('move')"
-      >
-        <span class="action-emoji"><svg lucidePackage [size]="24"></svg></span>
-        <span class="action-label">Move</span>
-      </button>
+      @if (totalStockAmount() > 0) {
+        <button
+          type="button"
+          class="big-action-btn btn-move"
+          [class.active]="activeAction() === 'move'"
+          (click)="setAction('move')"
+        >
+          <span class="action-emoji"><svg lucidePackage [size]="24"></svg></span>
+          <span class="action-label">Move</span>
+        </button>
+      }
     </div>
 
     <!-- Action Specific Form -->

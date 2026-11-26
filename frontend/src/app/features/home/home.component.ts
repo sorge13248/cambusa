@@ -15,6 +15,7 @@ import {
 } from '@lucide/angular';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
+import { SyncService } from '../../core/sync.service.js';
 import { UndoService } from '../../core/undo.service.js';
 import { NextItemDto, NextResponseDto } from '../../core/models.js';
 import { PantryActionModalComponent } from '../pantry/pantry-action-modal/pantry-action-modal.component.js';
@@ -41,6 +42,7 @@ import { QuickActionsFooterComponent } from '../../shared/components/quick-actio
 export class HomeComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   readonly auth = inject(AuthService);
+  private readonly syncService = inject(SyncService);
   private readonly undoService = inject(UndoService);
   private readonly dialog = inject(Dialog);
   private readonly route = inject(ActivatedRoute);
@@ -63,6 +65,13 @@ export class HomeComponent implements OnInit, OnDestroy {
       if (hhId && hhId !== this.lastLoadedHouseholdId) {
         this.lastLoadedHouseholdId = hhId;
         this.loadDashboardData(false);
+      }
+    });
+
+    effect(() => {
+      const syncCount = this.syncService.onSyncCompleted();
+      if (syncCount > 0 && this.isInitialized) {
+        this.recomputeSilently();
       }
     });
 
@@ -218,12 +227,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
 
     if (action === 'open') {
-      const allAlerts = [...next.expired, ...next.expiringSoon];
-      const target = allAlerts.find((i) => i.id === stockItemId || (productId && i.productId === productId));
-      if (target) {
-        target.isOpened = true;
-        this.nextData.set(next);
-      }
+      this.recomputeSilently();
       return;
     }
 

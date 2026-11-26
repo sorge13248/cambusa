@@ -9,6 +9,7 @@ import {
   Location,
   MealPlanEntry,
   MealSlot,
+  MealSlotEmailConfig,
   MealieFoodSummary,
   MealieProductRecipesResponse,
   MealieRecipeSummary,
@@ -16,6 +17,7 @@ import {
   MissingProduct,
   NextResponseDto,
   Product,
+  ProductCustomField,
   ProductGroup,
   ProductMemberRatingDto,
   ProductRatingsResponseDto,
@@ -230,6 +232,7 @@ export class ApiService {
     const updated = cat.units.map((u) => (u.id === id ? { ...u, ...data } : u));
     await this.storage.saveCatalogs(hhId, { units: updated });
     await this.storage.enqueue({ entity: 'catalog', action: 'update', payload: { type: 'unit', id, ...data } });
+    await this.invalidateDashboardCache(hhId);
     this.syncService.sync().catch(() => {});
     return updated.find((u) => u.id === id) || ({ id, ...data } as any);
   }
@@ -238,6 +241,7 @@ export class ApiService {
     const hhId = this.activeHouseholdId() || 'default';
     await this.storage.removeCatalogItem(hhId, 'unit', id);
     await this.storage.enqueue({ entity: 'catalog', action: 'delete', payload: { type: 'unit', id } });
+    await this.invalidateDashboardCache(hhId);
     this.syncService.sync().catch(() => {});
   }
 
@@ -298,6 +302,7 @@ export class ApiService {
     const updated = cat.locations.map((l) => (l.id === id ? { ...l, ...data } : l));
     await this.storage.saveCatalogs(hhId, { locations: updated });
     await this.storage.enqueue({ entity: 'catalog', action: 'update', payload: { type: 'location', id, ...data } });
+    await this.invalidateDashboardCache(hhId);
     this.syncService.sync().catch(() => {});
     return updated.find((l) => l.id === id) || ({ id, ...data } as any);
   }
@@ -306,6 +311,7 @@ export class ApiService {
     const hhId = this.activeHouseholdId() || 'default';
     await this.storage.removeCatalogItem(hhId, 'location', id);
     await this.storage.enqueue({ entity: 'catalog', action: 'delete', payload: { type: 'location', id } });
+    await this.invalidateDashboardCache(hhId);
     this.syncService.sync().catch(() => {});
   }
 
@@ -339,6 +345,138 @@ export class ApiService {
     await this.storage.removeCatalogItem(hhId, 'store', id);
     await this.storage.enqueue({ entity: 'catalog', action: 'delete', payload: { type: 'store', id } });
     this.syncService.sync().catch(() => {});
+  }
+
+  // Product Custom Fields
+  async getProductCustomFields(): Promise<ProductCustomField[]> {
+    const hhId = this.activeHouseholdId() || undefined;
+    const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+    if (hhId) {
+      const isHydrated = await this.syncService.isHouseholdHydrated(hhId);
+      const cat = await this.storage.getCatalogs(hhId);
+      if (isHydrated && cat.customFields.length > 0) {
+        this.syncService.sync().catch(() => {});
+        return [...cat.customFields].sort(compareByNumericOrder);
+      }
+      await this.syncService.sync().catch(() => {});
+      const ref = await this.storage.getCatalogs(hhId);
+      const nowHydrated = await this.syncService.isHouseholdHydrated(hhId);
+      if (nowHydrated || (!isOnline && ref.customFields.length > 0)) {
+        return [...ref.customFields].sort(compareByNumericOrder);
+      }
+    }
+    try {
+      const items = await firstValueFrom(
+        this.http.get<ProductCustomField[]>('/api/catalogs/custom-fields', this.options),
+      );
+      const sorted = [...items].sort(compareByNumericOrder);
+      if (hhId) {
+        await this.storage.saveCatalogs(hhId, { customFields: sorted }, { replace: true });
+      }
+      return sorted;
+    } catch {
+      if (hhId) {
+        const cat = await this.storage.getCatalogs(hhId);
+        return [...cat.customFields].sort(compareByNumericOrder);
+      }
+      return [];
+    }
+  }
+
+  async createProductCustomField(data: Partial<ProductCustomField>): Promise<ProductCustomField> {
+    const hhId = this.activeHouseholdId() || '';
+    const cat = await this.storage.getCatalogs(hhId);
+    const maxOrder = cat.customFields.reduce((max, f) => Math.max(max, f.sortOrder || 0), 0);
+    const field: ProductCustomField = {
+      id: data.id || `pcf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      householdId: hhId,
+      name: (data.name || 'Custom Field').trim(),
+      description: data.description?.trim() || null,
+      placeholder: data.placeholder?.trim() || null,
+      type: data.type || 'string',
+      defaultValue: data.defaultValue !== undefined && data.defaultValue !== null ? String(data.defaultValue) : null,
+      sortOrder: data.sortOrder ?? maxOrder + 1,
+    };
+    await this.storage.saveCatalogs(hhId, { customFields: [...cat.customFields, field] }, { replace: true });
+    await this.storage.enqueue({
+      entity: 'catalog',
+      action: 'create',
+      payload: { ...field, catalogType: 'custom_field' },
+    });
+    this.syncService.sync().catch(() => {});
+    return field;
+  }
+
+  async updateProductCustomField(id: string, data: Partial<ProductCustomField>): Promise<ProductCustomField> {
+    const hhId = this.activeHouseholdId() || '';
+    const cat = await this.storage.getCatalogs(hhId);
+    const existing = cat.customFields.find((f) => f.id === id);
+    const merged: ProductCustomField = {
+      ...(existing || {
+        id,
+        householdId: hhId,
+        name: 'Custom Field',
+        description: null,
+        placeholder: null,
+        type: 'string',
+        defaultValue: null,
+        sortOrder: 0,
+      }),
+      ...data,
+      id,
+      householdId: hhId,
+    };
+    const updatedList = cat.customFields.some((f) => f.id === id)
+      ? cat.customFields.map((f) => (f.id === id ? merged : f))
+      : [...cat.customFields, merged];
+    await this.storage.saveCatalogs(hhId, { customFields: updatedList }, { replace: true });
+    await this.storage.enqueue({
+      entity: 'catalog',
+      action: 'update',
+      payload: { ...merged, catalogType: 'custom_field' },
+    });
+    this.syncService.sync().catch(() => {});
+    return merged;
+  }
+
+  async deleteProductCustomField(id: string): Promise<void> {
+    const hhId = this.activeHouseholdId() || '';
+    const cat = await this.storage.getCatalogs(hhId);
+    await this.storage.saveCatalogs(
+      hhId,
+      { customFields: cat.customFields.filter((f) => f.id !== id) },
+      { replace: true },
+    );
+    await this.storage.enqueue({
+      entity: 'catalog',
+      action: 'delete',
+      payload: { id, catalogType: 'product_custom_field' },
+    });
+    this.syncService.sync().catch(() => {});
+  }
+
+  async reorderProductCustomFields(fieldIds: string[]): Promise<ProductCustomField[]> {
+    const hhId = this.activeHouseholdId() || '';
+    const cat = await this.storage.getCatalogs(hhId);
+    const fieldMap = new Map(cat.customFields.map((f) => [f.id, f]));
+    const updated: ProductCustomField[] = [];
+    for (let i = 0; i < fieldIds.length; i++) {
+      const field = fieldMap.get(fieldIds[i]);
+      if (field) {
+        const nextField = { ...field, sortOrder: i + 1 };
+        updated.push(nextField);
+        await this.storage.enqueue({
+          entity: 'catalog',
+          action: 'update',
+          payload: { ...nextField, catalogType: 'custom_field' },
+        });
+      }
+    }
+    if (updated.length > 0) {
+      await this.storage.saveCatalogs(hhId, { customFields: updated }, { replace: true });
+      this.syncService.sync().catch(() => {});
+    }
+    return updated.sort(compareByNumericOrder);
   }
 
   // Aisles
@@ -454,6 +592,18 @@ export class ApiService {
     const res = await firstValueFrom(
       this.http.put<ProductStore>(`/api/products/${productId}/stores/${storeId}`, data, this.options),
     );
+    const existing = await this.storage.getProduct(productId);
+    if (existing) {
+      const currentStores = Array.isArray(existing.stores) ? [...existing.stores] : [];
+      const idx = currentStores.findIndex((s) => s.storeId === storeId);
+      if (idx >= 0) {
+        currentStores[idx] = { ...currentStores[idx], ...res };
+      } else {
+        currentStores.push(res);
+      }
+      existing.stores = currentStores;
+      await this.storage.putProduct(existing);
+    }
     const hhId = this.activeHouseholdId();
     if (hhId) {
       this.productsDetailFetchedForHouseholds.delete(hhId);
@@ -465,6 +615,11 @@ export class ApiService {
     await firstValueFrom(
       this.http.delete<void>(`/api/products/${productId}/stores/${storeId}`, this.options),
     );
+    const existing = await this.storage.getProduct(productId);
+    if (existing && Array.isArray(existing.stores)) {
+      existing.stores = existing.stores.filter((s) => s.storeId !== storeId);
+      await this.storage.putProduct(existing);
+    }
     const hhId = this.activeHouseholdId();
     if (hhId) {
       this.productsDetailFetchedForHouseholds.delete(hhId);
@@ -472,28 +627,52 @@ export class ApiService {
   }
 
   // Pictures
-  uploadProductPicture(productId: string, file: File): Promise<{ fileName: string; url: string }> {
+  async uploadProductPicture(productId: string, file: File): Promise<{ fileName: string; url: string }> {
     const formData = new FormData();
     formData.append('file', file);
-    return firstValueFrom(
+    const res = await firstValueFrom(
       this.http.post<{ fileName: string; url: string }>(
         `/api/products/${productId}/picture`,
         formData,
         this.options,
       ),
     );
+    const existing = await this.storage.getProduct(productId);
+    if (existing) {
+      const currentPics = Array.isArray(existing.pictureFileNames) ? existing.pictureFileNames : [];
+      if (!currentPics.includes(res.fileName)) {
+        existing.pictureFileNames = [...currentPics, res.fileName];
+        await this.storage.putProduct(existing);
+      }
+      await this.invalidateDashboardCache(existing.householdId);
+    }
+    return res;
   }
 
-  deleteProductPicture(productId: string, fileName: string): Promise<{ pictures: string[] }> {
-    return firstValueFrom(
+  async deleteProductPicture(productId: string, fileName: string): Promise<{ pictures: string[] }> {
+    const res = await firstValueFrom(
       this.http.delete<{ pictures: string[] }>(`/api/products/${productId}/picture/${fileName}`, this.options),
     );
+    const existing = await this.storage.getProduct(productId);
+    if (existing) {
+      existing.pictureFileNames = res.pictures;
+      await this.storage.putProduct(existing);
+      await this.invalidateDashboardCache(existing.householdId);
+    }
+    return res;
   }
 
-  reorderProductPictures(productId: string, pictureFileNames: string[]): Promise<{ pictures: string[] }> {
-    return firstValueFrom(
+  async reorderProductPictures(productId: string, pictureFileNames: string[]): Promise<{ pictures: string[] }> {
+    const res = await firstValueFrom(
       this.http.put<{ pictures: string[] }>(`/api/products/${productId}/pictures/order`, { pictureFileNames }, this.options),
     );
+    const existing = await this.storage.getProduct(productId);
+    if (existing) {
+      existing.pictureFileNames = res.pictures;
+      await this.storage.putProduct(existing);
+      await this.invalidateDashboardCache(existing.householdId);
+    }
+    return res;
   }
 
   // Product Ratings
@@ -806,13 +985,16 @@ export class ApiService {
     const merged: Product = { ...(existing || {}), ...data, id } as Product;
     await this.storage.putProduct(merged);
     await this.storage.enqueue({ entity: 'product', action: 'update', payload: merged });
+    await this.invalidateDashboardCache(merged.householdId);
     this.syncService.sync().catch(() => {});
     return merged;
   }
 
   async deleteProduct(id: string): Promise<void> {
+    const existing = await this.storage.getProduct(id);
     await this.storage.deleteProduct(id);
     await this.storage.enqueue({ entity: 'product', action: 'delete', payload: { id } });
+    await this.invalidateDashboardCache(existing?.householdId);
     this.syncService.sync().catch(() => {});
   }
 
@@ -944,6 +1126,7 @@ export class ApiService {
     };
     await this.storage.putStockItem(item);
     await this.storage.enqueue({ entity: 'stock', action: 'create', payload: item });
+    await this.invalidateDashboardCache(item.householdId);
     this.syncService.sync().catch(() => {});
     return item;
   }
@@ -960,6 +1143,7 @@ export class ApiService {
       }
       await this.storage.putStockItem(item);
       await this.storage.enqueue({ entity: 'stock', action: 'update', payload: item });
+      await this.invalidateDashboardCache(item.householdId);
       this.syncService.sync().catch(() => {});
       return item;
     }
@@ -977,6 +1161,7 @@ export class ApiService {
         await this.storage.deleteStockItem(id);
       }
       await this.storage.enqueue({ entity: 'stock', action: 'delete', payload: { id } });
+      await this.invalidateDashboardCache(existing?.householdId);
       this.syncService.sync().catch(() => {});
       return { consumed: true, remaining: 0 };
     }
@@ -986,6 +1171,7 @@ export class ApiService {
     }
     await this.storage.putStockItem(existing);
     await this.storage.enqueue({ entity: 'stock', action: 'update', payload: existing });
+    await this.invalidateDashboardCache(existing.householdId);
     this.syncService.sync().catch(() => {});
     return { consumed: true, remaining: existing.amount };
   }
@@ -997,6 +1183,7 @@ export class ApiService {
       item.openedDate = item.isOpen ? new Date().toISOString().slice(0, 10) : null;
       await this.storage.putStockItem(item);
       await this.storage.enqueue({ entity: 'stock', action: 'update', payload: item });
+      await this.invalidateDashboardCache(item.householdId);
       this.syncService.sync().catch(() => {});
       return item;
     }
@@ -1071,6 +1258,7 @@ export class ApiService {
       item.bestBeforeDate = openedBestBeforeDate;
       await this.storage.putStockItem(item);
       await this.storage.enqueue({ entity: 'stock', action: 'update', payload: item });
+      await this.invalidateDashboardCache(item.householdId);
       this.syncService.sync().catch(() => {});
       return {
         openedStockItem: item,
@@ -1097,6 +1285,7 @@ export class ApiService {
     };
     await this.storage.putStockItem(newItem);
     await this.storage.enqueue({ entity: 'stock', action: 'create', payload: newItem });
+    await this.invalidateDashboardCache(item.householdId);
     this.syncService.sync().catch(() => {});
     return {
       openedStockItem: newItem,
@@ -1137,6 +1326,7 @@ export class ApiService {
         await this.storage.enqueue({ entity: 'stock', action: 'update', payload: orig });
       }
     }
+    await this.invalidateDashboardCache();
     this.syncService.sync().catch(() => {});
   }
 
@@ -1172,6 +1362,7 @@ export class ApiService {
         await this.storage.putStockItem(moved);
         await this.storage.enqueue({ entity: 'stock', action: 'create', payload: moved });
       }
+      await this.invalidateDashboardCache(target.householdId);
       this.syncService.sync().catch(() => {});
       return { transferred: true, targetLocationId: data.toLocationId };
     }
@@ -1183,13 +1374,16 @@ export class ApiService {
     const merged = { ...(item || {}), ...data, id } as StockItem;
     await this.storage.putStockItem(merged);
     await this.storage.enqueue({ entity: 'stock', action: 'update', payload: merged });
+    await this.invalidateDashboardCache(merged.householdId);
     this.syncService.sync().catch(() => {});
     return merged;
   }
 
   async deleteStockItem(id: string): Promise<void> {
+    const existing = await this.storage.getStockItem(id);
     await this.storage.deleteStockItem(id);
     await this.storage.enqueue({ entity: 'stock', action: 'delete', payload: { id } });
+    await this.invalidateDashboardCache(existing?.householdId);
     this.syncService.sync().catch(() => {});
   }
 
@@ -1577,6 +1771,10 @@ export class ApiService {
     return this.rawSyncPost(payload);
   }
 
+  syncNow(): Promise<boolean> {
+    return this.syncService.sync();
+  }
+
   // Profile & API Keys
   getProfile(): Promise<ProfileDataDto> {
     return firstValueFrom(this.http.get<ProfileDataDto>('/api/profile', this.options));
@@ -1590,7 +1788,7 @@ export class ApiService {
     return firstValueFrom(this.http.delete<void>(`/api/profile/api-keys/${keyId}`, this.options));
   }
 
-  updateProfileSettings(dto: {
+  async updateProfileSettings(dto: {
     nextExpiringDays?: number;
     quickConsumeTimerSeconds?: number;
     mealieUrl?: string | null;
@@ -1598,13 +1796,30 @@ export class ApiService {
     notificationEmail?: string | null;
     emailNotificationsEnabled?: boolean;
     notificationTime?: string;
+    mealPlanEmailSettings?: Partial<Record<MealSlot, Partial<MealSlotEmailConfig>>>;
   }): Promise<UserSettingsDto> {
-    return firstValueFrom(this.http.put<UserSettingsDto>('/api/profile/settings', dto, this.options));
+    const updated = await firstValueFrom(this.http.put<UserSettingsDto>('/api/profile/settings', dto, this.options));
+    if (dto.nextExpiringDays !== undefined) {
+      const hhId = this.activeHouseholdId() || 'default';
+      await this.storage.setMeta(`next_expiring_days_${hhId}`, updated.nextExpiringDays);
+      await this.invalidateDashboardCache(hhId);
+    }
+    return updated;
   }
 
   testNotification(): Promise<{ ok: boolean; message: string }> {
     return firstValueFrom(
       this.http.post<{ ok: boolean; message: string }>('/api/profile/notifications/test', {}, this.options),
+    );
+  }
+
+  testMealSlotNotification(mealSlot: MealSlot): Promise<{ ok: boolean; message: string }> {
+    return firstValueFrom(
+      this.http.post<{ ok: boolean; message: string }>(
+        '/api/profile/notifications/test-meal-slot',
+        { mealSlot },
+        this.options,
+      ),
     );
   }
 
@@ -1643,15 +1858,23 @@ export class ApiService {
     return firstValueFrom(this.http.get<MealieProductRecipesResponse>(url, this.options));
   }
 
+  private async invalidateDashboardCache(householdId?: string): Promise<void> {
+    const hhId = householdId || this.activeHouseholdId() || 'default';
+    await this.storage.invalidateDashboardData(hhId);
+  }
+
   // Next Engine (Dashboard)
   async getNext(params?: { householdId?: string; days?: number }): Promise<NextResponseDto> {
     const hhId = params?.householdId || this.activeHouseholdId() || 'default';
     const cached = await this.storage.getDashboardData(hhId);
     if (cached) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const cachedDateStr = cached.generatedAt ? cached.generatedAt.slice(0, 10) : '';
+      const isStaleDay = cachedDateStr !== todayStr;
       const hasLegacyItemsWithoutPictureField = [...cached.expired, ...cached.expiringSoon].some(
         (item) => item.productPictureFileName === undefined,
       );
-      if (!hasLegacyItemsWithoutPictureField) {
+      if (!isStaleDay && !hasLegacyItemsWithoutPictureField) {
         this.syncService.sync().catch(() => {});
         return cached;
       }
@@ -1661,7 +1884,9 @@ export class ApiService {
     const products = await this.storage.getProducts(hhId);
     if (stock.length > 0 || products.length > 0) {
       const catalogs = await this.storage.getCatalogs(hhId);
-      const computed = this.computeNextDataLocally(stock, products, params?.days || 5, catalogs);
+      const savedDays = await this.storage.getMeta(`next_expiring_days_${hhId}`);
+      const configuredDays = params?.days || savedDays || 5;
+      const computed = this.computeNextDataLocally(stock, products, configuredDays, catalogs);
       await this.storage.saveDashboardData(hhId, computed);
       this.syncService.sync().catch(() => {});
       return computed;
@@ -1680,6 +1905,9 @@ export class ApiService {
         url += `?${queryParts.join('&')}`;
       }
       const remote = await firstValueFrom(this.http.get<NextResponseDto>(url, this.options));
+      if (remote.summary?.configuredDays) {
+        await this.storage.setMeta(`next_expiring_days_${hhId}`, remote.summary.configuredDays);
+      }
       await this.storage.saveDashboardData(hhId, remote);
       return remote;
     } catch {
@@ -1721,10 +1949,9 @@ export class ApiService {
     let totalStockItems = 0;
 
     for (const item of stockItems) {
-      if (item.amount > 0) {
-        uniqueProductsInStockSet.add(item.productId);
-        totalStockItems += item.amount;
-      }
+      if (item.amount <= 0) continue;
+      uniqueProductsInStockSet.add(item.productId);
+      totalStockItems += item.amount;
 
       if (!item.bestBeforeDate) continue;
 

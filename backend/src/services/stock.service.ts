@@ -149,20 +149,31 @@ export class StockService {
     if (!product) throw new NotFoundException('Product not found in this household');
 
     const targetLocationId = data.locationId ?? product.defaultLocationId ?? null;
-    if (targetLocationId && product.cannotBeFrozen) {
-      const targetLocation = await this.locationsRepository.findOne({
+    let targetLocation: Location | null = null;
+    if (targetLocationId) {
+      targetLocation = await this.locationsRepository.findOne({
         where: { id: targetLocationId, householdId },
       });
-      if (targetLocation?.isFreezer) {
+      if (product.cannotBeFrozen && targetLocation?.isFreezer) {
         throw new BadRequestException('This product is marked as cannot be frozen');
       }
     }
 
     let bestBeforeDate = data.bestBeforeDate ?? null;
-    if (!bestBeforeDate && product.defaultBestBeforeDays > 0) {
-      const target = new Date();
-      target.setDate(target.getDate() + product.defaultBestBeforeDays);
-      bestBeforeDate = this.formatDate(target);
+    if (!bestBeforeDate) {
+      if (
+        targetLocation?.isFreezer &&
+        product.defaultBestBeforeDaysAfterFreezing &&
+        product.defaultBestBeforeDaysAfterFreezing > 0
+      ) {
+        const target = new Date();
+        target.setDate(target.getDate() + product.defaultBestBeforeDaysAfterFreezing);
+        bestBeforeDate = this.formatDate(target);
+      } else if (product.defaultBestBeforeDays > 0) {
+        const target = new Date();
+        target.setDate(target.getDate() + product.defaultBestBeforeDays);
+        bestBeforeDate = this.formatDate(target);
+      }
     }
 
     const item = this.stockRepository.create({

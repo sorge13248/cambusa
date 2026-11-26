@@ -145,6 +145,11 @@ All catalog list endpoints for quantity units, product groups, locations, and st
 - `PUT /api/catalogs/aisles/:id`: Update aisle details (`{ name?: string, sortOrder?: number }`).
 - `DELETE /api/catalogs/aisles/:id`: Delete an aisle and record a deletion tombstone.
 - `POST /api/catalogs/stores/:storeId/aisles/reorder`: Reorder aisles via drag-and-drop (`{ aisleIds: string[] }`).
+- `GET /api/catalogs/custom-fields`: List product custom field definitions for the active household, sorted numerically by `sortOrder`.
+- `POST /api/catalogs/custom-fields`: Create a product custom field (`{ name, description?, placeholder?, type, defaultValue? }`).
+- `PUT /api/catalogs/custom-fields/:id`: Update a product custom field definition.
+- `DELETE /api/catalogs/custom-fields/:id`: Delete a product custom field and record a deletion tombstone.
+- `POST /api/catalogs/custom-fields/reorder`: Reorder product custom fields via drag-and-drop (`{ fieldIds: string[] }`).
 
 ---
 
@@ -237,7 +242,7 @@ All catalog list endpoints for quantity units, product groups, locations, and st
   "note": "On sale"
 }
 ```
-- **Description**: Adds inventory to the pantry. If the product has `cannotBeFrozen: true`, specifying a freezer location (or resolving a default freezer location) is rejected with `400 Bad Request`.
+- **Description**: Adds inventory to the pantry. If `bestBeforeDate` is omitted, it is automatically calculated from today using `defaultBestBeforeDaysAfterFreezing` when the target location is a freezer (`isFreezer: true`) and that field is set (`> 0`), or `defaultBestBeforeDays` otherwise. If the product has `cannotBeFrozen: true`, specifying a freezer location (or resolving a default freezer location) is rejected with `400 Bad Request`.
 
 ### `PUT /api/stock/:id`
 - **Description**: Updates attributes of a specific stock inventory batch (quantity, expiration date, storage location, purchase price, notes, and opened state). Rejects assignment to a freezer location if the product is marked as `cannotBeFrozen: true` with `400 Bad Request`.
@@ -416,6 +421,12 @@ All catalog list endpoints for quantity units, product groups, locations, and st
 }
 ```
 - **Description**: Triggers an immediate test dispatch of the daily morning digest email with graphical summary cards and embedded CID product photos to verify SMTP configuration and inbox delivery.
+
+### `POST /api/profile/notifications/test-meal-slot`
+- **Auth**: Required (`BearerJwtGuard`)
+- **Body**: `{ "mealSlot": "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner" }`
+- **Response**: `200 OK`
+- **Description**: Triggers an immediate test dispatch of the Meal Planner slot email for all households the user belongs to, using the same pantry card format and embedded product thumbnails.
 
 ### `POST /api/profile/mealie/test`
 - **Auth**: Required (`BearerJwtGuard`)

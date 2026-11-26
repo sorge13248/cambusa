@@ -212,3 +212,66 @@
 .text-warning {
   color: #f59e0b;
 }
+
+.recipient-card {
+  margin-bottom: 20px;
+}
+
+.meal-slots-card {
+  margin-top: 20px;
+}
+
+.meal-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.meal-slot-row {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle, rgba(255, 255, 255, 0.03));
+  transition: border-color 0.2s ease;
+
+  &.slot-enabled {
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+}
+
+.meal-slot-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.meal-slot-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.slot-time-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slot-inline-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.slot-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}

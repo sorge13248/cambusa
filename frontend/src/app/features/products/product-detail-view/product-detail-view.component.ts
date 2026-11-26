@@ -4,15 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { Dialog } from '@angular/cdk/dialog';
 import { CdkDragDrop, CdkDropList, CdkDrag, CdkDragHandle, moveItemInArray } from '@angular/cdk/drag-drop';
 import { firstValueFrom } from 'rxjs';
-import { LucideBookOpen, LucideCamera, LucideChevronsDownUp, LucideChevronsUpDown, LucidePencil, LucidePlus, LucideUtensils, LucideX } from '@lucide/angular';
+import { LucideBookOpen, LucideCamera, LucideChevronsDownUp, LucideChevronsUpDown, LucidePlus, LucideUtensils, LucideX } from '@lucide/angular';
 import {
   Aisle,
   Location,
   MealieLinkedFood,
   MealieLinkedRecipe,
   Product,
+  ProductCustomField,
   ProductGroup,
-  ProductMemberRatingDto,
   QuantityUnit,
   Store,
 } from '../../../core/models.js';
@@ -23,7 +23,6 @@ import { AutocompleteDirective, AutocompleteOption } from '../../../shared/direc
 import { ConfirmModalComponent } from '../../../shared/components/confirm-modal/confirm-modal.component.js';
 import { BarcodeScannerComponent } from '../../../shared/components/barcode-scanner/barcode-scanner.component.js';
 import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
-import { StarRatingComponent } from '../../../shared/components/star-rating/star-rating.component.js';
 import { MealieLinkModalComponent, MealieLinkModalResult } from '../mealie-link-modal/mealie-link-modal.component.js';
 
 export interface ProductEditorModalData {
@@ -57,12 +56,10 @@ export interface PhotoItem {
     AutocompleteDirective,
     BarcodeScannerComponent,
     NumberStepperComponent,
-    StarRatingComponent,
     LucideBookOpen,
     LucideCamera,
     LucideChevronsDownUp,
     LucideChevronsUpDown,
-    LucidePencil,
     LucidePlus,
     LucideUtensils,
     LucideX,
@@ -74,16 +71,10 @@ export class ProductDetailViewComponent implements OnInit {
   private readonly dialog = inject(Dialog);
   private readonly api = inject(ApiService);
 
-  readonly mode = input<'info' | 'edit'>('edit');
   readonly data = input.required<ProductEditorModalData>();
-  readonly showEditSwitch = input<boolean>(false);
 
   readonly saved = output<{ product: Product; isNew: boolean }>();
   readonly cancelled = output<void>();
-  readonly closeRequested = output<void>();
-  readonly editRequested = output<void>();
-
-  readonly isInfoMode = computed(() => this.mode() === 'info');
 
   private initialSnapshot = '';
 
@@ -96,7 +87,7 @@ export class ProductDetailViewComponent implements OnInit {
     barcodes: false,
     stores: false,
     mealie: false,
-    ratings: false,
+    customFields: false,
   };
 
   allExpanded = signal<boolean>(false);
@@ -106,25 +97,6 @@ export class ProductDetailViewComponent implements OnInit {
   readonly linkedFoods = signal<MealieLinkedFood[]>([]);
   readonly linkedRecipes = signal<MealieLinkedRecipe[]>([]);
   readonly selectedParentId = signal<string | null>(null);
-
-  // Ratings state
-  readonly myRating = signal<number | null>(null);
-  readonly householdMemberCount = signal<number>(1);
-  readonly otherMembersRatings = signal<ProductMemberRatingDto[]>([]);
-  readonly isLoadingRatings = signal<boolean>(false);
-  readonly isSavingRating = signal<boolean>(false);
-  readonly ratingStatusText = signal<string | null>(null);
-
-  readonly showOtherMembersRatings = computed(
-    () => this.isInfoMode() && this.householdMemberCount() > 1 && this.otherMembersRatings().length > 0,
-  );
-
-  readonly otherRatingsBadge = computed(() => {
-    const others = this.otherMembersRatings();
-    if (others.length === 0) return '';
-    const ratedCount = others.filter((m) => m.rating !== null).length;
-    return `${ratedCount}/${others.length} rated`;
-  });
 
   readonly inheritedFoods = computed(() => {
     const parentId = this.selectedParentId();
@@ -222,6 +194,13 @@ export class ProductDetailViewComponent implements OnInit {
   newBarcodeInput = '';
   storeConfigs: Record<string, { aisle: string; aisleOrder: number | null; averagePrice: number | null }> = {};
   readonly storeAisles = signal<Record<string, Aisle[]>>({});
+  readonly customFieldDefinitions = signal<ProductCustomField[]>([]);
+  customFieldValues: Record<string, string | number | boolean | null> = {};
+
+  readonly customFieldsBadge = computed(() => {
+    const count = this.customFieldDefinitions().length;
+    return count > 0 ? `${count}` : '';
+  });
 
   readonly isUploading = signal<boolean>(false);
   readonly isSaving = signal<boolean>(false);
@@ -229,16 +208,13 @@ export class ProductDetailViewComponent implements OnInit {
   ngOnInit() {
     this.initFromData();
     this.loadAisles();
+    this.loadCustomFields();
 
     if (typeof this.api.getMealieStatus === 'function') {
       this.api
         .getMealieStatus()
         .then((st) => this.isMealieConfigured.set(st.configured))
         .catch(() => this.isMealieConfigured.set(false));
-    }
-
-    if (this.data().product?.id) {
-      this.loadRatings(this.data().product!.id);
     }
   }
 
@@ -340,52 +316,9 @@ export class ProductDetailViewComponent implements OnInit {
       this.photos.set([]);
     }
 
+    this.customFieldValues = { ...(modalData.product?.customFields || {}) };
+    this.applyCustomFieldDefaults();
     this.initialSnapshot = this.snapshot();
-  }
-
-  private async loadRatings(productId: string): Promise<void> {
-    if (typeof this.api.getProductRatings !== 'function') return;
-    this.isLoadingRatings.set(true);
-    try {
-      const res = await this.api.getProductRatings(productId);
-      this.myRating.set(res.myRating);
-      this.householdMemberCount.set(res.memberCount);
-      this.otherMembersRatings.set(res.otherMembersRatings ?? []);
-    } catch {
-      // Ignore if ratings cannot be fetched
-    } finally {
-      this.isLoadingRatings.set(false);
-    }
-  }
-
-  async onMyRatingChange(rating: number | null): Promise<void> {
-    const product = this.data().product;
-    if (!product?.id || typeof this.api.setProductRating !== 'function') return;
-
-    const previous = this.myRating();
-    this.myRating.set(rating);
-    this.isSavingRating.set(true);
-    this.ratingStatusText.set(null);
-
-    try {
-      await this.api.setProductRating(product.id, rating);
-    } catch {
-      this.myRating.set(previous);
-      this.ratingStatusText.set('Failed to save');
-    } finally {
-      this.isSavingRating.set(false);
-    }
-  }
-
-  getMemberInitials(displayName: string): string {
-    const parts = (displayName || '').trim().split(/\s+/);
-    return (
-      parts
-        .map((p) => p.charAt(0))
-        .join('')
-        .slice(0, 2)
-        .toUpperCase() || 'U'
-    );
   }
 
   private snapshot(): string {
@@ -396,11 +329,11 @@ export class ProductDetailViewComponent implements OnInit {
       storeConfigs: this.storeConfigs,
       mealieFoods: this.linkedFoods(),
       mealieRecipes: this.linkedRecipes(),
+      customFields: this.customFieldValues,
     });
   }
 
   isDirty(): boolean {
-    if (this.isInfoMode()) return false;
     return this.snapshot() !== this.initialSnapshot;
   }
 
@@ -429,8 +362,78 @@ export class ProductDetailViewComponent implements OnInit {
       .catch(() => {});
   }
 
+  private loadCustomFields(): void {
+    if (typeof this.api.getProductCustomFields !== 'function') return;
+    this.api
+      .getProductCustomFields()
+      .then((fields) => {
+        const sorted = [...fields].sort(compareByNumericOrder);
+        this.customFieldDefinitions.set(sorted);
+        const wasClean = !this.isDirty();
+        this.applyCustomFieldDefaults();
+        if (wasClean) {
+          this.initialSnapshot = this.snapshot();
+        }
+      })
+      .catch(() => {});
+  }
+
+  private applyCustomFieldDefaults(): void {
+    const defs = this.customFieldDefinitions();
+    if (defs.length === 0) return;
+
+    const next = { ...this.customFieldValues };
+    for (const field of defs) {
+      if (next[field.id] !== undefined) continue;
+      if (field.defaultValue !== null && field.defaultValue !== '') {
+        if (field.type === 'boolean') {
+          next[field.id] = field.defaultValue === 'true';
+        } else if (field.type === 'int') {
+          const parsed = Number.parseInt(field.defaultValue, 10);
+          next[field.id] = Number.isNaN(parsed) ? null : parsed;
+        } else if (field.type === 'double') {
+          const parsed = Number.parseFloat(field.defaultValue);
+          next[field.id] = Number.isNaN(parsed) ? null : parsed;
+        } else {
+          next[field.id] = field.defaultValue;
+        }
+      } else {
+        next[field.id] = field.type === 'boolean' ? false : null;
+      }
+    }
+    this.customFieldValues = next;
+  }
+
+  private buildCustomFieldsPayload(): Record<string, string | number | boolean | null> {
+    const result: Record<string, string | number | boolean | null> = {};
+    const defs = this.customFieldDefinitions();
+    for (const field of defs) {
+      const raw = this.customFieldValues[field.id];
+      if (field.type === 'boolean') {
+        result[field.id] = Boolean(raw);
+      } else if (field.type === 'int') {
+        if (raw === null || raw === undefined || raw === '') {
+          result[field.id] = null;
+        } else {
+          const parsed = Number.parseInt(String(raw), 10);
+          result[field.id] = Number.isNaN(parsed) ? null : parsed;
+        }
+      } else if (field.type === 'double') {
+        if (raw === null || raw === undefined || raw === '') {
+          result[field.id] = null;
+        } else {
+          const parsed = Number.parseFloat(String(raw));
+          result[field.id] = Number.isNaN(parsed) ? null : parsed;
+        }
+      } else {
+        result[field.id] = raw !== null && raw !== undefined && String(raw).trim() !== '' ? String(raw) : null;
+      }
+    }
+    return result;
+  }
+
   onStoreAisleSelected(storeId: string, aisleName: string) {
-    if (this.isInfoMode() || !this.storeConfigs[storeId]) return;
+    if (!this.storeConfigs[storeId]) return;
     this.storeConfigs[storeId].aisle = aisleName;
     const aisles = this.storeAisles()[storeId] || [];
     const matched = aisles.find((a) => a.name === aisleName);
@@ -463,13 +466,10 @@ export class ProductDetailViewComponent implements OnInit {
     this.sections.barcodes = nextState;
     this.sections.stores = nextState;
     this.sections.mealie = nextState;
-    if (this.showOtherMembersRatings()) {
-      this.sections.ratings = nextState;
-    }
+    this.sections.customFields = nextState;
   }
 
   async openLinkFoodModal(): Promise<void> {
-    if (this.isInfoMode()) return;
     const inheritedIds = this.inheritedFoods().map((f) => f.id);
     const alreadyLinkedIds = [...new Set([...this.linkedFoods().map((f) => f.id), ...inheritedIds])];
     const dialogRef = this.dialog.open<MealieLinkModalResult[] | null>(MealieLinkModalComponent, {
@@ -492,7 +492,6 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   async openLinkRecipeModal(): Promise<void> {
-    if (this.isInfoMode()) return;
     const inheritedIds = this.inheritedRecipes().map((r) => r.id);
     const alreadyLinkedIds = [...new Set([...this.linkedRecipes().map((r) => r.id), ...inheritedIds])];
     const dialogRef = this.dialog.open<MealieLinkModalResult[] | null>(MealieLinkModalComponent, {
@@ -515,28 +514,24 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   removeLinkedFood(index: number): void {
-    if (this.isInfoMode()) return;
     const list = [...this.linkedFoods()];
     list.splice(index, 1);
     this.linkedFoods.set(list);
   }
 
   removeLinkedRecipe(index: number): void {
-    if (this.isInfoMode()) return;
     const list = [...this.linkedRecipes()];
     list.splice(index, 1);
     this.linkedRecipes.set(list);
   }
 
   onPhotoDrop(event: CdkDragDrop<PhotoItem[]>) {
-    if (this.isInfoMode()) return;
     const list = [...this.photos()];
     moveItemInArray(list, event.previousIndex, event.currentIndex);
     this.photos.set(list);
   }
 
   onFilesSelected(event: Event) {
-    if (this.isInfoMode()) return;
     const inputEl = event.target as HTMLInputElement;
     if (!inputEl.files || inputEl.files.length === 0) return;
 
@@ -555,14 +550,12 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   removePhoto(index: number) {
-    if (this.isInfoMode()) return;
     const list = [...this.photos()];
     list.splice(index, 1);
     this.photos.set(list);
   }
 
   addBarcode() {
-    if (this.isInfoMode()) return;
     const val = this.newBarcodeInput.trim();
     if (!val) return;
     if (!this.barcodes().includes(val)) {
@@ -572,12 +565,10 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   toggleScanner() {
-    if (this.isInfoMode()) return;
     this.isScannerOpen.set(!this.isScannerOpen());
   }
 
   onBarcodeScanned(code: string) {
-    if (this.isInfoMode()) return;
     const val = code.trim();
     if (val && !this.barcodes().includes(val)) {
       this.barcodes.set([...this.barcodes(), val]);
@@ -586,7 +577,6 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   removeBarcode(index: number) {
-    if (this.isInfoMode()) return;
     const list = [...this.barcodes()];
     list.splice(index, 1);
     this.barcodes.set(list);
@@ -613,7 +603,6 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   onCannotBeFrozenChange(checked: boolean): void {
-    if (this.isInfoMode()) return;
     if (checked) {
       this.formProduct.defaultBestBeforeDaysAfterFreezing = null;
       this.formProduct.defaultBestBeforeDaysAfterThawing = null;
@@ -639,7 +628,6 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   async saveProduct() {
-    if (this.isInfoMode()) return;
     if (!this.formProduct.name?.trim() || !this.isParentValid) return;
 
     this.isSaving.set(true);
@@ -682,6 +670,7 @@ export class ProductDetailViewComponent implements OnInit {
         barcodes: this.barcodes(),
         mealieFoods: this.linkedFoods(),
         mealieRecipes: this.linkedRecipes(),
+        customFields: this.buildCustomFieldsPayload(),
       };
 
       let productId = modalData.product?.id;
@@ -695,6 +684,10 @@ export class ProductDetailViewComponent implements OnInit {
 
       if (productId) {
         const currentPhotoItems = this.photos();
+        const hasNewPhotos = currentPhotoItems.some((item) => item.isNew && item.file);
+        if (!modalData.product?.id && hasNewPhotos && typeof this.api.syncNow === 'function') {
+          await this.api.syncNow().catch(() => false);
+        }
 
         // 1. Upload newly added files
         for (const item of currentPhotoItems) {
@@ -726,6 +719,7 @@ export class ProductDetailViewComponent implements OnInit {
         }
 
         // 4. Save store configurations
+        const previousStoreIds = new Set((modalData.product?.stores || []).map((s) => s.storeId));
         for (const [storeId, conf] of Object.entries(this.storeConfigs)) {
           if (conf.aisle.trim() || conf.averagePrice !== null || conf.aisleOrder !== null) {
             await this.api.setProductStore(productId, storeId, {
@@ -733,6 +727,8 @@ export class ProductDetailViewComponent implements OnInit {
               aisleOrder: conf.aisleOrder,
               averagePrice: conf.averagePrice,
             });
+          } else if (previousStoreIds.has(storeId)) {
+            await this.api.removeProductStore(productId, storeId);
           }
         }
 
@@ -747,11 +743,6 @@ export class ProductDetailViewComponent implements OnInit {
   }
 
   async cancel() {
-    if (this.isInfoMode()) {
-      this.closeRequested.emit();
-      return;
-    }
-
     if (this.isDirty()) {
       const confirmRef = this.dialog.open(ConfirmModalComponent, {
         data: {
@@ -766,9 +757,5 @@ export class ProductDetailViewComponent implements OnInit {
       this.initFromData();
     }
     this.cancelled.emit();
-  }
-
-  requestEditMode(): void {
-    this.editRequested.emit();
   }
 }

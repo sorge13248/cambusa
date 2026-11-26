@@ -19,6 +19,7 @@ describe('ProfileNotificationsComponent', () => {
           provide: ApiService,
           useValue: {
             testNotification: vi.fn().mockResolvedValue({ ok: true, message: 'Email sent' }),
+            testMealSlotNotification: vi.fn().mockResolvedValue({ ok: true, message: 'Meal slot email sent' }),
             updateProfileSettings: vi.fn().mockResolvedValue({
               emailNotificationsEnabled: true,
               notificationTime: '07:30',
@@ -62,6 +63,42 @@ describe('ProfileNotificationsComponent', () => {
       notificationTime: '07:30',
       notificationEmail: 'test@example.com',
     });
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
+  });
+
+  it('should save recipient email address from standalone card', async () => {
+    component.notificationEmail.set('custom@example.com');
+    const toastSpy = vi.spyOn(component.toast, 'emit');
+
+    await component.saveRecipientEmail();
+
+    expect(apiService.updateProfileSettings).toHaveBeenCalledWith({
+      notificationEmail: 'custom@example.com',
+    });
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
+  });
+
+  it('should save meal planner slot notification settings', async () => {
+    component.updateMealSlotConfig('lunch', { enabled: true, time: '12:30', onlyIfHasEntries: false });
+    const toastSpy = vi.spyOn(component.toast, 'emit');
+
+    await component.saveMealSlotSettings();
+
+    expect(apiService.updateProfileSettings).toHaveBeenCalledWith({
+      mealPlanEmailSettings: expect.objectContaining({
+        lunch: { enabled: true, time: '12:30', onlyIfHasEntries: false },
+      }),
+    });
+    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
+  });
+
+  it('should test meal slot notification', async () => {
+    const toastSpy = vi.spyOn(component.toast, 'emit');
+
+    await component.testMealSlot('dinner');
+
+    expect(apiService.testMealSlotNotification).toHaveBeenCalledWith('dinner');
+    expect(component.mealSlotTestStatus()?.ok).toBe(true);
     expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
   });
 });

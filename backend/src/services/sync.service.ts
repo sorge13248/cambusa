@@ -3,15 +3,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { MoreThan, Repository } from 'typeorm';
-import { compareByName } from '../common/sorting.utils.js';
+import { compareByName, compareByNumericOrder } from '../common/sorting.utils.js';
 import { SyncPayloadDto, SyncResponseDto } from '../common/sync/sync.types.js';
 import { resolveUploadsDir } from '../load-env.js';
 import {
   Location,
   MealPlanEntry,
   Product,
+  ProductCustomField,
   ProductGroup,
   ProductRating,
+  ProductStore,
   QuantityUnit,
   ShoppingList,
   ShoppingListItem,
@@ -47,6 +49,12 @@ export class SyncService {
     @Optional()
     @InjectRepository(MealPlanEntry)
     private readonly mealPlanRepository?: Repository<MealPlanEntry>,
+    @Optional()
+    @InjectRepository(ProductCustomField)
+    private readonly customFieldsRepository?: Repository<ProductCustomField>,
+    @Optional()
+    @InjectRepository(ProductStore)
+    private readonly productStoresRepository?: Repository<ProductStore>,
   ) {}
 
   async sync(householdId: string, payload: SyncPayloadDto, currentUserId?: string): Promise<SyncResponseDto> {
@@ -107,6 +115,19 @@ export class SyncService {
       }
     }
 
+    if (changes.catalogs?.customFields && this.customFieldsRepository) {
+      for (const cf of changes.catalogs.customFields) {
+        if (!cf.id || !cf.name) continue;
+        const existing = await this.customFieldsRepository.findOne({ where: { id: cf.id, householdId } });
+        if (existing) {
+          Object.assign(existing, cf);
+          await this.customFieldsRepository.save(existing);
+        } else {
+          await this.customFieldsRepository.save(this.customFieldsRepository.create({ ...cf, householdId }));
+        }
+      }
+    }
+
     if (changes.products) {
       for (const p of changes.products) {
         if (!p.id || !p.name) continue;
@@ -120,7 +141,10 @@ export class SyncService {
             existing.defaultBestBeforeDaysAfterFreezing = null;
             existing.defaultBestBeforeDaysAfterThawing = null;
           }
-          Object.assign(existing, p);
+          // pictureFileNames is managed by dedicated picture upload/delete/reorder endpoints;
+          // preserve server state so a queued offline product update cannot wipe uploaded photos.
+          const { pictureFileNames: _ignoredPictures, ...productUpdates } = p;
+          Object.assign(existing, productUpdates);
           await this.productsRepository.save(existing);
         } else {
           await this.productsRepository.save(this.productsRepository.create({ ...p, householdId }));
@@ -249,6 +273,8 @@ export class SyncService {
           await this.locationsRepository.delete({ id, householdId });
         } else if (entityType === 'store') {
           await this.storesRepository.delete({ id, householdId });
+        } else if (entityType === 'product_custom_field' && this.customFieldsRepository) {
+          await this.customFieldsRepository.delete({ id, householdId });
         } else if (entityType === 'meal_plan_entry' && this.mealPlanRepository) {
           await this.mealPlanRepository.delete({ id, householdId });
         }
@@ -269,7 +295,18 @@ export class SyncService {
       return { householdId, updatedAt: MoreThan(lastSyncDate) };
     };
 
-    const serverProducts = await this.productsRepository.find({ where: filter('product') });
+    const rawServerProducts = await this.productsRepository.find({ where: filter('product') });
+    let serverProducts: Array<Product & { stores?: ProductStore[] }> = rawServerProducts;
+    if (rawServerProducts.length > 0 && this.productStoresRepository) {
+      const allProductStores = await this.productStoresRepository.find({ where: { householdId } });
+      const storesByProduct = new Map<string, ProductStore[]>();
+      for (const ps of allProductStores) {
+        const list = storesByProduct.get(ps.productId) ?? [];
+        list.push(ps);
+        storesByProduct.set(ps.productId, list);
+      }
+      serverProducts = rawServerProducts.map((p) => Object.assign(p, { stores: storesByProduct.get(p.id) ?? [] }));
+    }
     const serverRatings = this.productRatingsRepository
       ? await this.productRatingsRepository.find({ where: filter('product_rating') })
       : [];
@@ -283,6 +320,9 @@ export class SyncService {
     const serverGroups = (await this.groupsRepository.find({ where: filter('group') })).sort(compareByName);
     const serverLocations = (await this.locationsRepository.find({ where: filter('location') })).sort(compareByName);
     const serverStores = (await this.storesRepository.find({ where: filter('store') })).sort(compareByName);
+    const serverCustomFields = this.customFieldsRepository
+      ? (await this.customFieldsRepository.find({ where: filter('product_custom_field') })).sort(compareByNumericOrder)
+      : [];
     const serverMealPlanEntries = this.mealPlanRepository
       ? await this.mealPlanRepository.find({
           where: filter('meal_plan_entry'),
@@ -310,6 +350,7 @@ export class SyncService {
           groups: serverGroups,
           locations: serverLocations,
           stores: serverStores,
+          customFields: serverCustomFields,
         },
       },
       tombstones: tombstones.map((t) => ({

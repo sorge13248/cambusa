@@ -131,6 +131,8 @@ Stores per-user customization preferences, Next scan horizons, and external inte
 | `emailNotificationsEnabled` | BOOLEAN | NOT NULL, DEFAULT FALSE | Whether daily morning digest email is enabled |
 | `notificationTime` | VARCHAR | NOT NULL, DEFAULT '06:00' | Scheduled daily digest time in 24h format (`HH:MM`) |
 | `lastNotificationSentDate` | VARCHAR | NULLABLE | Last date (`YYYY-MM-DD`) notification was sent, preventing duplicate same-day dispatches |
+| `mealPlanEmailSettings` | JSON | NULLABLE | Per-slot (`breakfast`, `morning_snack`, `lunch`, `afternoon_snack`, `dinner`) email config (`enabled`, `time`, `onlyIfHasEntries`) |
+| `mealPlanEmailLastSent` | JSON | NULLABLE | Per-slot last sent date (`YYYY-MM-DD`) map preventing duplicate same-day dispatches |
 | `updatedAt` | DATETIME | NOT NULL | Last modification timestamp |
 
 ---
@@ -146,6 +148,7 @@ Categories for organizing products (e.g. "Dairy", "Produce", "Bakery").
 | `name` | VARCHAR | NOT NULL | Category name |
 | `description` | TEXT | NULLABLE | Category description |
 | `active` | BOOLEAN | DEFAULT TRUE | Active status |
+| `customFields` | JSON | DEFAULT '{}' | Key-value map of custom product field values keyed by `ProductCustomField.id` |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
@@ -159,6 +162,7 @@ Units of measure for inventory and shopping quantities (e.g. "Piece", "kg", "Pac
 | `namePlural` | VARCHAR | NULLABLE | Plural unit name |
 | `description` | TEXT | NULLABLE | Unit description |
 | `active` | BOOLEAN | DEFAULT TRUE | Active status |
+| `customFields` | JSON | DEFAULT '{}' | Key-value map of custom product field values keyed by `ProductCustomField.id` |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
@@ -172,6 +176,7 @@ Physical storage spaces (e.g. "Fridge", "Pantry", "Freezer").
 | `description` | TEXT | NULLABLE | Storage notes |
 | `isFreezer` | BOOLEAN | DEFAULT FALSE | If true, applies freezing/thawing rules and rejects non-freezable products |
 | `active` | BOOLEAN | DEFAULT TRUE | Active status |
+| `customFields` | JSON | DEFAULT '{}' | Key-value map of custom product field values keyed by `ProductCustomField.id` |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
@@ -207,6 +212,7 @@ Primary catalog entity supporting infinite recursive parent hierarchies, multi-p
 | `tastesGood` | BOOLEAN | NULLABLE | Preference indicator |
 | `parentProductId` | VARCHAR | INDEX, NULLABLE, FK &rarr; `products(id)` ON DELETE SET NULL | Self-referencing link to parent product |
 | `active` | BOOLEAN | DEFAULT TRUE | Active status |
+| `customFields` | JSON | DEFAULT '{}' | Key-value map of custom product field values keyed by `ProductCustomField.id` |
 | `createdAt` | DATETIME | NOT NULL | Creation timestamp |
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
@@ -236,6 +242,23 @@ Physical aisle or section within a specific store/supermarket, supporting custom
 | `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
 
 > **Unique & Ordering Constraints**: Enforces `UNIQUE(householdId, storeId, name)` and an index on `(householdId, storeId, sortOrder)`. Deletions trigger mandatory `SyncTombstone` records (`entityType: 'aisle'`) to maintain offline sync consistency.
+
+#### `ProductCustomField` (`product_custom_fields`)
+Household-scoped custom property definition for products, supporting typed inputs and drag-and-drop ordering.
+| Column | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | PRIMARY KEY | Custom field ID |
+| `householdId` | VARCHAR | INDEX, NOT NULL, FK &rarr; `households(id)` ON DELETE CASCADE | Household scope |
+| `name` | VARCHAR | NOT NULL | Display label for the custom field |
+| `description` | TEXT | NULLABLE | Helper text displayed below the input |
+| `placeholder` | VARCHAR | NULLABLE | Input placeholder text |
+| `type` | VARCHAR | NOT NULL, DEFAULT 'string' | Field type (`string`, `textarea`, `int`, `double`, `boolean`) |
+| `defaultValue` | TEXT | NULLABLE | Default value pre-populated on products |
+| `sortOrder` | INTEGER | NOT NULL, DEFAULT 0 | Display order in the product editor |
+| `createdAt` | DATETIME | NOT NULL | Creation timestamp |
+| `updatedAt` | DATETIME | NOT NULL | Last update timestamp |
+
+> **Unique & Sync Constraints**: Enforces `UNIQUE(householdId, name)`. Deletions trigger mandatory `SyncTombstone` records (`entityType: 'product_custom_field'`).
 
 #### `ProductStore` (`product_stores`)
 Product-to-store mapping with store-specific aisle order and price history.

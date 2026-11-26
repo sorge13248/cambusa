@@ -84,10 +84,10 @@ describe('PantryInventoryGridComponent', () => {
     expect(badge).toBeTruthy();
     expect(badge?.textContent?.trim()).toBe('Out of stock');
 
-    // Out-of-stock card should not render quick-date-modifier and should disable Open 1 / Consume 1
+    // Out-of-stock card should not render quick-date-modifier and should not render Open 1 / Consume 1
     expect(outOfStockCards[0].querySelector('.card-expiry-section')).toBeNull();
     const buttons = Array.from(outOfStockCards[0].querySelectorAll('.footer-right button')) as HTMLButtonElement[];
-    expect(buttons.every((b) => b.disabled)).toBe(true);
+    expect(buttons.length).toBe(0);
   });
 
   it('should filter out-of-stock products when status filter is set to out_of_stock', () => {

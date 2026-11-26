@@ -8,6 +8,7 @@ export * from './location.entity.js';
 export * from './store.entity.js';
 export * from './aisle.entity.js';
 export * from './product.entity.js';
+export * from './product-custom-field.entity.js';
 export * from './product-rating.entity.js';
 export * from './product-store.entity.js';
 export * from './stock-item.entity.js';

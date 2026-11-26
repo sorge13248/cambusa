@@ -70,14 +70,6 @@ export class StockPurchaseFormComponent implements OnInit, OnChanges {
   private initProductDefaults(): void {
     if (!this.product) return;
 
-    if (this.product.defaultBestBeforeDays && this.product.defaultBestBeforeDays > 0) {
-      const target = new Date();
-      target.setDate(target.getDate() + this.product.defaultBestBeforeDays);
-      this.purchaseBestBeforeDate = target.toISOString().slice(0, 10);
-    } else {
-      this.purchaseBestBeforeDate = null;
-    }
-
     if (this.product.cannotBeFrozen) {
       const defLoc = this.locations.find((l) => l.id === this.product.defaultLocationId);
       if (defLoc && !defLoc.isFreezer) {
@@ -93,7 +85,32 @@ export class StockPurchaseFormComponent implements OnInit, OnChanges {
       this.purchaseLocationId = this.product.defaultLocationId || (this.locations[0]?.id ?? '');
     }
 
+    this.purchaseBestBeforeDate = this.calculateBestBeforeDate(this.purchaseLocationId);
     this.purchaseStoreId = this.product.defaultStoreId || '';
+  }
+
+  onLocationChange(locationId: string): void {
+    this.purchaseLocationId = locationId;
+    this.purchaseBestBeforeDate = this.calculateBestBeforeDate(locationId);
+  }
+
+  private calculateBestBeforeDate(locationId: string): string | null {
+    if (!this.product) return null;
+    const chosenLoc = this.locations.find((l) => l.id === locationId);
+    const isFreezer = Boolean(chosenLoc?.isFreezer && !this.product.cannotBeFrozen);
+    const days =
+      isFreezer &&
+      this.product.defaultBestBeforeDaysAfterFreezing &&
+      this.product.defaultBestBeforeDaysAfterFreezing > 0
+        ? this.product.defaultBestBeforeDaysAfterFreezing
+        : this.product.defaultBestBeforeDays;
+
+    if (days && days > 0) {
+      const target = new Date();
+      target.setDate(target.getDate() + days);
+      return target.toISOString().slice(0, 10);
+    }
+    return null;
   }
 
   onCancel(): void {

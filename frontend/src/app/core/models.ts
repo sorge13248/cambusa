@@ -133,6 +133,21 @@ export interface MealieProductRecipesResponse {
   expiresAt: string;
 }
 
+export type ProductCustomFieldType = 'string' | 'textarea' | 'int' | 'double' | 'boolean';
+
+export interface ProductCustomField {
+  id: string;
+  householdId: string;
+  name: string;
+  description: string | null;
+  placeholder: string | null;
+  type: ProductCustomFieldType;
+  defaultValue: string | null;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Product {
   id: string;
   householdId: string;
@@ -160,6 +175,7 @@ export interface Product {
   tastesGood: boolean | null;
   parentProductId: string | null;
   active: boolean;
+  customFields?: Record<string, string | number | boolean | null>;
   mealieFoods?: MealieLinkedFood[];
   mealieRecipes?: MealieLinkedRecipe[];
   ancestors?: Array<{ id: string; name: string }>;
@@ -274,6 +290,14 @@ export interface CreatedApiKeyDto extends ApiKeyDto {
   rawKey: string;
 }
 
+export interface MealSlotEmailConfig {
+  enabled: boolean;
+  time: string;
+  onlyIfHasEntries: boolean;
+}
+
+export type MealPlanEmailSettingsMap = Record<MealSlot, MealSlotEmailConfig>;
+
 export interface UserSettingsDto {
   nextExpiringDays: number;
   quickConsumeTimerSeconds?: number;
@@ -283,6 +307,7 @@ export interface UserSettingsDto {
   notificationEmail: string | null;
   emailNotificationsEnabled: boolean;
   notificationTime: string;
+  mealPlanEmailSettings?: MealPlanEmailSettingsMap;
   smtpConfigured: boolean;
 }
 

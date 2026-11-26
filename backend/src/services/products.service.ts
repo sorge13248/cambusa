@@ -330,11 +330,14 @@ export class ProductsService {
       Object.assign(ps, data);
     }
 
-    return this.productStoresRepository.save(ps);
+    const saved = await this.productStoresRepository.save(ps);
+    await this.productsRepository.update({ id: productId, householdId }, { updatedAt: new Date() });
+    return saved;
   }
 
   async removeProductStore(productId: string, storeId: string, householdId: string): Promise<void> {
     await this.productStoresRepository.delete({ productId, storeId, householdId });
+    await this.productsRepository.update({ id: productId, householdId }, { updatedAt: new Date() });
   }
 
   // Image Upload Processing

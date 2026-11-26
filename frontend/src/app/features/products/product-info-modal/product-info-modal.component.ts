@@ -15,6 +15,7 @@ import {
   LucidePackage,
   LucidePencil,
   LucideScale,
+  LucideSlidersHorizontal,
   LucideSnowflake,
   LucideStore,
   LucideUtensils,
@@ -25,10 +26,12 @@ import {
   MealieLinkedFood,
   MealieLinkedRecipe,
   Product,
+  ProductCustomField,
   ProductMemberRatingDto,
   ProductStore,
 } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
+import { compareByNumericOrder } from '../../../core/sorting.utils.js';
 import { CollapsibleSectionComponent } from '../../../shared/components/collapsible-section/collapsible-section.component.js';
 import { StarRatingComponent } from '../../../shared/components/star-rating/star-rating.component.js';
 import {
@@ -67,6 +70,7 @@ export interface ConfiguredStoreInfo {
     LucidePackage,
     LucidePencil,
     LucideScale,
+    LucideSlidersHorizontal,
     LucideSnowflake,
     LucideStore,
     LucideUtensils,
@@ -92,17 +96,21 @@ export class ProductInfoModalComponent implements OnInit, OnDestroy {
   // Gallery state
   readonly activePhotoIndex = signal<number>(0);
 
+  readonly customFieldsCollapseThreshold = 4;
+
   // Minor collapsible sections (collapsed by default)
   readonly minorSections = {
     barcodes: false,
     stores: false,
     mealie: false,
+    customFields: false,
     ratings: false,
   };
 
   // Async metadata state
   readonly isMealieConfigured = signal<boolean>(false);
   readonly productStores = signal<ProductStore[]>([]);
+  readonly customFieldDefinitions = signal<ProductCustomField[]>([]);
   readonly myRating = signal<number | null>(null);
   readonly householdMemberCount = signal<number>(1);
   readonly otherMembersRatings = signal<ProductMemberRatingDto[]>([]);
@@ -197,8 +205,40 @@ export class ProductInfoModalComponent implements OnInit, OnDestroy {
     return p.dueType === 'use_by' || hasDays;
   });
 
+  readonly filledCustomFields = computed<Array<{ field: ProductCustomField; displayValue: string }>>(() => {
+    const p = this.product();
+    const values = p?.customFields || {};
+    const defs = this.customFieldDefinitions();
+    const result: Array<{ field: ProductCustomField; displayValue: string }> = [];
+
+    for (const field of defs) {
+      const val = values[field.id];
+      if (field.type === 'boolean') {
+        if (val === true) {
+          result.push({ field, displayValue: 'Yes' });
+        }
+      } else if (field.type === 'int' || field.type === 'double') {
+        if (val !== null && val !== undefined && val !== '' && !Number.isNaN(Number(val))) {
+          result.push({ field, displayValue: String(val) });
+        }
+      } else if (typeof val === 'string' && val.trim() !== '') {
+        result.push({ field, displayValue: val.trim() });
+      }
+    }
+
+    return result;
+  });
+
+  readonly shouldCollapseCustomFields = computed<boolean>(
+    () => this.filledCustomFields().length > this.customFieldsCollapseThreshold,
+  );
+
   readonly hasAnySpecCard = computed<boolean>(
-    () => this.hasStockSection() || this.hasStorageSection() || this.hasExpirationSection(),
+    () =>
+      this.hasStockSection() ||
+      this.hasStorageSection() ||
+      this.hasExpirationSection() ||
+      (this.filledCustomFields().length > 0 && !this.shouldCollapseCustomFields()),
   );
 
   readonly barcodes = computed<string[]>(() => {
@@ -361,6 +401,13 @@ export class ProductInfoModalComponent implements OnInit, OnDestroy {
         .getMealieStatus()
         .then((st) => this.isMealieConfigured.set(!!st?.configured))
         .catch(() => this.isMealieConfigured.set(false));
+    }
+
+    if (typeof this.api.getProductCustomFields === 'function') {
+      this.api
+        .getProductCustomFields()
+        .then((fields) => this.customFieldDefinitions.set([...(fields || [])].sort(compareByNumericOrder)))
+        .catch(() => this.customFieldDefinitions.set([]));
     }
 
     if (p.id && typeof this.api.getProductRatings === 'function') {

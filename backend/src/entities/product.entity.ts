@@ -153,6 +153,9 @@ export class Product {
   @Column({ type: 'boolean', default: true })
   active!: boolean;
 
+  @Column({ type: 'simple-json', default: '{}' })
+  customFields!: Record<string, string | number | boolean | null>;
+
   @CreateDateColumn()
   createdAt!: Date;
 
