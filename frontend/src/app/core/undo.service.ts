@@ -6,12 +6,14 @@ export interface UndoAction {
   remainingSeconds: number;
   totalSeconds: number;
   undo: () => Promise<void>;
+  onCommit?: () => Promise<void> | void;
 }
 
 export interface RegisterUndoOptions {
   description: string;
   onUndo?: () => Promise<void>;
   undo?: () => Promise<void>;
+  onCommit?: () => Promise<void> | void;
   durationSeconds?: number;
 }
 
@@ -34,15 +36,22 @@ export class UndoService {
     undoFn?: () => Promise<void>,
     durationSeconds = 10,
   ): string {
+    const previous = this.activeAction();
     this.clearTimer();
+    if (previous) {
+      this.activeAction.set(null);
+      this.invokeCommit(previous);
+    }
 
     let description: string;
     let fn: () => Promise<void>;
+    let onCommit: (() => Promise<void> | void) | undefined;
     let dur = durationSeconds;
 
     if (typeof descOrOptions === 'object') {
       description = descOrOptions.description;
       fn = descOrOptions.onUndo || descOrOptions.undo || (async () => {});
+      onCommit = descOrOptions.onCommit;
       if (descOrOptions.durationSeconds) dur = descOrOptions.durationSeconds;
     } else {
       description = descOrOptions;
@@ -56,6 +65,7 @@ export class UndoService {
       remainingSeconds: dur,
       totalSeconds: dur,
       undo: fn,
+      onCommit,
     };
 
     this.activeAction.set(action);
@@ -103,7 +113,8 @@ export class UndoService {
     const action = this.activeAction();
     if (!action) return false;
 
-    this.dismiss();
+    this.clearTimer();
+    this.activeAction.set(null);
     try {
       await action.undo();
       this.onUndoExecuted.update((c) => c + 1);
@@ -115,8 +126,26 @@ export class UndoService {
   }
 
   dismiss() {
+    const action = this.activeAction();
     this.clearTimer();
     this.activeAction.set(null);
+    if (action) {
+      this.invokeCommit(action);
+    }
+  }
+
+  private invokeCommit(action: UndoAction) {
+    if (!action.onCommit) return;
+    try {
+      const result = action.onCommit();
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        (result as Promise<void>).catch((err) => {
+          console.error('Error executing undo commit:', err);
+        });
+      }
+    } catch (err) {
+      console.error('Error executing undo commit:', err);
+    }
   }
 
   private clearTimer() {

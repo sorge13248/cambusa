@@ -26,7 +26,7 @@
       [class.is-scrolled]="isHorizontallyScrolled()"
       (scroll)="onCalendarScroll($event)"
     >
-      <div class="calendar-grid">
+      <div class="calendar-grid" cdkDropListGroup>
         <!-- Header Row -->
         <div class="calendar-corner calendar-corner-icon" aria-hidden="true"></div>
         <div class="calendar-corner calendar-corner-label">Meal</div>
@@ -74,21 +74,36 @@
           </div>
 
           @for (day of weekDays(); track day.date) {
-            <button
-              type="button"
+            <div
+              role="button"
+              tabindex="0"
               class="calendar-cell"
               [class.is-today]="day.isToday"
+              cdkDropList
+              [cdkDropListData]="{ date: day.date, mealSlot: slot.key }"
+              [cdkDropListSortingDisabled]="!isDesktop()"
+              (cdkDropListDropped)="onEntryDrop($event)"
               (mouseenter)="setHoveredCell(day.date, slot.key)"
               (mouseleave)="clearHoveredCell()"
               (focus)="setHoveredCell(day.date, slot.key)"
               (blur)="clearHoveredCell()"
               (click)="openSlotModal(day, slot)"
+              (keydown.enter)="openSlotModal(day, slot)"
+              (keydown.space)="$event.preventDefault(); openSlotModal(day, slot)"
             >
               @let items = getCellEntries(day.date, slot.key);
               @if (items.length > 0) {
                 <div class="cell-items">
                   @for (item of items; track item.entry.id) {
-                    <div class="cell-food-chip">
+                    <div
+                      class="cell-food-chip"
+                      [class.is-draggable]="isDesktop()"
+                      cdkDrag
+                      [cdkDragData]="item"
+                      [cdkDragDisabled]="!isDesktop()"
+                      [cdkContextMenuTriggerFor]="itemContextMenu"
+                      [cdkContextMenuTriggerData]="{ $implicit: item }"
+                    >
                       @if (item.member) {
                         <span class="chip-avatar" [title]="'Planned by ' + item.member.displayName">
                           @if (item.member.pictureUrl) {
@@ -105,10 +120,24 @@
               } @else {
                 <span class="cell-empty-hint"><svg lucidePlus [size]="14"></svg></span>
               }
-            </button>
+            </div>
           }
         }
       </div>
     </div>
   }
 </div>
+
+<ng-template #itemContextMenu let-item>
+  <div class="planner-context-menu" cdkMenu>
+    <button
+      type="button"
+      class="context-menu-item context-menu-item--danger"
+      cdkMenuItem
+      (cdkMenuItemTriggered)="deleteEntryFromContextMenu(item)"
+    >
+      <svg lucideTrash2 [size]="14"></svg>
+      <span>Delete</span>
+    </button>
+  </div>
+</ng-template>

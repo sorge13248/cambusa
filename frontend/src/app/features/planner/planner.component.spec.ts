@@ -6,6 +6,7 @@ import { PlannerComponent } from './planner.component.js';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
 import { SyncService } from '../../core/sync.service.js';
+import { UndoService } from '../../core/undo.service.js';
 
 describe('PlannerComponent', () => {
   let component: PlannerComponent;
@@ -21,6 +22,19 @@ describe('PlannerComponent', () => {
     getSavedFilters: vi.fn().mockResolvedValue([]),
     getProfile: vi.fn().mockResolvedValue({ settings: { nextExpiringDays: 7 } }),
     getHouseholdMembers: vi.fn().mockResolvedValue([]),
+    updateMealPlanEntry: vi.fn().mockResolvedValue(null),
+    deleteMealPlanEntry: vi.fn().mockResolvedValue(undefined),
+    addMealPlanEntry: vi.fn().mockResolvedValue({
+      id: 'mp-restored',
+      householdId: 'h1',
+      date: '2026-11-25',
+      mealSlot: 'lunch',
+      productId: 'p1',
+      userId: 'u1',
+      sortOrder: 0,
+      createdAt: '2026-11-25T10:00:00.000Z',
+      updatedAt: '2026-11-25T10:00:00.000Z',
+    }),
   };
 
   const mockAuth = {
@@ -169,5 +183,105 @@ describe('PlannerComponent', () => {
     expect(dayHeaders[2].classList.contains('is-hovered')).toBe(false);
     expect(slotIcons[1].classList.contains('is-hovered')).toBe(false);
     expect(slotLabels[1].classList.contains('is-hovered')).toBe(false);
+  });
+
+  it('should move entry across days and meal slots on desktop drop', async () => {
+    component.isDesktop.set(true);
+    const entry = {
+      id: 'mp-1',
+      householdId: 'h1',
+      date: '2026-11-25',
+      mealSlot: 'lunch' as const,
+      productId: 'p1',
+      userId: 'u1',
+      sortOrder: 0,
+      createdAt: '2026-11-25T10:00:00.000Z',
+      updatedAt: '2026-11-25T10:00:00.000Z',
+    };
+    component.entries.set([entry]);
+
+    const itemVm = { entry, productName: 'Pasta', member: null, initials: '?' };
+    await component.onEntryDrop({
+      previousContainer: { data: { date: '2026-11-25', mealSlot: 'lunch' } } as any,
+      container: { data: { date: '2026-11-26', mealSlot: 'dinner' } } as any,
+      previousIndex: 0,
+      currentIndex: 0,
+      item: { data: itemVm } as any,
+      isPointerOverContainer: true,
+      distance: { x: 0, y: 0 },
+      dropPoint: { x: 0, y: 0 },
+      event: new MouseEvent('mouseup'),
+    });
+
+    expect(component.entries()[0].date).toBe('2026-11-26');
+    expect(component.entries()[0].mealSlot).toBe('dinner');
+    expect(mockApi.updateMealPlanEntry).toHaveBeenCalledWith('mp-1', {
+      date: '2026-11-26',
+      mealSlot: 'dinner',
+      sortOrder: 0,
+    });
+  });
+
+  it('should ignore drop when not on desktop', async () => {
+    component.isDesktop.set(false);
+    const entry = {
+      id: 'mp-2',
+      householdId: 'h1',
+      date: '2026-11-25',
+      mealSlot: 'lunch' as const,
+      productId: 'p1',
+      userId: 'u1',
+      sortOrder: 0,
+      createdAt: '2026-11-25T10:00:00.000Z',
+      updatedAt: '2026-11-25T10:00:00.000Z',
+    };
+    component.entries.set([entry]);
+
+    const itemVm = { entry, productName: 'Pasta', member: null, initials: '?' };
+    await component.onEntryDrop({
+      previousContainer: { data: { date: '2026-11-25', mealSlot: 'lunch' } } as any,
+      container: { data: { date: '2026-11-26', mealSlot: 'dinner' } } as any,
+      previousIndex: 0,
+      currentIndex: 0,
+      item: { data: itemVm } as any,
+      isPointerOverContainer: true,
+      distance: { x: 0, y: 0 },
+      dropPoint: { x: 0, y: 0 },
+      event: new MouseEvent('mouseup'),
+    });
+
+    expect(component.entries()[0].date).toBe('2026-11-25');
+    expect(mockApi.updateMealPlanEntry).not.toHaveBeenCalled();
+  });
+
+  it('should delete entry from context menu and register undo action', async () => {
+    const undoService = TestBed.inject(UndoService);
+    const entry = {
+      id: 'mp-3',
+      householdId: 'h1',
+      date: '2026-11-25',
+      mealSlot: 'lunch' as const,
+      productId: 'p1',
+      userId: 'u1',
+      sortOrder: 0,
+      createdAt: '2026-11-25T10:00:00.000Z',
+      updatedAt: '2026-11-25T10:00:00.000Z',
+    };
+    component.entries.set([entry]);
+
+    await component.deleteEntryFromContextMenu({ entry, productName: 'Pasta', member: null, initials: '?' });
+
+    expect(mockApi.deleteMealPlanEntry).toHaveBeenCalledWith('mp-3');
+    expect(component.entries().length).toBe(0);
+    expect(undoService.activeAction()?.description).toContain('Pasta');
+
+    await undoService.executeUndo();
+    expect(mockApi.addMealPlanEntry).toHaveBeenCalledWith({
+      date: '2026-11-25',
+      mealSlot: 'lunch',
+      productId: 'p1',
+      sortOrder: 0,
+    });
+    expect(component.entries().length).toBe(1);
   });
 });

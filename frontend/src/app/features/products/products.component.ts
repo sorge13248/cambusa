@@ -24,6 +24,7 @@ import {
 } from '../../core/models.js';
 import { compareByName } from '../../core/sorting.utils.js';
 import { SyncService } from '../../core/sync.service.js';
+import { UndoService } from '../../core/undo.service.js';
 import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component.js';
 import { QuickActionsFooterComponent } from '../../shared/components/quick-actions-footer/quick-actions-footer.component.js';
 import { ProductEditorModalComponent } from './product-editor-modal/product-editor-modal.component.js';
@@ -53,6 +54,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly auth = inject(AuthService);
   private readonly syncService = inject(SyncService, { optional: true });
+  private readonly undoService = inject(UndoService);
   private readonly dialog = inject(Dialog);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -85,6 +87,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
   private subs = new Subscription();
   private lastLoadedHouseholdId: string | null = null;
   private lastSyncCount = 0;
+  private pendingDeleteIds = new Set<string>();
 
   constructor() {
     effect(() => {
@@ -132,7 +135,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
   private async refreshProductsFromLocal(): Promise<void> {
     try {
       const prods = await this.api.getProducts(true);
-      this.products.set(prods);
+      this.products.set(prods.filter((item) => !this.pendingDeleteIds.has(item.id)));
       this.applyFilter();
     } catch {
       // Ignore background refresh errors
@@ -364,7 +367,7 @@ export class ProductsComponent implements OnInit, OnDestroy {
     const confirmRef = this.dialog.open(ConfirmModalComponent, {
       data: {
         title: 'Delete Product',
-        message: `Are you sure you want to delete "${p.name}"? This action cannot be undone.`,
+        message: `Are you sure you want to delete "${p.name}"?`,
         confirmLabel: 'Delete Product',
         confirmVariant: 'danger',
       },
@@ -373,12 +376,35 @@ export class ProductsComponent implements OnInit, OnDestroy {
     const confirmed = await firstValueFrom(confirmRef.closed);
     if (!confirmed) return;
 
-    try {
-      await this.api.deleteProduct(p.id);
-      this.products.set(this.products().filter((item) => item.id !== p.id));
-      this.applyFilter();
-    } catch (err) {
-      console.error('Failed to delete product:', err);
-    }
+    const currentList = this.products();
+    const originalIndex = currentList.findIndex((item) => item.id === p.id);
+    const originalPage = this.currentPage();
+
+    this.pendingDeleteIds.add(p.id);
+    this.products.set(currentList.filter((item) => item.id !== p.id));
+    this.applyFilter();
+
+    this.undoService.register({
+      description: `Deleted "${p.name}"`,
+      onUndo: async () => {
+        this.pendingDeleteIds.delete(p.id);
+        const list = [...this.products()];
+        if (!list.some((item) => item.id === p.id)) {
+          const insertAt = originalIndex >= 0 && originalIndex <= list.length ? originalIndex : list.length;
+          list.splice(insertAt, 0, p);
+          this.products.set(list);
+        }
+        this.currentPage.set(originalPage);
+        this.applyFilter();
+      },
+      onCommit: async () => {
+        this.pendingDeleteIds.delete(p.id);
+        try {
+          await this.api.deleteProduct(p.id);
+        } catch (err) {
+          console.error('Failed to delete product:', err);
+        }
+      },
+    });
   }
 }

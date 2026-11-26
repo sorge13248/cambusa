@@ -1844,6 +1844,26 @@ export class ApiService {
     return entry;
   }
 
+  async updateMealPlanEntry(
+    id: string,
+    data: Partial<Pick<MealPlanEntry, 'date' | 'mealSlot' | 'sortOrder'>>,
+  ): Promise<MealPlanEntry | null> {
+    const hhId = this.activeHouseholdId() || undefined;
+    const entries = await this.storage.getMealPlanEntries(hhId);
+    const existing = entries.find((e) => e.id === id);
+    if (!existing) return null;
+
+    const updated: MealPlanEntry = {
+      ...existing,
+      ...data,
+      updatedAt: new Date().toISOString(),
+    };
+    await this.storage.putMealPlanEntry(updated);
+    await this.storage.enqueue({ entity: 'meal_plan_entry', action: 'update', payload: updated });
+    this.syncService.sync().catch(() => {});
+    return updated;
+  }
+
   async deleteMealPlanEntry(id: string): Promise<void> {
     await this.storage.deleteMealPlanEntry(id);
     await this.storage.enqueue({ entity: 'meal_plan_entry', action: 'delete', payload: { id } });
