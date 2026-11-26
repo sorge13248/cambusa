@@ -39,6 +39,7 @@ describe('ProductInfoModalComponent', () => {
       { storeId: 's2', aisle: null, aisleOrder: null, averagePrice: null },
     ]),
     getAisles: vi.fn().mockResolvedValue([]),
+    getProductCustomFields: vi.fn().mockResolvedValue([]),
     getMealieStatus: vi.fn().mockResolvedValue({ configured: false }),
   };
 
@@ -217,5 +218,66 @@ describe('ProductInfoModalComponent', () => {
     expect(el.querySelector('.product-description')).toBeFalsy();
     expect(el.querySelector('.specs-grid')).toBeFalsy();
     expect(el.querySelector('.minor-sections')).toBeFalsy();
+  });
+
+  it('shows only filled custom fields in spec-card when <= threshold and in collapsible when > threshold', async () => {
+    mockApiService.getProductCustomFields.mockResolvedValueOnce([
+      { id: 'cf1', householdId: 'h1', name: 'Origin', description: null, placeholder: null, type: 'string', defaultValue: null, sortOrder: 1 },
+      { id: 'cf2', householdId: 'h1', name: 'Empty', description: null, placeholder: null, type: 'string', defaultValue: null, sortOrder: 2 },
+      { id: 'cf3', householdId: 'h1', name: 'Organic', description: null, placeholder: null, type: 'boolean', defaultValue: null, sortOrder: 3 },
+    ]);
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ProductInfoModalComponent],
+      providers: [
+        { provide: DIALOG_DATA, useValue: createMockData({ customFields: { cf1: 'Italy', cf2: '', cf3: true } }) },
+        { provide: DialogRef, useValue: mockDialogRef },
+        { provide: Dialog, useValue: mockDialog },
+        { provide: Router, useValue: mockRouter },
+        { provide: ApiService, useValue: mockApiService },
+      ],
+    }).compileComponents();
+
+    const inlineFixture = TestBed.createComponent(ProductInfoModalComponent);
+    inlineFixture.detectChanges();
+    await inlineFixture.whenStable();
+    inlineFixture.detectChanges();
+
+    expect(inlineFixture.componentInstance.filledCustomFields().map((i) => i.field.id)).toEqual(['cf1', 'cf3']);
+    expect(inlineFixture.componentInstance.shouldCollapseCustomFields()).toBe(false);
+    expect(inlineFixture.nativeElement.querySelector('.custom-fields-spec-card')).toBeTruthy();
+
+    // > 4 filled fields -> collapsible
+    mockApiService.getProductCustomFields.mockResolvedValueOnce([
+      { id: 'cf1', householdId: 'h1', name: 'F1', description: null, placeholder: null, type: 'string', defaultValue: null, sortOrder: 1 },
+      { id: 'cf2', householdId: 'h1', name: 'F2', description: null, placeholder: null, type: 'string', defaultValue: null, sortOrder: 2 },
+      { id: 'cf3', householdId: 'h1', name: 'F3', description: null, placeholder: null, type: 'int', defaultValue: null, sortOrder: 3 },
+      { id: 'cf4', householdId: 'h1', name: 'F4', description: null, placeholder: null, type: 'double', defaultValue: null, sortOrder: 4 },
+      { id: 'cf5', householdId: 'h1', name: 'F5', description: null, placeholder: null, type: 'boolean', defaultValue: null, sortOrder: 5 },
+    ]);
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ProductInfoModalComponent],
+      providers: [
+        {
+          provide: DIALOG_DATA,
+          useValue: createMockData({ customFields: { cf1: 'A', cf2: 'B', cf3: 10, cf4: 2.5, cf5: true } }),
+        },
+        { provide: DialogRef, useValue: mockDialogRef },
+        { provide: Dialog, useValue: mockDialog },
+        { provide: Router, useValue: mockRouter },
+        { provide: ApiService, useValue: mockApiService },
+      ],
+    }).compileComponents();
+
+    const collapsedFixture = TestBed.createComponent(ProductInfoModalComponent);
+    collapsedFixture.detectChanges();
+    await collapsedFixture.whenStable();
+    collapsedFixture.detectChanges();
+
+    expect(collapsedFixture.componentInstance.shouldCollapseCustomFields()).toBe(true);
+    expect(collapsedFixture.nativeElement.querySelector('.custom-fields-spec-card')).toBeFalsy();
   });
 });

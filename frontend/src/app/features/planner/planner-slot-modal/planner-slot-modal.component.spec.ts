@@ -1,7 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { of } from 'rxjs';
 import { PlannerSlotModalComponent } from './planner-slot-modal.component.js';
+import { PantryActionModalComponent } from '../../pantry/pantry-action-modal/pantry-action-modal.component.js';
 import { ApiService } from '../../../core/api.service.js';
 import { UndoService } from '../../../core/undo.service.js';
 
@@ -25,6 +27,7 @@ describe('PlannerSlotModalComponent', () => {
     }),
     consumeStock: vi.fn().mockResolvedValue({ consumed: true, remaining: 1 }),
     deleteMealPlanEntry: vi.fn().mockResolvedValue(undefined),
+    getStores: vi.fn().mockResolvedValue([]),
   };
 
   beforeEach(async () => {
@@ -86,5 +89,23 @@ describe('PlannerSlotModalComponent', () => {
     await component.consumeOne(component.foodItems()[0]);
     expect(mockApi.consumeStock).toHaveBeenCalledWith('s1', 1);
     expect(mockUndo.register).toHaveBeenCalledTimes(1);
+  });
+
+  it('should open PantryActionModalComponent when clicking info button', async () => {
+    mockDialog.open.mockReturnValue({ closed: of({ refreshed: true }) });
+    const infoBtn = fixture.nativeElement.querySelector('button[aria-label="Open Pantry actions"]') as HTMLButtonElement;
+    expect(infoBtn).toBeTruthy();
+
+    await component.openPantryInfoModal(component.foodItems()[0]);
+
+    expect(mockDialog.open).toHaveBeenCalledWith(
+      PantryActionModalComponent,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          product: expect.objectContaining({ id: 'p1' }),
+        }),
+      }),
+    );
+    expect(mockApi.getStock).toHaveBeenCalled();
   });
 });

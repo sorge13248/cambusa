@@ -180,25 +180,26 @@
               >
                 <svg lucideZap [size]="14"></svg> Manage
               </button>
-              <div class="footer-right">
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm btn-open-one"
-                  [disabled]="item.isOutOfStock || !hasUnopenedBatch(item)"
-                  (click)="openOneClicked.emit(item)"
-                  title="Mark earliest expiring batch as opened"
-                >
-                  Open 1
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-sm"
-                  [disabled]="item.isOutOfStock"
-                  (click)="consumeOneClicked.emit(item)"
-                >
-                  Consume 1
-                </button>
-              </div>
+              @if (!item.isOutOfStock) {
+                <div class="footer-right">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm btn-open-one"
+                    [disabled]="!hasUnopenedBatch(item)"
+                    (click)="openOneClicked.emit(item)"
+                    title="Mark earliest expiring batch as opened"
+                  >
+                    Open 1
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-sm"
+                    (click)="consumeOneClicked.emit(item)"
+                  >
+                    Consume 1
+                  </button>
+                </div>
+              }
             </div>
           }
         </div>

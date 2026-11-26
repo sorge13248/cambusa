@@ -197,6 +197,107 @@
     </div>
   }
 
+  <!-- Domain 3: Product Custom Fields -->
+  @if (activeDomainTab() === 'custom-fields') {
+    <div class="card glass-card domain-card">
+      <div class="card-header domain-header">
+        <div class="header-left">
+          <div class="card-icon"><svg lucideSlidersHorizontal [size]="20"></svg></div>
+          <div>
+            <h2 class="card-title">Product Custom Fields</h2>
+            <p class="card-subtitle">Define custom properties for products and reorder them via drag &amp; drop</p>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" (click)="openAddCustomFieldModal()">
+          + Add Custom Field
+        </button>
+      </div>
+
+      <div class="card-body">
+        @if (isLoadingCustomFields()) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Loading custom fields...</p>
+          </div>
+        } @else if (customFields().length === 0) {
+          <div class="empty-state">
+            <span class="empty-icon"><svg lucideSlidersHorizontal [size]="32"></svg></span>
+            <p>No product custom fields defined yet.</p>
+            <button type="button" class="btn btn-primary btn-sm" (click)="openAddCustomFieldModal()">
+              Add your first custom field
+            </button>
+          </div>
+        } @else {
+          <p class="drag-instructions-hint">
+            Drag and drop custom fields to set the display order in the Edit Product modal.
+          </p>
+
+          <div
+            cdkDropList
+            class="aisles-drop-list"
+            [cdkDropListData]="customFields()"
+            (cdkDropListDropped)="onCustomFieldDrop($event)"
+          >
+            @for (field of customFields(); track field.id; let idx = $index) {
+              <div class="aisle-drag-item" cdkDrag>
+                <div class="aisle-drag-placeholder" *cdkDragPlaceholder>
+                  <span class="placeholder-text">Drop here (Position #{{ idx + 1 }})</span>
+                </div>
+
+                <div class="aisle-drag-content">
+                  <div class="drag-handle-container" cdkDragHandle title="Drag to reorder">
+                    <span class="drag-handle-icon"><svg lucideGripVertical [size]="14"></svg></span>
+                  </div>
+
+                  <span class="aisle-order-badge">#{{ field.sortOrder || (idx + 1) }}</span>
+
+                  <div class="custom-field-info">
+                    <div class="custom-field-title-row">
+                      <span class="aisle-title">{{ field.name }}</span>
+                      <span class="field-type-badge">{{ field.type }}</span>
+                      @if (field.defaultValue !== null && field.defaultValue !== '') {
+                        <span class="field-default-badge">Default: {{ field.defaultValue }}</span>
+                      }
+                    </div>
+                    @if (field.description || field.placeholder) {
+                      <div class="custom-field-meta">
+                        @if (field.description) {
+                          <span>{{ field.description }}</span>
+                        }
+                        @if (field.placeholder) {
+                          <span>Placeholder: "{{ field.placeholder }}"</span>
+                        }
+                      </div>
+                    }
+                  </div>
+
+                  <div class="aisle-actions">
+                    <button
+                      type="button"
+                      class="btn btn-secondary-outline btn-xs"
+                      (click)="openEditCustomFieldModal(field)"
+                      title="Edit custom field"
+                    >
+                      <svg lucidePencil [size]="12"></svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-danger-outline btn-xs"
+                      (click)="deleteCustomField(field.id)"
+                      title="Delete custom field"
+                    >
+                      <svg lucideTrash2 [size]="13"></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  }
+
   <!-- Add/Edit Store Modal Dialog -->
   @if (isStoreModalOpen()) {
     <div class="modal-backdrop" (click)="closeStoreModal()"></div>
@@ -241,6 +342,145 @@
           (click)="saveStore()"
         >
           {{ editingStoreId() ? 'Save Changes' : 'Create Store' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Add/Edit Custom Field Modal Dialog -->
+  @if (isCustomFieldModalOpen()) {
+    <div class="modal-backdrop" (click)="closeCustomFieldModal()"></div>
+    <div class="custom-modal glass-modal" role="dialog" aria-modal="true" aria-labelledby="custom-field-modal-title">
+      <div class="modal-header">
+        <h3 id="custom-field-modal-title" class="modal-title">
+          {{ editingCustomFieldId() ? 'Edit Custom Field' : 'New Custom Field' }}
+        </h3>
+        <button type="button" class="btn-close" (click)="closeCustomFieldModal()" aria-label="Close dialog">
+          <svg lucideX [size]="14"></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="cfNameInput" class="form-label">Field Name *</label>
+          <input
+            id="cfNameInput"
+            type="text"
+            class="form-input"
+            placeholder="e.g. Calories, Origin Country, Organic"
+            [ngModel]="customFieldName()"
+            (ngModelChange)="customFieldName.set($event)"
+            autofocus
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="cfTypeSelect" class="form-label">Field Type *</label>
+          <select
+            id="cfTypeSelect"
+            class="form-select"
+            [ngModel]="customFieldType()"
+            (ngModelChange)="onCustomFieldTypeChange($event)"
+          >
+            @for (opt of customFieldTypeOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="cfDescInput" class="form-label">Description</label>
+          <textarea
+            id="cfDescInput"
+            class="form-input"
+            rows="2"
+            placeholder="Optional helper text shown below the field"
+            [ngModel]="customFieldDescription()"
+            (ngModelChange)="customFieldDescription.set($event)"
+          ></textarea>
+        </div>
+
+        @if (customFieldType() !== 'boolean') {
+          <div class="form-group">
+            <label for="cfPlaceholderInput" class="form-label">Placeholder</label>
+            <input
+              id="cfPlaceholderInput"
+              type="text"
+              class="form-input"
+              placeholder="Optional input placeholder"
+              [ngModel]="customFieldPlaceholder()"
+              (ngModelChange)="customFieldPlaceholder.set($event)"
+            />
+          </div>
+        }
+
+        <div class="form-group">
+          <label for="cfDefaultInput" class="form-label">Default Value</label>
+          @switch (customFieldType()) {
+            @case ('textarea') {
+              <textarea
+                id="cfDefaultInput"
+                class="form-input"
+                rows="2"
+                placeholder="Optional default text"
+                [ngModel]="customFieldDefaultValue()"
+                (ngModelChange)="customFieldDefaultValue.set($event)"
+              ></textarea>
+            }
+            @case ('int') {
+              <input
+                id="cfDefaultInput"
+                type="number"
+                step="1"
+                class="form-input"
+                placeholder="Optional default integer"
+                [ngModel]="customFieldDefaultValue()"
+                (ngModelChange)="customFieldDefaultValue.set($event)"
+              />
+            }
+            @case ('double') {
+              <input
+                id="cfDefaultInput"
+                type="number"
+                step="any"
+                class="form-input"
+                placeholder="Optional default decimal"
+                [ngModel]="customFieldDefaultValue()"
+                (ngModelChange)="customFieldDefaultValue.set($event)"
+              />
+            }
+            @case ('boolean') {
+              <label class="cf-checkbox-row" for="cfDefaultBoolInput">
+                <input
+                  id="cfDefaultBoolInput"
+                  type="checkbox"
+                  [ngModel]="customFieldDefaultBool()"
+                  (ngModelChange)="customFieldDefaultBool.set($event)"
+                />
+                <span>Checked by default</span>
+              </label>
+            }
+            @default {
+              <input
+                id="cfDefaultInput"
+                type="text"
+                class="form-input"
+                placeholder="Optional default text"
+                [ngModel]="customFieldDefaultValue()"
+                (ngModelChange)="customFieldDefaultValue.set($event)"
+              />
+            }
+          }
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeCustomFieldModal()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="!customFieldName().trim()"
+          (click)="saveCustomField()"
+        >
+          {{ editingCustomFieldId() ? 'Save Changes' : 'Create Field' }}
         </button>
       </div>
     </div>

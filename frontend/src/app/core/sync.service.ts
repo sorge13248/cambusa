@@ -100,14 +100,18 @@ export class SyncService {
       const deletions = queue
         .filter((q) => q.action === 'delete')
         .map((q) => ({
-          entityType: q.entity === 'catalog' ? q.payload?.type : q.entity,
+          entityType: q.entity === 'catalog' ? (q.payload?.catalogType || q.payload?.type) : q.entity,
           entityId: q.payload?.id || q.payload,
         }))
         .filter((d) => Boolean(d.entityType && d.entityId));
 
       const catalogQueue = queue.filter((q) => q.entity === 'catalog' && q.action !== 'delete');
       const stripCatalogType = (itemPayload: any) => {
-        const { type: _type, ...rest } = itemPayload || {};
+        const { type: _type, catalogType: _catalogType, ...rest } = itemPayload || {};
+        return rest;
+      };
+      const stripCatalogMeta = (itemPayload: any) => {
+        const { catalogType: _catalogType, ...rest } = itemPayload || {};
         return rest;
       };
       const catalogsPayload = {
@@ -115,12 +119,16 @@ export class SyncService {
         groups: catalogQueue.filter((q) => q.payload?.type === 'group').map((q) => stripCatalogType(q.payload)),
         locations: catalogQueue.filter((q) => q.payload?.type === 'location').map((q) => stripCatalogType(q.payload)),
         stores: catalogQueue.filter((q) => q.payload?.type === 'store').map((q) => stripCatalogType(q.payload)),
+        customFields: catalogQueue
+          .filter((q) => q.payload?.catalogType === 'custom_field')
+          .map((q) => stripCatalogMeta(q.payload)),
       };
       const hasCatalogChanges =
         catalogsPayload.units.length > 0 ||
         catalogsPayload.groups.length > 0 ||
         catalogsPayload.locations.length > 0 ||
-        catalogsPayload.stores.length > 0;
+        catalogsPayload.stores.length > 0 ||
+        catalogsPayload.customFields.length > 0;
 
       const payload = {
         lastSyncAt: lastSync,
@@ -187,7 +195,8 @@ export class SyncService {
             (cat.units && cat.units.length > 0) ||
             (cat.groups && cat.groups.length > 0) ||
             (cat.locations && cat.locations.length > 0) ||
-            (cat.stores && cat.stores.length > 0)
+            (cat.stores && cat.stores.length > 0) ||
+            (cat.customFields && cat.customFields.length > 0)
           ) {
             hasChanges = true;
           }
@@ -220,7 +229,8 @@ export class SyncService {
             type === 'group' ||
             type === 'product_group' ||
             type === 'location' ||
-            type === 'store'
+            type === 'store' ||
+            type === 'product_custom_field'
           ) {
             await this.storage.removeCatalogItem(hhId, type, id);
           }
@@ -233,6 +243,7 @@ export class SyncService {
       this.lastSyncAt.set(syncedAt);
       this.status.set('online-ok');
       if (hasChanges) {
+        await this.storage.invalidateDashboardData(hhId);
         this.onSyncCompleted.update((c) => c + 1);
       }
       return true;

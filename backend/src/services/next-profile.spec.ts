@@ -231,4 +231,28 @@ describe('ProfileService & NextService', () => {
       expect(nextData.expiringSoon[0].daysRemaining).toBe(2);
     });
   });
+
+  describe('Meal Plan Slot Email Settings', () => {
+    it('normalizes default meal plan slot email settings and persists updates', async () => {
+      const profile = await profileService.getProfileData(testUser);
+      expect(profile.settings.mealPlanEmailSettings.breakfast).toEqual({
+        enabled: false,
+        time: '07:30',
+        onlyIfHasEntries: true,
+      });
+
+      const updated = await profileService.updateSettings(testUser, {
+        mealPlanEmailSettings: {
+          lunch: { enabled: true, time: '12:15', onlyIfHasEntries: false },
+        },
+      });
+
+      expect(updated.mealPlanEmailSettings.lunch).toEqual({
+        enabled: true,
+        time: '12:15',
+        onlyIfHasEntries: false,
+      });
+      expect(updated.mealPlanEmailSettings.dinner.enabled).toBe(false);
+    });
+  });
 });

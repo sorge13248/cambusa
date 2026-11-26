@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
-import { compareByName } from './sorting.utils.js';
+import { compareByName, compareByNumericOrder } from './sorting.utils.js';
 import {
   Location,
   MealPlanEntry,
   NextResponseDto,
   Product,
+  ProductCustomField,
   ProductGroup,
   ProductRatingSyncDto,
   QuantityUnit,
@@ -51,6 +52,7 @@ export class OfflineStorageService {
         groups: ProductGroup[];
         locations: Location[];
         stores: Store[];
+        customFields?: ProductCustomField[];
       }
     >(),
     dashboard: new Map<string, NextResponseDto>(),
@@ -439,6 +441,7 @@ export class OfflineStorageService {
     groups: ProductGroup[];
     locations: Location[];
     stores: Store[];
+    customFields: ProductCustomField[];
   }> {
     const key = householdId ? `catalogs_${householdId}` : 'catalogs_default';
     const cached = await this.getMeta(key);
@@ -448,6 +451,7 @@ export class OfflineStorageService {
         groups: [...(cached.groups || [])].sort(compareByName),
         locations: [...(cached.locations || [])].sort(compareByName),
         stores: [...(cached.stores || [])].sort(compareByName),
+        customFields: [...(cached.customFields || [])].sort(compareByNumericOrder),
       };
     }
     const mem = this.memoryStore.catalogs.get(key);
@@ -457,6 +461,7 @@ export class OfflineStorageService {
         groups: [...mem.groups].sort(compareByName),
         locations: [...mem.locations].sort(compareByName),
         stores: [...mem.stores].sort(compareByName),
+        customFields: [...(mem.customFields || [])].sort(compareByNumericOrder),
       };
     }
     return {
@@ -464,6 +469,7 @@ export class OfflineStorageService {
       groups: [],
       locations: [],
       stores: [],
+      customFields: [],
     };
   }
 
@@ -494,17 +500,32 @@ export class OfflineStorageService {
       groups?: ProductGroup[];
       locations?: Location[];
       stores?: Store[];
+      customFields?: ProductCustomField[];
     },
     options?: { replace?: boolean },
   ): Promise<void> {
     const key = `catalogs_${householdId}`;
     const existing = await this.getCatalogs(householdId);
     const replace = Boolean(options?.replace);
+    const mergedCustomFields = (() => {
+      const incoming = catalogs.customFields;
+      if (!incoming) return [...existing.customFields].sort(compareByNumericOrder);
+      if (replace) return [...incoming].sort(compareByNumericOrder);
+      if (incoming.length === 0) return [...existing.customFields].sort(compareByNumericOrder);
+      const map = new Map<string, ProductCustomField>();
+      for (const item of existing.customFields) map.set(item.id, item);
+      for (const item of incoming) {
+        const prev = map.get(item.id);
+        map.set(item.id, prev ? { ...prev, ...item } : item);
+      }
+      return Array.from(map.values()).sort(compareByNumericOrder);
+    })();
     const merged = {
       units: this.mergeCatalogList(existing.units, catalogs.units, replace),
       groups: this.mergeCatalogList(existing.groups, catalogs.groups, replace),
       locations: this.mergeCatalogList(existing.locations, catalogs.locations, replace),
       stores: this.mergeCatalogList(existing.stores, catalogs.stores, replace),
+      customFields: mergedCustomFields,
     };
     this.memoryStore.catalogs.set(key, merged);
     await this.setMeta(key, merged);
@@ -520,6 +541,12 @@ export class OfflineStorageService {
       await this.saveCatalogs(householdId, { locations: cat.locations.filter((l) => l.id !== id) }, { replace: true });
     } else if (entityType === 'store') {
       await this.saveCatalogs(householdId, { stores: cat.stores.filter((s) => s.id !== id) }, { replace: true });
+    } else if (entityType === 'product_custom_field') {
+      await this.saveCatalogs(
+        householdId,
+        { customFields: cat.customFields.filter((f) => f.id !== id) },
+        { replace: true },
+      );
     }
   }
 
@@ -538,6 +565,20 @@ export class OfflineStorageService {
   async saveDashboardData(householdId: string, data: NextResponseDto): Promise<void> {
     this.memoryStore.dashboard.set(householdId, data);
     await this.setMeta(`dashboard_${householdId}`, data);
+  }
+
+  async invalidateDashboardData(householdId?: string): Promise<void> {
+    if (householdId) {
+      this.memoryStore.dashboard.delete(householdId);
+      await this.deleteMeta(`dashboard_${householdId}`);
+      return;
+    }
+
+    this.memoryStore.dashboard.clear();
+    const keys = Array.from(this.memoryStore.meta.keys()).filter((k) => k.startsWith('dashboard_'));
+    for (const key of keys) {
+      await this.deleteMeta(key);
+    }
   }
 
   // Queue
@@ -749,6 +790,19 @@ export class OfflineStorageService {
     return new Promise((resolve) => {
       const tx = db.transaction(STORE_META, 'readwrite');
       tx.objectStore(STORE_META).put({ key, value });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  }
+
+  async deleteMeta(key: string): Promise<void> {
+    this.memoryStore.meta.delete(key);
+    const db = await this.getDB();
+    if (!db) return;
+
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_META, 'readwrite');
+      tx.objectStore(STORE_META).delete(key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => resolve();
     });

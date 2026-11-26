@@ -1,4 +1,13 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
+import { MealSlot } from './meal-plan-entry.entity.js';
+
+export interface MealSlotEmailConfig {
+  enabled: boolean;
+  time: string; // HH:mm
+  onlyIfHasEntries: boolean;
+}
+
+export type MealPlanEmailSettingsMap = Record<MealSlot, MealSlotEmailConfig>;
 
 @Entity({ name: 'user_settings' })
 @Unique(['userId'])
@@ -36,6 +45,12 @@ export class UserSettings {
 
   @Column({ type: 'varchar', nullable: true })
   lastNotificationSentDate!: string | null;
+
+  @Column({ type: 'simple-json', nullable: true })
+  mealPlanEmailSettings!: MealPlanEmailSettingsMap | null;
+
+  @Column({ type: 'simple-json', nullable: true })
+  mealPlanEmailLastSent!: Partial<Record<MealSlot, string>> | null;
 
   @CreateDateColumn()
   createdAt!: Date;

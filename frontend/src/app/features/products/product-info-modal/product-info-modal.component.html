@@ -1,11 +1,8 @@
 @if (mode() === 'edit') {
   <app-product-detail-view
-    mode="edit"
     [data]="modalData()"
-    [showEditSwitch]="false"
     (saved)="onSaved($event)"
     (cancelled)="onEditCancelled()"
-    (closeRequested)="close()"
   />
 } @else {
   <div class="product-info-shell" role="dialog" aria-modal="true" [attr.aria-label]="product()?.name || 'Product Details'">
@@ -258,6 +255,23 @@
               </dl>
             </section>
           }
+
+          @if (filledCustomFields().length > 0 && !shouldCollapseCustomFields()) {
+            <section class="spec-card custom-fields-spec-card">
+              <header class="spec-card-header">
+                <svg lucideSlidersHorizontal [size]="15"></svg>
+                <h3>Custom Properties</h3>
+              </header>
+              <dl class="spec-list">
+                @for (item of filledCustomFields(); track item.field.id) {
+                  <div class="spec-row">
+                    <dt>{{ item.field.name }}</dt>
+                    <dd>{{ item.displayValue }}</dd>
+                  </div>
+                }
+              </dl>
+            </section>
+          }
         </div>
       }
 
@@ -266,6 +280,7 @@
         barcodes().length > 0 ||
         configuredStores().length > 0 ||
         hasMealieLinks() ||
+        shouldCollapseCustomFields() ||
         showOtherMembersRatings()
       ) {
         <div class="minor-sections">
@@ -363,6 +378,24 @@
                   </div>
                 </div>
               }
+            </app-collapsible-section>
+          }
+
+          @if (shouldCollapseCustomFields()) {
+            <app-collapsible-section
+              title="Custom Properties"
+              lucideIcon="sliders-horizontal"
+              [badge]="filledCustomFields().length + ' properties'"
+              [(expanded)]="minorSections.customFields"
+            >
+              <dl class="spec-list">
+                @for (item of filledCustomFields(); track item.field.id) {
+                  <div class="spec-row">
+                    <dt>{{ item.field.name }}</dt>
+                    <dd>{{ item.displayValue }}</dd>
+                  </div>
+                }
+              </dl>
             </app-collapsible-section>
           }
 

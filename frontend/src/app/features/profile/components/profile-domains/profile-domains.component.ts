@@ -14,19 +14,20 @@ import { ApiService } from '../../../../core/api.service.js';
 import { AuthService } from '../../../../core/auth.service.js';
 import { compareByName, compareByNumericOrder } from '../../../../core/sorting.utils.js';
 import { SyncService } from '../../../../core/sync.service.js';
-import { Aisle, Store } from '../../../../core/models.js';
+import { Aisle, ProductCustomField, ProductCustomFieldType, Store } from '../../../../core/models.js';
 import { TabItem, TabViewComponent } from '../../../../shared/components/tab-view/tab-view.component.js';
 import {
   LucideGripVertical,
   LucidePencil,
   LucideShoppingCart,
+  LucideSlidersHorizontal,
   LucideStore,
   LucideTrash2,
   LucideX,
 } from '@lucide/angular';
 import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal.component.js';
 
-export type DomainTab = 'stores' | 'aisles';
+export type DomainTab = 'stores' | 'aisles' | 'custom-fields';
 
 @Component({
   selector: 'app-profile-domains',
@@ -42,6 +43,7 @@ export type DomainTab = 'stores' | 'aisles';
     LucideGripVertical,
     LucidePencil,
     LucideShoppingCart,
+    LucideSlidersHorizontal,
     LucideStore,
     LucideTrash2,
     LucideX,
@@ -63,6 +65,7 @@ export class ProfileDomainsComponent implements OnInit {
   readonly domainTabs: TabItem<DomainTab>[] = [
     { id: 'stores', label: 'Stores', lucideIcon: 'store' },
     { id: 'aisles', label: 'Aisles', lucideIcon: 'shopping-cart' },
+    { id: 'custom-fields', label: 'Product Custom Fields', lucideIcon: 'sliders-horizontal' },
   ];
 
   // Stores state
@@ -80,6 +83,26 @@ export class ProfileDomainsComponent implements OnInit {
   readonly editingAisleId = signal<string | null>(null);
   readonly editingAisleName = signal<string>('');
 
+  // Product Custom Fields state
+  readonly customFields = signal<ProductCustomField[]>([]);
+  readonly isLoadingCustomFields = signal<boolean>(false);
+  readonly isCustomFieldModalOpen = signal<boolean>(false);
+  readonly editingCustomFieldId = signal<string | null>(null);
+  readonly customFieldName = signal<string>('');
+  readonly customFieldDescription = signal<string>('');
+  readonly customFieldPlaceholder = signal<string>('');
+  readonly customFieldType = signal<ProductCustomFieldType>('string');
+  readonly customFieldDefaultValue = signal<string>('');
+  readonly customFieldDefaultBool = signal<boolean>(false);
+
+  readonly customFieldTypeOptions: Array<{ value: ProductCustomFieldType; label: string }> = [
+    { value: 'string', label: 'String (Single Line)' },
+    { value: 'textarea', label: 'Textarea (Multi-line)' },
+    { value: 'int', label: 'Integer' },
+    { value: 'double', label: 'Double (Decimal)' },
+    { value: 'boolean', label: 'Boolean (Checkbox)' },
+  ];
+
   readonly toast = output<{ type: 'success' | 'error'; message: string }>();
 
   constructor() {
@@ -89,7 +112,10 @@ export class ProfileDomainsComponent implements OnInit {
       const hhId = this.auth?.activeHouseholdId() ?? null;
       if (hhId && hhId !== this.lastLoadedHouseholdId) {
         this.lastLoadedHouseholdId = hhId;
-        untracked(() => this.loadStores());
+        untracked(() => {
+          this.loadStores();
+          this.loadCustomFields();
+        });
       }
     });
 
@@ -97,7 +123,10 @@ export class ProfileDomainsComponent implements OnInit {
       const syncCount = this.syncService?.onSyncCompleted() ?? 0;
       if (syncCount > 0 && syncCount !== this.lastSyncCount) {
         this.lastSyncCount = syncCount;
-        untracked(() => this.loadStores());
+        untracked(() => {
+          this.loadStores();
+          this.loadCustomFields();
+        });
       }
     });
   }
@@ -107,6 +136,9 @@ export class ProfileDomainsComponent implements OnInit {
     if (!hhId || hhId !== this.lastLoadedHouseholdId) {
       this.lastLoadedHouseholdId = hhId;
       this.loadStores();
+      this.loadCustomFields();
+    } else if (this.customFields().length === 0) {
+      this.loadCustomFields();
     }
   }
 
@@ -307,6 +339,131 @@ export class ProfileDomainsComponent implements OnInit {
       } catch {
         this.showToast('error', 'Failed to save new aisle order');
       }
+    }
+  }
+
+  // Product Custom Fields
+  async loadCustomFields(): Promise<void> {
+    if (typeof this.api.getProductCustomFields !== 'function') return;
+    this.isLoadingCustomFields.set(true);
+    try {
+      const fields = [...(await this.api.getProductCustomFields())].sort(compareByNumericOrder);
+      this.customFields.set(fields);
+    } catch {
+      this.showToast('error', 'Failed to load custom fields');
+    } finally {
+      this.isLoadingCustomFields.set(false);
+    }
+  }
+
+  openAddCustomFieldModal(): void {
+    this.editingCustomFieldId.set(null);
+    this.customFieldName.set('');
+    this.customFieldDescription.set('');
+    this.customFieldPlaceholder.set('');
+    this.customFieldType.set('string');
+    this.customFieldDefaultValue.set('');
+    this.customFieldDefaultBool.set(false);
+    this.isCustomFieldModalOpen.set(true);
+  }
+
+  openEditCustomFieldModal(field: ProductCustomField): void {
+    this.editingCustomFieldId.set(field.id);
+    this.customFieldName.set(field.name);
+    this.customFieldDescription.set(field.description || '');
+    this.customFieldPlaceholder.set(field.placeholder || '');
+    this.customFieldType.set(field.type);
+    if (field.type === 'boolean') {
+      this.customFieldDefaultBool.set(field.defaultValue === 'true');
+      this.customFieldDefaultValue.set('');
+    } else {
+      this.customFieldDefaultValue.set(field.defaultValue || '');
+      this.customFieldDefaultBool.set(false);
+    }
+    this.isCustomFieldModalOpen.set(true);
+  }
+
+  closeCustomFieldModal(): void {
+    this.isCustomFieldModalOpen.set(false);
+  }
+
+  onCustomFieldTypeChange(nextType: ProductCustomFieldType): void {
+    this.customFieldType.set(nextType);
+    if (nextType === 'boolean') {
+      this.customFieldDefaultBool.set(this.customFieldDefaultValue() === 'true');
+    }
+  }
+
+  async saveCustomField(): Promise<void> {
+    const name = this.customFieldName().trim();
+    if (!name) return;
+
+    const type = this.customFieldType();
+    const defaultValue =
+      type === 'boolean'
+        ? String(this.customFieldDefaultBool())
+        : this.customFieldDefaultValue().trim() || null;
+
+    const payload: Partial<ProductCustomField> = {
+      name,
+      description: this.customFieldDescription().trim() || null,
+      placeholder: type === 'boolean' ? null : this.customFieldPlaceholder().trim() || null,
+      type,
+      defaultValue,
+    };
+
+    try {
+      const editId = this.editingCustomFieldId();
+      if (editId) {
+        await this.api.updateProductCustomField(editId, payload);
+        this.showToast('success', 'Custom field updated');
+      } else {
+        await this.api.createProductCustomField(payload);
+        this.showToast('success', 'Custom field created');
+      }
+      this.closeCustomFieldModal();
+      await this.loadCustomFields();
+    } catch {
+      this.showToast('error', 'Failed to save custom field');
+    }
+  }
+
+  async deleteCustomField(id: string): Promise<void> {
+    const target = this.customFields().find((f) => f.id === id);
+    const ref = this.dialog.open(ConfirmModalComponent, {
+      data: {
+        title: 'Delete Custom Field',
+        message: `Are you sure you want to delete "${target?.name || ''}"? Existing values stored on products will no longer be displayed.`,
+        confirmLabel: 'Delete Field',
+        confirmVariant: 'danger',
+      },
+    });
+
+    const confirmed = await ref.closed.toPromise();
+    if (!confirmed) return;
+
+    try {
+      await this.api.deleteProductCustomField(id);
+      this.customFields.update((list) => list.filter((f) => f.id !== id));
+      this.showToast('success', 'Custom field deleted');
+    } catch {
+      this.showToast('error', 'Failed to delete custom field');
+    }
+  }
+
+  async onCustomFieldDrop(event: CdkDragDrop<ProductCustomField[]>): Promise<void> {
+    if (event.previousIndex === event.currentIndex) return;
+
+    const items = [...this.customFields()];
+    moveItemInArray(items, event.previousIndex, event.currentIndex);
+    const updated = items.map((f, idx) => ({ ...f, sortOrder: idx + 1 }));
+    this.customFields.set(updated);
+
+    try {
+      await this.api.reorderProductCustomFields(updated.map((f) => f.id));
+      this.showToast('success', 'Custom field order updated');
+    } catch {
+      this.showToast('error', 'Failed to save custom field order');
     }
   }
 }

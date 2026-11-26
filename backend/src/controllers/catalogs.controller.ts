@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } fro
 import { BearerJwtGuard } from '../common/auth/bearer-jwt.guard.js';
 import { ActiveHousehold } from '../common/household/active-household.decorator.js';
 import { HouseholdMemberGuard } from '../common/household/household-member.guard.js';
-import { Location, ProductGroup, QuantityUnit, Store } from '../entities/index.js';
+import { Location, ProductCustomField, ProductGroup, QuantityUnit, Store } from '../entities/index.js';
 import { CatalogsService } from '../services/catalogs.service.js';
 
 @Controller('catalogs')
@@ -151,5 +151,41 @@ export class CatalogsController {
     @Body() body: { aisleIds: string[] },
   ) {
     return this.catalogsService.reorderStoreAisles(storeId, householdId, body?.aisleIds || []);
+  }
+
+  // Product Custom Fields
+  @Get('custom-fields')
+  getCustomFields(@ActiveHousehold() householdId: string) {
+    return this.catalogsService.getProductCustomFields(householdId);
+  }
+
+  @Post('custom-fields')
+  createCustomField(
+    @ActiveHousehold() householdId: string,
+    @Body() body: Partial<ProductCustomField>,
+  ) {
+    return this.catalogsService.createProductCustomField(householdId, body);
+  }
+
+  @Put('custom-fields/:id')
+  updateCustomField(
+    @ActiveHousehold() householdId: string,
+    @Param('id') id: string,
+    @Body() body: Partial<ProductCustomField>,
+  ) {
+    return this.catalogsService.updateProductCustomField(id, householdId, body);
+  }
+
+  @Delete('custom-fields/:id')
+  deleteCustomField(@ActiveHousehold() householdId: string, @Param('id') id: string) {
+    return this.catalogsService.deleteProductCustomField(id, householdId);
+  }
+
+  @Post('custom-fields/reorder')
+  reorderCustomFields(
+    @ActiveHousehold() householdId: string,
+    @Body() body: { fieldIds: string[] },
+  ) {
+    return this.catalogsService.reorderProductCustomFields(householdId, body?.fieldIds || []);
   }
 }

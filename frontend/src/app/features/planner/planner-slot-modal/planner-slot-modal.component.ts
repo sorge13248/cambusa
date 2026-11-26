@@ -4,6 +4,7 @@ import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { firstValueFrom } from 'rxjs';
 import {
   LucideCalendar,
+  LucideInfo,
   LucidePackage,
   LucidePlus,
   LucideTrash2,
@@ -19,12 +20,14 @@ import {
   QuantityUnit,
   SavedFilter,
   StockItem,
+  Store,
 } from '../../../core/models.js';
 import { ApiService } from '../../../core/api.service.js';
 import { UndoService } from '../../../core/undo.service.js';
 import { calculateAggregatedProductStock, calculateProductTotalStock } from '../../../core/stock-utils.js';
 import { LocalDatePipe } from '../../../shared/pipes/local-date.pipe.js';
 import { PlannerProductPickerModalComponent } from '../planner-product-picker-modal/planner-product-picker-modal.component.js';
+import { PantryActionModalComponent } from '../../pantry/pantry-action-modal/pantry-action-modal.component.js';
 
 export interface PlannerSlotModalData {
   date: string;
@@ -37,6 +40,7 @@ export interface PlannerSlotModalData {
   locations: Location[];
   productGroups: ProductGroup[];
   units: QuantityUnit[];
+  stores?: Store[];
   savedFilters: SavedFilter[];
   members: HouseholdMemberDto[];
   expiringSoonDays: number;
@@ -65,6 +69,7 @@ export interface SlotFoodViewModel {
     CommonModule,
     LocalDatePipe,
     LucideCalendar,
+    LucideInfo,
     LucidePackage,
     LucidePlus,
     LucideTrash2,
@@ -265,6 +270,35 @@ export class PlannerSlotModalComponent {
     });
 
     firstValueFrom(ref.closed).catch(() => {});
+  }
+
+  async openPantryInfoModal(item: SlotFoodViewModel): Promise<void> {
+    const product = this.data.products.find((p) => p.id === item.entry.productId);
+    if (!product) return;
+
+    const stores =
+      this.data.stores && this.data.stores.length > 0
+        ? this.data.stores
+        : typeof this.api.getStores === 'function'
+          ? await this.api.getStores().catch(() => [])
+          : [];
+
+    const ref = this.dialog.open(PantryActionModalComponent, {
+      data: {
+        product,
+        stockItems: this.stock(),
+        locations: this.data.locations,
+        stores,
+        units: this.data.units,
+        allProducts: this.data.products,
+        productGroups: this.data.productGroups,
+      },
+    });
+
+    const result = await firstValueFrom(ref.closed).catch(() => null);
+    if (result && typeof result === 'object' && (result as { refreshed?: boolean }).refreshed) {
+      await this.refreshStock();
+    }
   }
 
   close(): void {

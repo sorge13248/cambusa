@@ -44,7 +44,7 @@ The client initializes an IndexedDB database named `cambusa_offline_v1` with the
 | `shopping_lists` | `id` | `householdId` | Cached shopping lists |
 | `meal_plan_entries` | `id` | `householdId`, `date`, `mealSlot`, `productId` | Cached weekly meal planner entries |
 | `sync_queue` | `id` | `createdAt`, `entity` | FIFO queue of offline mutations |
-| `meta` | `key` | — | Per-household sync cursors (`lastSyncAt_v2_<householdId>`), UI `lastSyncAt`, and cached catalogs (alphabetically sorted by `name` for units, product groups, locations, and stores), aisles (numerically sorted by user-defined `sortOrder`), and dashboard snapshots |
+| `meta` | `key` | — | Per-household sync cursors (`lastSyncAt_v2_<householdId>`), UI `lastSyncAt`, and cached catalogs (alphabetically sorted by `name` for units, product groups, locations, and stores; numerically sorted by `sortOrder` for `customFields`), aisles (numerically sorted by user-defined `sortOrder`), and dashboard snapshots |
 
 ### 2.1 Local-First Mutation Pipeline (Zero Direct API Mutations)
 Cambusa enforces a strict offline-first architectural invariant: **the web client never makes direct REST API mutation calls for domain entities**.

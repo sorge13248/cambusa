@@ -238,4 +238,18 @@ describe('HomeComponent', () => {
     expect(expiringCardImg).toBeNull();
     expect(expiringFallback).toBeTruthy();
   });
+
+  it('recomputes dashboard silently when an item is marked as opened', async () => {
+    await component.ngOnInit();
+    const recomputeSpy = vi.spyOn(component, 'recomputeSilently');
+
+    component.applyOptimisticAction({
+      action: 'open',
+      stockItemId: 'item-soon-1',
+      productId: 'prod-2',
+      amount: 1,
+    });
+
+    expect(recomputeSpy).toHaveBeenCalled();
+  });
 });

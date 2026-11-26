@@ -2,6 +2,7 @@ import {
   Location,
   MealPlanEntry,
   Product,
+  ProductCustomField,
   ProductGroup,
   ProductRating,
   QuantityUnit,
@@ -25,6 +26,7 @@ export interface SyncPayloadDto {
       groups?: Array<Partial<ProductGroup>>;
       locations?: Array<Partial<Location>>;
       stores?: Array<Partial<Store>>;
+      customFields?: Array<Partial<ProductCustomField>>;
     };
     deletions?: Array<{ entityType: string; entityId: string }>;
   };
@@ -44,6 +46,7 @@ export interface SyncResponseDto {
       groups: ProductGroup[];
       locations: Location[];
       stores: Store[];
+      customFields?: ProductCustomField[];
     };
   };
   tombstones: Array<{ entityType: string; entityId: string; deletedAt: Date }>;

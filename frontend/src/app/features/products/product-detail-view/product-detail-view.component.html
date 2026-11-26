@@ -1,27 +1,11 @@
-<div class="product-editor-shell" [class.is-info-mode]="isInfoMode()" role="dialog" aria-modal="true">
+<div class="product-editor-shell" role="dialog" aria-modal="true">
   <!-- Modal Header -->
   <div class="modal-header">
     <div class="header-title-box">
-      @if (isInfoMode()) {
-        <h3>{{ data().product?.name || 'Product Details' }}</h3>
-        <p class="subtitle">View product configuration, ratings, and household details.</p>
-      } @else {
-        <h3>{{ data().product ? 'Edit Product' : 'New Product' }}</h3>
-        <p class="subtitle">Configure catalog properties, expiration policies, locations, and barcodes.</p>
-      }
+      <h3>{{ data().product ? 'Edit Product' : 'New Product' }}</h3>
+      <p class="subtitle">Configure catalog properties, expiration policies, locations, and barcodes.</p>
     </div>
     <div class="header-actions">
-      @if (isInfoMode() && showEditSwitch()) {
-        <button
-          type="button"
-          class="btn btn-secondary btn-sm modal-header-btn btn-switch-edit"
-          (click)="requestEditMode()"
-          title="Edit product"
-          aria-label="Edit product"
-        >
-          <svg lucidePencil [size]="14"></svg>
-        </button>
-      }
       <button
         type="button"
         class="btn btn-secondary btn-sm modal-header-btn btn-toggle-all"
@@ -43,32 +27,6 @@
 
   <!-- Modal Body (Collapsible Accordion Sections) -->
   <div class="modal-body">
-    @if (isInfoMode() && data().product?.id) {
-      <div class="your-rating-card">
-        <div class="rating-card-left">
-          <span class="rating-card-title">Your Rating</span>
-          <span class="rating-card-hint">
-            @if (myRating() !== null) {
-              You rated this product {{ myRating() }}/5
-            } @else {
-              Not rated yet
-            }
-          </span>
-        </div>
-        <div class="rating-card-right">
-          <app-star-rating
-            [value]="myRating()"
-            (valueChange)="onMyRatingChange($event)"
-            [size]="20"
-            ariaLabel="Your product rating"
-          />
-          @if (ratingStatusText(); as status) {
-            <span class="rating-status-badge">{{ status }}</span>
-          }
-        </div>
-      </div>
-    }
-
     <!-- Section 1: Basic Information -->
     <app-collapsible-section
       title="Basic Information"
@@ -82,7 +40,6 @@
           type="text"
           [(ngModel)]="formProduct.name"
           placeholder="e.g. Organic Extra Virgin Olive Oil"
-          [disabled]="isInfoMode()"
           required
         />
       </div>
@@ -93,7 +50,6 @@
           rows="3"
           [(ngModel)]="formProduct.description"
           placeholder="Enter detailed description, ingredients, storage tips..."
-          [disabled]="isInfoMode()"
         ></textarea>
       </div>
 
@@ -106,9 +62,8 @@
           [(selectedId)]="selectedParentProductId"
           (validityChange)="isParentValid = $event"
           placeholder="Search or select parent product..."
-          [disabled]="isInfoMode()"
         />
-        @if (!isParentValid && !isInfoMode()) {
+        @if (!isParentValid) {
           <span class="field-error">Parent product does not exist. Please select a valid product or clear the field.</span>
         }
         <span class="field-hint">Hierarchical nesting aggregates stock and simplifies searching.</span>
@@ -116,7 +71,7 @@
 
       <div class="form-group">
         <label>Product Group / Category</label>
-        <select [(ngModel)]="formProduct.productGroupId" [disabled]="isInfoMode()">
+        <select [(ngModel)]="formProduct.productGroupId">
           <option [ngValue]="null">None</option>
           @for (g of sortedProductGroups(); track g.id) {
             <option [value]="g.id">{{ g.name }}</option>
@@ -130,7 +85,6 @@
           id="cannotBeFrozen"
           [(ngModel)]="formProduct.cannotBeFrozen"
           (ngModelChange)="onCannotBeFrozenChange($event)"
-          [disabled]="isInfoMode()"
         />
         <label for="cannotBeFrozen">
           <strong>Cannot be frozen</strong>
@@ -146,7 +100,6 @@
           id="isProductInactive"
           [checked]="formProduct.active === false"
           (change)="formProduct.active = !$any($event.target).checked"
-          [disabled]="isInfoMode()"
         />
         <label for="isProductInactive">
           <strong>Inactive product (archived)</strong>
@@ -164,64 +117,53 @@
       [badge]="photos().length + (photos().length === 1 ? ' photo' : ' photos')"
       [(expanded)]="sections.photos"
     >
-      @if (!isInfoMode()) {
-        <p class="field-hint mb-3">
-          First photo is used as the primary image throughout the app. Drag and drop cards to reorder.
-        </p>
-      }
+      <p class="field-hint mb-3">
+        First photo is used as the primary image throughout the app. Drag and drop cards to reorder.
+      </p>
 
-      @if (isInfoMode() && photos().length === 0) {
-        <p class="field-hint">No photos uploaded for this product.</p>
-      } @else {
-        <div
-          cdkDropList
-          cdkDropListOrientation="horizontal"
-          [cdkDropListDisabled]="isInfoMode()"
-          class="photos-drop-list"
-          (cdkDropListDropped)="onPhotoDrop($event)"
-        >
-          @for (photo of photos(); track photo.url; let i = $index) {
-            <div cdkDrag [cdkDragDisabled]="isInfoMode()" class="photo-card" [class.readonly-card]="isInfoMode()">
-              <img [src]="photo.url" [alt]="'Photo ' + (i + 1)" />
-              @if (i === 0) {
-                <span class="primary-badge">★ Primary</span>
-              }
-              @if (!isInfoMode()) {
-                <div class="photo-overlay">
-                  <div class="drag-handle" cdkDragHandle title="Drag to reorder">
-                    <svg class="grip-icon" viewBox="0 0 10 16" width="10" height="16" fill="currentColor">
-                      <circle cx="2" cy="2" r="1.5" />
-                      <circle cx="8" cy="2" r="1.5" />
-                      <circle cx="2" cy="8" r="1.5" />
-                      <circle cx="8" cy="8" r="1.5" />
-                      <circle cx="2" cy="14" r="1.5" />
-                      <circle cx="8" cy="14" r="1.5" />
-                    </svg>
-                  </div>
-                  <button type="button" class="btn-delete-photo" (click)="removePhoto(i)" title="Remove photo" aria-label="Remove photo">
-                    <svg lucideX [size]="14"></svg>
-                  </button>
-                </div>
-              }
+      <div
+        cdkDropList
+        cdkDropListOrientation="horizontal"
+        class="photos-drop-list"
+        (cdkDropListDropped)="onPhotoDrop($event)"
+      >
+        @for (photo of photos(); track photo.url; let i = $index) {
+          <div cdkDrag class="photo-card">
+            <img [src]="photo.url" [alt]="'Photo ' + (i + 1)" />
+            @if (i === 0) {
+              <span class="primary-badge">★ Primary</span>
+            }
+            <div class="photo-overlay">
+              <div class="drag-handle" cdkDragHandle title="Drag to reorder">
+                <svg class="grip-icon" viewBox="0 0 10 16" width="10" height="16" fill="currentColor">
+                  <circle cx="2" cy="2" r="1.5" />
+                  <circle cx="8" cy="2" r="1.5" />
+                  <circle cx="2" cy="8" r="1.5" />
+                  <circle cx="8" cy="8" r="1.5" />
+                  <circle cx="2" cy="14" r="1.5" />
+                  <circle cx="8" cy="14" r="1.5" />
+                </svg>
+              </div>
+              <button type="button" class="btn-delete-photo" (click)="removePhoto(i)" title="Remove photo" aria-label="Remove photo">
+                <svg lucideX [size]="14"></svg>
+              </button>
             </div>
-          }
+          </div>
+        }
 
-          @if (!isInfoMode()) {
-            <!-- Upload Card / Dropzone -->
-            <label class="photo-upload-placeholder" [class.disabled]="isUploading()">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                (change)="onFilesSelected($event)"
-                [disabled]="isUploading()"
-              />
-              <span class="upload-icon"><svg lucideCamera [size]="20"></svg></span>
-              <span class="upload-text">Add Photos</span>
-            </label>
-          }
-        </div>
-      }
+        <!-- Upload Card / Dropzone -->
+        <label class="photo-upload-placeholder" [class.disabled]="isUploading()">
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            (change)="onFilesSelected($event)"
+            [disabled]="isUploading()"
+          />
+          <span class="upload-icon"><svg lucideCamera [size]="20"></svg></span>
+          <span class="upload-text">Add Photos</span>
+        </label>
+      </div>
     </app-collapsible-section>
 
     <!-- Section 3: Locations & Default Store -->
@@ -233,7 +175,7 @@
     >
       <div class="form-group">
         <label>Default Storage Location</label>
-        <select [(ngModel)]="formProduct.defaultLocationId" [disabled]="isInfoMode()">
+        <select [(ngModel)]="formProduct.defaultLocationId">
           <option [ngValue]="null">None</option>
           @for (loc of availableLocations(); track loc.id) {
             <option [value]="loc.id">{{ loc.name }} {{ loc.isFreezer ? '❄️' : '' }}</option>
@@ -243,7 +185,7 @@
 
       <div class="form-group">
         <label>Open Location</label>
-        <select [(ngModel)]="formProduct.openLocationId" [disabled]="isInfoMode()">
+        <select [(ngModel)]="formProduct.openLocationId">
           <option [ngValue]="null">Same location (None)</option>
           @for (loc of availableLocations(); track loc.id) {
             <option [value]="loc.id">{{ loc.name }} {{ loc.isFreezer ? '❄️' : '' }}</option>
@@ -257,7 +199,7 @@
           type="checkbox"
           id="moveOnOpen"
           [(ngModel)]="formProduct.moveOnOpen"
-          [disabled]="isInfoMode()"
+         
         />
         <label for="moveOnOpen">
           <strong>Move on Open</strong>
@@ -269,7 +211,7 @@
 
       <div class="form-group">
         <label>Default Store</label>
-        <select [(ngModel)]="formProduct.defaultStoreId" [disabled]="isInfoMode()">
+        <select [(ngModel)]="formProduct.defaultStoreId">
           <option [ngValue]="null">No default store</option>
           @for (s of sortedStores(); track s.id) {
             <option [value]="s.id">{{ s.name }}</option>
@@ -295,7 +237,7 @@
               name="dueType"
               value="best_before"
               [(ngModel)]="formProduct.dueType"
-              [disabled]="isInfoMode()"
+             
             />
             <span>Best before date</span>
           </label>
@@ -305,7 +247,7 @@
               name="dueType"
               value="use_by"
               [(ngModel)]="formProduct.dueType"
-              [disabled]="isInfoMode()"
+             
             />
             <span>Use by date / Expiration</span>
           </label>
@@ -320,7 +262,7 @@
             [min]="0"
             [step]="1"
             unit="days"
-            [disabled]="isInfoMode()"
+           
             ariaLabel="Default shelf life days"
           ></app-number-stepper>
           <span class="field-hint">0 or empty means no preset expiration.</span>
@@ -333,7 +275,7 @@
             [min]="0"
             [step]="1"
             unit="days"
-            [disabled]="isInfoMode()"
+           
             ariaLabel="Days after opening"
           ></app-number-stepper>
           <span class="field-hint">Recalculates best-before when unsealed.</span>
@@ -349,7 +291,7 @@
               [min]="0"
               [step]="1"
               unit="days"
-              [disabled]="isInfoMode()"
+             
               ariaLabel="Days after freezing"
             ></app-number-stepper>
             <span class="field-hint">Extended shelf life when moved into freezer.</span>
@@ -362,7 +304,7 @@
               [min]="0"
               [step]="1"
               unit="days"
-              [disabled]="isInfoMode()"
+             
               ariaLabel="Days after thawing"
             ></app-number-stepper>
             <span class="field-hint">Recalculated upon removing from freezer.</span>
@@ -381,7 +323,7 @@
       <div class="form-row">
         <div class="form-group flex-1">
           <label>Quantity Unit</label>
-          <select [(ngModel)]="formProduct.quStockId" [disabled]="isInfoMode()">
+          <select [(ngModel)]="formProduct.quStockId">
             <option [ngValue]="null">None (Units)</option>
             @for (u of sortedUnits(); track u.id) {
               <option [value]="u.id">{{ u.name }}</option>
@@ -396,7 +338,7 @@
             [min]="0"
             [step]="1"
             [unit]="getQuStockUnitName()"
-            [disabled]="isInfoMode()"
+           
             ariaLabel="Minimum stock threshold"
           ></app-number-stepper>
           <span class="field-hint">Automatically added to shopping suggestions when below this amount.</span>
@@ -408,7 +350,7 @@
           type="checkbox"
           id="treatOpenedAsOutOfStock"
           [(ngModel)]="formProduct.treatOpenedAsOutOfStock"
-          [disabled]="isInfoMode()"
+         
         />
         <label for="treatOpenedAsOutOfStock">
           <strong>Treat opened items as out of stock</strong>
@@ -426,39 +368,37 @@
       [badge]="barcodes().length + (barcodes().length === 1 ? ' barcode' : ' barcodes')"
       [(expanded)]="sections.barcodes"
     >
-      @if (!isInfoMode()) {
-        <div class="barcode-input-row">
-          <input
-            type="text"
-            [(ngModel)]="newBarcodeInput"
-            (keyup.enter)="addBarcode()"
-            placeholder="Scan or enter barcode / EAN..."
-          />
-          <button type="button" class="btn btn-secondary btn-sm" (click)="addBarcode()" title="Add barcode" aria-label="Add barcode">
-            <svg lucidePlus [size]="14"></svg>
-            <span class="btn-label"> Add</span>
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary btn-sm btn-scan-barcode"
-            [class.active]="isScannerOpen()"
-            (click)="toggleScanner()"
-            [title]="isScannerOpen() ? 'Close scanner' : 'Toggle camera scanner'"
-            [attr.aria-label]="isScannerOpen() ? 'Close scanner' : 'Scan barcode'"
-          >
-            <svg lucideCamera [size]="14"></svg>
-            <span class="btn-label">{{ isScannerOpen() ? ' Close' : ' Scan' }}</span>
-          </button>
-        </div>
+      <div class="barcode-input-row">
+        <input
+          type="text"
+          [(ngModel)]="newBarcodeInput"
+          (keyup.enter)="addBarcode()"
+          placeholder="Scan or enter barcode / EAN..."
+        />
+        <button type="button" class="btn btn-secondary btn-sm" (click)="addBarcode()" title="Add barcode" aria-label="Add barcode">
+          <svg lucidePlus [size]="14"></svg>
+          <span class="btn-label"> Add</span>
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm btn-scan-barcode"
+          [class.active]="isScannerOpen()"
+          (click)="toggleScanner()"
+          [title]="isScannerOpen() ? 'Close scanner' : 'Toggle camera scanner'"
+          [attr.aria-label]="isScannerOpen() ? 'Close scanner' : 'Scan barcode'"
+        >
+          <svg lucideCamera [size]="14"></svg>
+          <span class="btn-label">{{ isScannerOpen() ? ' Close' : ' Scan' }}</span>
+        </button>
+      </div>
 
-        @if (isScannerOpen()) {
-          <div class="inline-scanner-wrapper">
-            <app-barcode-scanner
-              (scanned)="onBarcodeScanned($event)"
-              (close)="isScannerOpen.set(false)"
-            />
-          </div>
-        }
+      @if (isScannerOpen()) {
+        <div class="inline-scanner-wrapper">
+          <app-barcode-scanner
+            (scanned)="onBarcodeScanned($event)"
+            (close)="isScannerOpen.set(false)"
+          />
+        </div>
       }
 
       @if (barcodes().length === 0) {
@@ -468,11 +408,9 @@
           @for (bc of barcodes(); track bc; let i = $index) {
             <div class="barcode-chip">
               <span class="barcode-text">{{ bc }}</span>
-              @if (!isInfoMode()) {
-                <button type="button" class="btn-remove-chip" (click)="removeBarcode(i)" aria-label="Remove barcode">
-                  <svg lucideX [size]="12"></svg>
-                </button>
-              }
+              <button type="button" class="btn-remove-chip" (click)="removeBarcode(i)" aria-label="Remove barcode">
+                <svg lucideX [size]="12"></svg>
+              </button>
             </div>
           }
         </div>
@@ -498,7 +436,7 @@
               class="aisle-input aisle-select"
               [ngModel]="storeConfigs[store.id].aisle"
               (ngModelChange)="onStoreAisleSelected(store.id, $event)"
-              [disabled]="isInfoMode()"
+             
               title="Select Store Aisle"
             >
               <option value="">No aisle assigned</option>
@@ -512,7 +450,7 @@
               class="aisle-input"
               placeholder="Aisle (e.g. 4B)"
               [(ngModel)]="storeConfigs[store.id].aisle"
-              [disabled]="isInfoMode()"
+             
             />
           }
           <div class="store-subrow-inputs">
@@ -521,7 +459,7 @@
               class="order-input"
               placeholder="Order"
               [(ngModel)]="storeConfigs[store.id].aisleOrder"
-              [disabled]="isInfoMode()"
+             
               title="Order"
             />
             <input
@@ -530,7 +468,7 @@
               placeholder="Avg price (€)"
               step="0.01"
               [(ngModel)]="storeConfigs[store.id].averagePrice"
-              [disabled]="isInfoMode()"
+             
               title="Average price"
             />
           </div>
@@ -554,11 +492,9 @@
         <div class="mealie-subgroup">
           <div class="mealie-subgroup-header">
             <h5>Linked Foods</h5>
-            @if (!isInfoMode()) {
-              <button type="button" class="btn btn-secondary btn-sm" (click)="openLinkFoodModal()">
-                + Link Food
-              </button>
-            }
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openLinkFoodModal()">
+              + Link Food
+            </button>
           </div>
           @if (inheritedFoods().length > 0) {
             <div class="inherited-mealie-section mb-2">
@@ -580,11 +516,9 @@
               @for (food of linkedFoods(); track food.id; let i = $index) {
                 <div class="mealie-chip">
                   <span class="chip-name"><svg lucideUtensils [size]="14"></svg> {{ food.name }}</span>
-                  @if (!isInfoMode()) {
-                    <button type="button" class="btn-remove-chip" (click)="removeLinkedFood(i)" title="Unlink food" aria-label="Unlink food">
-                      <svg lucideX [size]="12"></svg>
-                    </button>
-                  }
+                  <button type="button" class="btn-remove-chip" (click)="removeLinkedFood(i)" title="Unlink food" aria-label="Unlink food">
+                    <svg lucideX [size]="12"></svg>
+                  </button>
                 </div>
               }
             </div>
@@ -595,11 +529,9 @@
         <div class="mealie-subgroup mt-3">
           <div class="mealie-subgroup-header">
             <h5>Linked Recipes</h5>
-            @if (!isInfoMode()) {
-              <button type="button" class="btn btn-secondary btn-sm" (click)="openLinkRecipeModal()">
-                + Link Recipe
-              </button>
-            }
+            <button type="button" class="btn btn-secondary btn-sm" (click)="openLinkRecipeModal()">
+              + Link Recipe
+            </button>
           </div>
           @if (inheritedRecipes().length > 0) {
             <div class="inherited-mealie-section mb-2">
@@ -621,11 +553,9 @@
               @for (rec of linkedRecipes(); track rec.id; let i = $index) {
                 <div class="mealie-chip">
                   <span class="chip-name"><svg lucideBookOpen [size]="14"></svg> {{ rec.name }}</span>
-                  @if (!isInfoMode()) {
-                    <button type="button" class="btn-remove-chip" (click)="removeLinkedRecipe(i)" title="Unlink recipe" aria-label="Unlink recipe">
-                      <svg lucideX [size]="12"></svg>
-                    </button>
-                  }
+                  <button type="button" class="btn-remove-chip" (click)="removeLinkedRecipe(i)" title="Unlink recipe" aria-label="Unlink recipe">
+                    <svg lucideX [size]="12"></svg>
+                  </button>
                 </div>
               }
             </div>
@@ -634,72 +564,93 @@
       </app-collapsible-section>
     }
 
-    <!-- Section 9: Household Member Ratings (Only in info mode when household has > 1 member) -->
-    @if (showOtherMembersRatings()) {
-      <app-collapsible-section
-        title="Household Member Ratings"
-        lucideIcon="users"
-        [badge]="otherRatingsBadge()"
-        [(expanded)]="sections.ratings"
-      >
-        <div class="member-ratings-list">
-          @for (member of otherMembersRatings(); track member.userId) {
-            <div class="member-rating-row">
-              <div class="member-info">
-                @if (member.pictureUrl) {
-                  <img
-                    class="member-avatar"
-                    [src]="member.pictureUrl"
-                    [alt]="member.displayName"
-                    referrerpolicy="no-referrer"
-                  />
-                } @else {
-                  <span class="member-avatar-fallback" [attr.aria-label]="member.displayName">
-                    {{ getMemberInitials(member.displayName) }}
-                  </span>
-                }
-                <span class="member-name">{{ member.displayName }}</span>
+    <!-- Section 9: Custom Properties -->
+    <app-collapsible-section
+      title="Custom Properties"
+      lucideIcon="sliders-horizontal"
+      [badge]="customFieldsBadge()"
+      [(expanded)]="sections.customFields"
+    >
+      @if (customFieldDefinitions().length === 0) {
+        <p class="field-hint">
+          No custom fields configured for this household. You can define custom product properties in Profile → Domains.
+        </p>
+      } @else {
+        @for (field of customFieldDefinitions(); track field.id) {
+          <div class="form-group">
+            @if (field.type === 'boolean') {
+              <div class="checkbox-row">
+                <input
+                  type="checkbox"
+                  [id]="'custom-field-' + field.id"
+                  [checked]="!!customFieldValues[field.id]"
+                  (change)="customFieldValues[field.id] = $any($event.target).checked"
+                />
+                <label [for]="'custom-field-' + field.id">
+                  <strong>{{ field.name }}</strong>
+                  @if (field.description) {
+                    <span class="field-hint d-block">{{ field.description }}</span>
+                  }
+                </label>
               </div>
-              <div class="member-stars">
-                @if (member.rating !== null) {
-                  <app-star-rating
-                    [value]="member.rating"
-                    [readonly]="true"
-                    [size]="15"
-                    [showClear]="false"
-                    [ariaLabel]="member.displayName + ' rating'"
-                  />
-                } @else {
-                  <span class="unrated-badge">Not rated</span>
+            } @else {
+              <label [for]="'custom-field-' + field.id">{{ field.name }}</label>
+              @switch (field.type) {
+                @case ('textarea') {
+                  <textarea
+                    [id]="'custom-field-' + field.id"
+                    rows="3"
+                    [(ngModel)]="customFieldValues[field.id]"
+                    [placeholder]="field.placeholder || ''"
+                  ></textarea>
                 }
-              </div>
-            </div>
-          }
-        </div>
-      </app-collapsible-section>
-    }
+                @case ('int') {
+                  <input
+                    [id]="'custom-field-' + field.id"
+                    type="number"
+                    step="1"
+                    [(ngModel)]="customFieldValues[field.id]"
+                    [placeholder]="field.placeholder || ''"
+                  />
+                }
+                @case ('double') {
+                  <input
+                    [id]="'custom-field-' + field.id"
+                    type="number"
+                    step="any"
+                    [(ngModel)]="customFieldValues[field.id]"
+                    [placeholder]="field.placeholder || ''"
+                  />
+                }
+                @default {
+                  <input
+                    [id]="'custom-field-' + field.id"
+                    type="text"
+                    [(ngModel)]="customFieldValues[field.id]"
+                    [placeholder]="field.placeholder || ''"
+                  />
+                }
+              }
+              @if (field.description) {
+                <span class="field-hint">{{ field.description }}</span>
+              }
+            }
+          </div>
+        }
+      }
+    </app-collapsible-section>
   </div>
 
   <!-- Modal Footer -->
   <div class="modal-footer">
-    @if (isInfoMode()) {
-      @if (showEditSwitch()) {
-        <button type="button" class="btn btn-secondary" (click)="requestEditMode()">
-          <svg lucidePencil [size]="14"></svg>
-          <span>Edit</span>
-        </button>
-      }
-      <button type="button" class="btn btn-primary" (click)="cancel()">Close</button>
-    } @else {
-      <button type="button" class="btn btn-secondary" (click)="cancel()">Cancel</button>
-      <button
-        type="button"
-        class="btn btn-primary"
-        [disabled]="isSaving() || !formProduct.name?.trim() || !isParentValid"
-        (click)="saveProduct()"
-      >
-        {{ isSaving() ? 'Saving...' : 'Save Product' }}
-      </button>
-    }
+    <button type="button" class="btn btn-secondary" (click)="cancel()">Cancel</button>
+    <button
+      type="button"
+      class="btn btn-primary"
+      [disabled]="isSaving() || !formProduct.name?.trim() || !isParentValid"
+      (click)="saveProduct()"
+    >
+      {{ isSaving() ? 'Saving...' : 'Save Product' }}
+    </button>
   </div>
 </div>

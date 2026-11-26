@@ -284,4 +284,178 @@ describe('ApiService', () => {
     // Aisle items sort before unspecified aisle items
     expect(items[0].id).toBe('si-1');
   });
+
+  it('invalidates dashboard cache when stock is opened or consumed so getNext does not return stale expiring items', async () => {
+    api.activeHouseholdId.set('hh-open');
+    const today = new Date().toISOString().slice(0, 10);
+
+    await storage.saveProducts([
+      {
+        id: 'p-milk',
+        householdId: 'hh-open',
+        name: 'Fresh Milk',
+        pictureFileNames: [],
+        defaultBestBeforeDaysAfterOpen: 10,
+        active: true,
+      } as unknown as Product,
+    ]);
+    await storage.saveStock([
+      {
+        id: 's-milk',
+        householdId: 'hh-open',
+        productId: 'p-milk',
+        amount: 1,
+        bestBeforeDate: today,
+        isOpen: false,
+      } as any,
+    ]);
+    vi.spyOn(syncService, 'sync').mockResolvedValue(true);
+
+    const initialNext = await api.getNext();
+    expect(initialNext.expiringSoon.length).toBe(1);
+    expect(initialNext.expiringSoon[0].bestBeforeDate).toBe(today);
+
+    // Opening the item updates its expiration date (+10 days), moving it outside the 5-day horizon
+    await api.openStock('s-milk', 1);
+
+    const afterOpenNext = await api.getNext();
+    expect(afterOpenNext.expiringSoon.length).toBe(0);
+    expect(afterOpenNext.summary.expiringSoonCount).toBe(0);
+
+    // Consuming an item also invalidates dashboard cache
+    await storage.saveStock([
+      {
+        id: 's-milk-2',
+        householdId: 'hh-open',
+        productId: 'p-milk',
+        amount: 1,
+        bestBeforeDate: today,
+        isOpen: false,
+      } as any,
+    ]);
+    await storage.invalidateDashboardData('hh-open');
+    const beforeConsumeNext = await api.getNext();
+    expect(beforeConsumeNext.expiringSoon.length).toBe(1);
+
+    await api.consumeStock('s-milk-2', 1);
+    const afterConsumeNext = await api.getNext();
+    expect(afterConsumeNext.expiringSoon.length).toBe(0);
+  });
+
+  it('updates local product pictureFileNames and invalidates dashboard cache on upload, reorder, and delete', async () => {
+    api.activeHouseholdId.set('hh-pic');
+    await storage.saveProducts([
+      {
+        id: 'p-pic',
+        householdId: 'hh-pic',
+        name: 'Tomato Sauce',
+        pictureFileNames: [],
+        active: true,
+      } as unknown as Product,
+    ]);
+    await storage.saveDashboardData('hh-pic', {
+      summary: {
+        expiredCount: 0,
+        expiringSoonCount: 0,
+        totalUniqueProductsInStock: 0,
+        totalStockItems: 0,
+        configuredDays: 5,
+      },
+      expired: [],
+      expiringSoon: [],
+      household: { id: 'hh-pic', name: 'Home' },
+      generatedAt: new Date().toISOString(),
+    });
+
+    const fakeFile = new File(['img'], 'tomato.png', { type: 'image/png' });
+    const uploadPromise = api.uploadProductPicture('p-pic', fakeFile);
+    await new Promise((r) => setTimeout(r, 0));
+    const uploadReq = httpMock.expectOne('/api/products/p-pic/picture');
+    expect(uploadReq.request.method).toBe('POST');
+    uploadReq.flush({ fileName: 'p-pic-1.webp', url: '/api/products/pictures/p-pic-1.webp' });
+
+    await uploadPromise;
+    const afterUpload = await api.getProduct('p-pic');
+    expect(afterUpload.pictureFileNames).toEqual(['p-pic-1.webp']);
+    expect(await storage.getDashboardData('hh-pic')).toBeNull();
+
+    const reorderPromise = api.reorderProductPictures('p-pic', ['p-pic-2.webp', 'p-pic-1.webp']);
+    await new Promise((r) => setTimeout(r, 0));
+    const reorderReq = httpMock.expectOne('/api/products/p-pic/pictures/order');
+    expect(reorderReq.request.method).toBe('PUT');
+    reorderReq.flush({ pictures: ['p-pic-2.webp', 'p-pic-1.webp'] });
+
+    await reorderPromise;
+    expect((await api.getProduct('p-pic')).pictureFileNames).toEqual(['p-pic-2.webp', 'p-pic-1.webp']);
+
+    const deletePromise = api.deleteProductPicture('p-pic', 'p-pic-2.webp');
+    await new Promise((r) => setTimeout(r, 0));
+    const deleteReq = httpMock.expectOne('/api/products/p-pic/picture/p-pic-2.webp');
+    expect(deleteReq.request.method).toBe('DELETE');
+    deleteReq.flush({ pictures: ['p-pic-1.webp'] });
+
+    await deletePromise;
+    expect((await api.getProduct('p-pic')).pictureFileNames).toEqual(['p-pic-1.webp']);
+  });
+
+  it('updates local product stores on setProductStore and removeProductStore so getShoppingItems reflects aisle immediately', async () => {
+    api.activeHouseholdId.set('hh-store-aisle');
+    await storage.setMeta(syncService.getLastSyncKey('hh-store-aisle'), '2026-01-01T00:00:00.000Z');
+    await storage.saveShoppingLists([
+      { id: 'list-1', householdId: 'hh-store-aisle', name: 'Coop', storeId: 'store-1', isDefault: true, sortOrder: 0 },
+    ]);
+    await storage.saveProducts([
+      {
+        id: 'p-1',
+        householdId: 'hh-store-aisle',
+        name: 'Pasta',
+        pictureFileNames: [],
+        stores: [],
+        active: true,
+      } as unknown as Product,
+    ]);
+    await storage.saveCatalogs('hh-store-aisle', {
+      units: [],
+      locations: [],
+      groups: [],
+      stores: [{ id: 'store-1', householdId: 'hh-store-aisle', name: 'Coop', description: null, active: true }],
+    });
+    await storage.saveShoppingItems([
+      { id: 'si-1', householdId: 'hh-store-aisle', shoppingListId: 'list-1', productId: 'p-1', amount: 1, done: false } as any,
+    ]);
+    vi.spyOn(syncService, 'sync').mockResolvedValue(true);
+
+    const before = await api.getShoppingItems('list-1', 'store-1');
+    expect(before[0].aisle).toBeNull();
+
+    const setPromise = api.setProductStore('p-1', 'store-1', { aisle: 'Dry Goods', aisleOrder: 2 });
+    await new Promise((r) => setTimeout(r, 0));
+    const putReq = httpMock.expectOne('/api/products/p-1/stores/store-1');
+    expect(putReq.request.method).toBe('PUT');
+    putReq.flush({
+      id: 'ps-1',
+      householdId: 'hh-store-aisle',
+      productId: 'p-1',
+      storeId: 'store-1',
+      aisle: 'Dry Goods',
+      aisleOrder: 2,
+      averagePrice: null,
+      isPreferred: false,
+    });
+    await setPromise;
+
+    const afterSet = await api.getShoppingItems('list-1', 'store-1');
+    expect(afterSet[0].aisle).toBe('Dry Goods');
+    expect(afterSet[0].aisleOrder).toBe(2);
+
+    const removePromise = api.removeProductStore('p-1', 'store-1');
+    await new Promise((r) => setTimeout(r, 0));
+    const delReq = httpMock.expectOne('/api/products/p-1/stores/store-1');
+    expect(delReq.request.method).toBe('DELETE');
+    delReq.flush(null);
+    await removePromise;
+
+    const afterRemove = await api.getShoppingItems('list-1', 'store-1');
+    expect(afterRemove[0].aisle).toBeNull();
+  });
 });

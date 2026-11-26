@@ -118,6 +118,10 @@ describe('OfflineStorageService', () => {
     await service.saveDashboardData('hh-1', mockData);
     const retrieved = await service.getDashboardData('hh-1');
     expect(retrieved?.summary.totalStockItems).toBe(10);
+
+    await service.invalidateDashboardData('hh-1');
+    const cleared = await service.getDashboardData('hh-1');
+    expect(cleared).toBeNull();
   });
 
   it('preserves existing catalogs when incremental sync returns empty arrays and merges partial updates by id', async () => {

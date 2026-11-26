@@ -1,5 +1,5 @@
 // Cambusa PWA Service Worker
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const CACHE_NAME = `cambusa-cache-v${VERSION}`;
 
 // Static resources to precache on install
