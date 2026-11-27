@@ -15,6 +15,7 @@ import {
   LucidePackage,
   LucidePencil,
   LucideScale,
+  LucideShoppingCart,
   LucideSlidersHorizontal,
   LucideSnowflake,
   LucideStore,
@@ -40,6 +41,7 @@ import {
   ProductEditorModalData,
 } from '../product-detail-view/product-detail-view.component.js';
 import { ProductStockModalComponent } from '../product-stock-modal/product-stock-modal.component.js';
+import { ShoppingAddModalComponent } from '../../shopping/shopping-add-modal/shopping-add-modal.component.js';
 
 export type ProductInfoModalData = ProductEditorModalData;
 
@@ -70,6 +72,7 @@ export interface ConfiguredStoreInfo {
     LucidePackage,
     LucidePencil,
     LucideScale,
+    LucideShoppingCart,
     LucideSlidersHorizontal,
     LucideSnowflake,
     LucideStore,
@@ -455,6 +458,19 @@ export class ProductInfoModalComponent implements OnInit, OnDestroy {
 
   switchToEdit(): void {
     this.mode.set('edit');
+  }
+
+  openAddToShoppingList(): void {
+    const p = this.product();
+    if (!p) return;
+    this.dialog.open(ShoppingAddModalComponent, {
+      disableClose: true,
+      data: {
+        products: this.modalData().allProducts?.length ? this.modalData().allProducts : [p],
+        stores: this.modalData().stores ?? [],
+        initialProduct: p,
+      },
+    });
   }
 
   openStockModal(): void {

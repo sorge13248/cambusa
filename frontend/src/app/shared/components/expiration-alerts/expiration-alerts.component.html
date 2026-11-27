@@ -1,0 +1,157 @@
+<div class="alerts-grid" [class.layout-stacked]="layout() === 'stacked'">
+  <!-- Section 1: Expired Items -->
+  <section class="card glass-card alerts-column expired-column">
+    <div class="alerts-header">
+      <div class="alerts-title-group">
+        <h2 class="section-title">
+          <span class="column-icon"><svg lucideAlertTriangle [size]="16"></svg></span>
+          Expired Products ({{ expired().length }})
+        </h2>
+      </div>
+    </div>
+
+    @if (expired().length === 0) {
+      <div class="empty-feed">
+        <span class="empty-feed-icon"><svg lucideCheckCircle2 [size]="24"></svg></span>
+        <h3 class="empty-feed-title">No expired products!</h3>
+        <p class="empty-feed-desc">All stock items in your pantry are within their best-before dates.</p>
+      </div>
+    } @else {
+      <div
+        class="items-list"
+        cdkDropList
+        [cdkDropListSortingDisabled]="true"
+        [cdkDropListEnterPredicate]="neverEnterPredicate"
+      >
+        @for (item of expired(); track item.id) {
+          <div
+            class="item-card item-expired"
+            [class.is-draggable]="draggable()"
+            cdkDrag
+            [cdkDragData]="toDragData(item)"
+            [cdkDragDisabled]="!draggable()"
+            (cdkDragStarted)="onDragStarted()"
+            (cdkDragEnded)="onDragEnded()"
+            role="button"
+            tabindex="0"
+            (click)="onSelectItem(item)"
+            (keydown.enter)="onSelectItem(item)"
+            title="Click to manage stock, consume, move, or adjust expiration"
+          >
+            <div *cdkDragPlaceholder class="alert-drag-placeholder">
+              <span class="placeholder-name">{{ item.productName }}</span>
+            </div>
+            <div class="item-indicator-bar danger-bar"></div>
+            <div class="card-photo">
+              @if (item.productPictureFileName) {
+                <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+              } @else {
+                <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
+              }
+            </div>
+            <div class="item-main">
+              <div class="item-name-row">
+                <span class="product-name">{{ item.productName }}</span>
+                <span class="badge badge-expired">Expired {{ item.daysOverdue }}d ago</span>
+              </div>
+              <div class="item-details-row">
+                <span class="item-qty">
+                  <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
+                </span>
+                <span class="item-dot">•</span>
+                <span class="item-loc"><svg lucideMapPin [size]="12"></svg> {{ item.location }}</span>
+                <span class="item-dot">•</span>
+                <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
+                @if (item.isOpened) {
+                  <span class="badge badge-opened">Opened@if (item.amount >= 2) { ({{ item.amount }})}</span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- Section 2: Expiring Soon Items -->
+  <section class="card glass-card alerts-column expiring-column">
+    <div class="alerts-header">
+      <div class="alerts-title-group">
+        <h2 class="section-title">
+          <span class="column-icon"><svg lucideClock [size]="16"></svg></span>
+          Expiring Soon ({{ expiringSoon().length }})
+        </h2>
+      </div>
+    </div>
+
+    @if (expiringSoon().length === 0) {
+      <div class="empty-feed">
+        <span class="empty-feed-icon"><svg lucideSparkles [size]="24"></svg></span>
+        <h3 class="empty-feed-title">Nothing expiring soon!</h3>
+        <p class="empty-feed-desc">No products are approaching expiration within {{ configuredDays() }} days.</p>
+      </div>
+    } @else {
+      <div
+        class="items-list"
+        cdkDropList
+        [cdkDropListSortingDisabled]="true"
+        [cdkDropListEnterPredicate]="neverEnterPredicate"
+      >
+        @for (item of expiringSoon(); track item.id) {
+          <div
+            class="item-card item-expiring"
+            [class.is-draggable]="draggable()"
+            cdkDrag
+            [cdkDragData]="toDragData(item)"
+            [cdkDragDisabled]="!draggable()"
+            (cdkDragStarted)="onDragStarted()"
+            (cdkDragEnded)="onDragEnded()"
+            role="button"
+            tabindex="0"
+            (click)="onSelectItem(item)"
+            (keydown.enter)="onSelectItem(item)"
+            title="Click to manage stock, consume, move, or adjust expiration"
+          >
+            <div *cdkDragPlaceholder class="alert-drag-placeholder">
+              <span class="placeholder-name">{{ item.productName }}</span>
+            </div>
+            <div class="item-indicator-bar warning-bar"></div>
+            <div class="card-photo">
+              @if (item.productPictureFileName) {
+                <img [src]="'/api/products/pictures/' + item.productPictureFileName" [alt]="item.productName" />
+              } @else {
+                <div class="no-photo-thumb"><svg lucidePackage [size]="24"></svg></div>
+              }
+            </div>
+            <div class="item-main">
+              <div class="item-name-row">
+                <span class="product-name">{{ item.productName }}</span>
+                <span class="badge badge-expiring">
+                  {{
+                    item.daysRemaining === 0
+                      ? 'Expires Today!'
+                      : item.daysRemaining === 1
+                        ? 'Expires Tomorrow'
+                        : 'Expires in ' + item.daysRemaining + ' days'
+                  }}
+                </span>
+              </div>
+              <div class="item-details-row">
+                <span class="item-qty">
+                  <strong>{{ item.amount }}</strong> {{ item.quantityUnit }}
+                </span>
+                <span class="item-dot">•</span>
+                <span class="item-loc"><svg lucideMapPin [size]="12"></svg> {{ item.location }}</span>
+                <span class="item-dot">•</span>
+                <span class="item-date">BBD: {{ item.bestBeforeDate }}</span>
+                @if (item.isOpened) {
+                  <span class="badge badge-opened">Opened@if (item.amount >= 2) { ({{ item.amount }})}</span>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</div>

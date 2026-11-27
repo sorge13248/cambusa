@@ -7,11 +7,8 @@ import {
   LucideAlertCircle,
   LucideAlertTriangle,
   LucideBoxes,
-  LucideCheckCircle2,
   LucideClock,
-  LucideMapPin,
   LucidePackage,
-  LucideSparkles,
 } from '@lucide/angular';
 import { ApiService } from '../../core/api.service.js';
 import { AuthService } from '../../core/auth.service.js';
@@ -20,6 +17,7 @@ import { UndoService } from '../../core/undo.service.js';
 import { NextItemDto, NextResponseDto } from '../../core/models.js';
 import { PantryActionModalComponent } from '../pantry/pantry-action-modal/pantry-action-modal.component.js';
 import { QuickActionsFooterComponent } from '../../shared/components/quick-actions-footer/quick-actions-footer.component.js';
+import { ExpirationAlertsComponent } from '../../shared/components/expiration-alerts/expiration-alerts.component.js';
 
 @Component({
   selector: 'app-home',
@@ -29,12 +27,10 @@ import { QuickActionsFooterComponent } from '../../shared/components/quick-actio
     LucideAlertCircle,
     LucideAlertTriangle,
     LucideBoxes,
-    LucideCheckCircle2,
     LucideClock,
-    LucideMapPin,
     LucidePackage,
-    LucideSparkles,
     QuickActionsFooterComponent,
+    ExpirationAlertsComponent,
   ],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',

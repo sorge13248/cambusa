@@ -458,4 +458,76 @@ describe('ApiService', () => {
     const afterRemove = await api.getShoppingItems('list-1', 'store-1');
     expect(afterRemove[0].aisle).toBeNull();
   });
+
+  it('transferStock recalculates bestBeforeDate on freezer transition but preserves it when moving between two freezers', async () => {
+    api.activeHouseholdId.set('hh-transfer');
+    await storage.saveCatalogs('hh-transfer', {
+      units: [],
+      groups: [],
+      stores: [],
+      locations: [
+        { id: 'loc-pantry', householdId: 'hh-transfer', name: 'Pantry', description: null, isFreezer: false, active: true },
+        { id: 'loc-freezer-1', householdId: 'hh-transfer', name: 'Freezer 1', description: null, isFreezer: true, active: true },
+        { id: 'loc-freezer-2', householdId: 'hh-transfer', name: 'Freezer 2', description: null, isFreezer: true, active: true },
+      ],
+    });
+    await storage.saveProducts([
+      {
+        id: 'p-beef',
+        householdId: 'hh-transfer',
+        name: 'Beef',
+        cannotBeFrozen: false,
+        defaultBestBeforeDaysAfterFreezing: 90,
+        defaultBestBeforeDaysAfterThawing: 3,
+        pictureFileNames: [],
+        stores: [],
+        active: true,
+      } as unknown as Product,
+    ]);
+    await storage.saveStock([
+      {
+        id: 's-pantry',
+        householdId: 'hh-transfer',
+        productId: 'p-beef',
+        amount: 2,
+        locationId: 'loc-pantry',
+        bestBeforeDate: '2026-12-01',
+        isOpen: false,
+      } as any,
+      {
+        id: 's-freezer',
+        householdId: 'hh-transfer',
+        productId: 'p-beef',
+        amount: 2,
+        locationId: 'loc-freezer-1',
+        bestBeforeDate: '2027-02-15',
+        isOpen: false,
+      } as any,
+    ]);
+    vi.spyOn(syncService, 'sync').mockResolvedValue(true);
+
+    // Move from freezer-1 to freezer-2 -> must preserve bestBeforeDate
+    await api.transferStock({
+      productId: 'p-beef',
+      stockItemId: 's-freezer',
+      fromLocationId: 'loc-freezer-1',
+      toLocationId: 'loc-freezer-2',
+      amount: 1,
+    });
+    const allAfterFreezerMove = await storage.getStock('hh-transfer');
+    const movedFreezerItem = allAfterFreezerMove.find((s) => s.locationId === 'loc-freezer-2');
+    expect(movedFreezerItem?.bestBeforeDate).toBe('2027-02-15');
+
+    // Move from pantry to freezer-1 -> must recalculate bestBeforeDate
+    await api.transferStock({
+      productId: 'p-beef',
+      stockItemId: 's-pantry',
+      fromLocationId: 'loc-pantry',
+      toLocationId: 'loc-freezer-1',
+      amount: 2,
+    });
+    const updatedPantryItem = await storage.getStockItem('s-pantry');
+    expect(updatedPantryItem?.locationId).toBe('loc-freezer-1');
+    expect(updatedPantryItem?.bestBeforeDate).not.toBe('2026-12-01');
+  });
 });

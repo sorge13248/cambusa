@@ -7,6 +7,7 @@ import { UndoService } from '../../../core/undo.service.js';
 
 import { of } from 'rxjs';
 import { StockItemEditorModalComponent } from '../stock-item-editor-modal/stock-item-editor-modal.component.js';
+import { ShoppingAddModalComponent } from '../../shopping/shopping-add-modal/shopping-add-modal.component.js';
 
 describe('PantryActionModalComponent', () => {
   let component: PantryActionModalComponent;
@@ -169,5 +170,51 @@ describe('PantryActionModalComponent', () => {
     expect(el.querySelector('.btn-consume')).toBeNull();
     expect(el.querySelector('.btn-move')).toBeNull();
     expect(el.querySelector('.btn-purchase')).toBeTruthy();
+  });
+
+  it('should show recalculated expiry info when moving from non-freezer to freezer, but not from freezer to freezer', () => {
+    component.data.locations = [
+      { id: 'l1', name: 'Pantry', isFreezer: false } as any,
+      { id: 'l2', name: 'Freezer 1', isFreezer: true } as any,
+      { id: 'l3', name: 'Freezer 2', isFreezer: true } as any,
+    ];
+    component.data.product.cannotBeFrozen = false;
+    component.data.product.defaultBestBeforeDaysAfterFreezing = 90;
+
+    // Non-freezer (l1) -> Freezer 2 (l3) recalculates
+    component.moveFromLocationId = 'l1';
+    component.moveStockItemId = '';
+    component.moveToLocationId = 'l3';
+    component.onTargetLocationChanged();
+    expect(component.recalculatedExpiryInfo()).toBeTruthy();
+
+    // Freezer 1 (l2) -> Freezer 2 (l3) does NOT recalculate
+    component.moveFromLocationId = 'l2';
+    component.onTargetLocationChanged();
+    expect(component.recalculatedExpiryInfo()).toBeNull();
+
+    // Specific batch in Freezer 1 (s2) -> Freezer 2 (l3) does NOT recalculate even if moveFromLocationId is empty
+    component.moveFromLocationId = '';
+    component.moveStockItemId = 's2';
+    component.onTargetLocationChanged();
+    expect(component.recalculatedExpiryInfo()).toBeNull();
+  });
+
+  it('should open ShoppingAddModalComponent with preselected product from titlebar button', () => {
+    const btn: HTMLButtonElement | null = fixture.nativeElement.querySelector('.btn-add-to-shopping');
+    expect(btn).toBeTruthy();
+
+    btn!.click();
+
+    expect(mockDialog.open).toHaveBeenCalledWith(
+      ShoppingAddModalComponent,
+      expect.objectContaining({
+        disableClose: true,
+        data: expect.objectContaining({
+          initialProduct: expect.objectContaining({ id: 'p1', name: 'Pasta Garofalo' }),
+          stores: mockData.stores,
+        }),
+      }),
+    );
   });
 });

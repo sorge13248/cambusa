@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Router } from '@angular/router';
 import { DIALOG_DATA, Dialog, DialogRef } from '@angular/cdk/dialog';
 import { ProductInfoModalComponent, ProductInfoModalData } from './product-info-modal.component.js';
+import { ShoppingAddModalComponent } from '../../shopping/shopping-add-modal/shopping-add-modal.component.js';
 import { ApiService } from '../../../core/api.service.js';
 
 describe('ProductInfoModalComponent', () => {
@@ -279,5 +280,23 @@ describe('ProductInfoModalComponent', () => {
 
     expect(collapsedFixture.componentInstance.shouldCollapseCustomFields()).toBe(true);
     expect(collapsedFixture.nativeElement.querySelector('.custom-fields-spec-card')).toBeFalsy();
+  });
+
+  it('should open ShoppingAddModalComponent with preselected product from titlebar button', () => {
+    const btn: HTMLButtonElement | null = fixture.nativeElement.querySelector('.btn-add-to-shopping');
+    expect(btn).toBeTruthy();
+
+    btn!.click();
+
+    expect(mockDialog.open).toHaveBeenCalledWith(
+      ShoppingAddModalComponent,
+      expect.objectContaining({
+        disableClose: true,
+        data: expect.objectContaining({
+          initialProduct: expect.objectContaining({ id: 'p1', name: 'Olive Oil' }),
+          stores: expect.any(Array),
+        }),
+      }),
+    );
   });
 });

@@ -18,6 +18,7 @@ export interface ShoppingAddModalData {
   shoppingListId?: string;
   defaultStoreId?: string | null;
   itemToEdit?: ShoppingListItem;
+  initialProduct?: Product;
 }
 
 @Component({
@@ -85,6 +86,10 @@ export class ShoppingAddModalComponent implements OnInit, AfterViewInit, OnDestr
       }
     } else {
       this.selectedStoreId = this.data.defaultStoreId || null;
+      if (this.data.initialProduct) {
+        this.applySelectedProductState(this.data.initialProduct);
+        void this.fetchEarliestExpDate(this.data.initialProduct.id);
+      }
     }
 
     this.initialSnapshot = this.snapshot();
@@ -162,7 +167,7 @@ export class ShoppingAddModalComponent implements OnInit, AfterViewInit, OnDestr
     this.isScannerOpen.set(false);
   }
 
-  async selectProduct(p: Product) {
+  private applySelectedProductState(p: Product): void {
     this.selectedProduct.set(p);
     this.isCustom.set(false);
     this.searchQuery.set('');
@@ -171,11 +176,13 @@ export class ShoppingAddModalComponent implements OnInit, AfterViewInit, OnDestr
     if (p.defaultStoreId && !this.selectedStoreId) {
       this.selectedStoreId = p.defaultStoreId;
     }
+  }
 
+  private async fetchEarliestExpDate(productId: string): Promise<void> {
     try {
       const stock = await this.api.getStock();
       const matchingItems = stock
-        .filter((s) => s.productId === p.id && s.bestBeforeDate)
+        .filter((s) => s.productId === productId && s.bestBeforeDate)
         .sort((a, b) => (a.bestBeforeDate! > b.bestBeforeDate! ? 1 : -1));
       if (matchingItems.length > 0) {
         this.earliestExpDate.set(matchingItems[0].bestBeforeDate);
@@ -183,6 +190,11 @@ export class ShoppingAddModalComponent implements OnInit, AfterViewInit, OnDestr
     } catch {
       // Ignore background fetch error
     }
+  }
+
+  async selectProduct(p: Product) {
+    this.applySelectedProductState(p);
+    await this.fetchEarliestExpDate(p.id);
   }
 
   chooseCustomItem() {
@@ -230,8 +242,17 @@ export class ShoppingAddModalComponent implements OnInit, AfterViewInit, OnDestr
           note: this.note.trim() || null,
         });
       } else {
+        let targetShoppingListId = this.data.shoppingListId;
+        if (!targetShoppingListId && typeof this.api.getShoppingLists === 'function') {
+          try {
+            const lists = await this.api.getShoppingLists();
+            targetShoppingListId = lists.find((l) => l.isDefault)?.id || lists[0]?.id;
+          } catch {
+            // Fall back to empty shoppingListId when lists cannot be fetched
+          }
+        }
         await this.api.addShoppingItem({
-          shoppingListId: this.data.shoppingListId,
+          shoppingListId: targetShoppingListId,
           productId: prod ? prod.id : undefined,
           customName: !prod ? this.customName.trim() : undefined,
           amount: this.amount,

@@ -2,6 +2,17 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: padding-left 0.25s ease, padding-right 0.25s ease;
+}
+
+@media (min-width: 901px) {
+  :host-context(body.has-push-sidebar-right) .shell-container {
+    padding-right: var(--sidebar-push-right, 0px);
+  }
+
+  :host-context(body.has-push-sidebar-left) .shell-container {
+    padding-left: var(--sidebar-push-left, 0px);
+  }
 }
 
 .navbar {

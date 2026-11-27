@@ -20,6 +20,7 @@ describe('ShoppingAddModalComponent', () => {
 
   const mockApiService = {
     getStock: vi.fn().mockResolvedValue([]),
+    getShoppingLists: vi.fn().mockResolvedValue([{ id: 'list-default', name: 'Groceries', isDefault: true }]),
     addShoppingItem: vi.fn().mockResolvedValue({ id: 'item1' }),
     updateShoppingItem: vi.fn().mockResolvedValue({ id: 'item1' }),
   };
@@ -78,5 +79,42 @@ describe('ShoppingAddModalComponent', () => {
     component.onBarcodeScanned('222');
     expect(component.selectedProduct()?.name).toBe('Eggs');
     expect(component.isScannerOpen()).toBe(false);
+  });
+
+  it('should preselect initialProduct without marking dirty and resolve default list on save', async () => {
+    const preselectedData: ShoppingAddModalData = {
+      products: mockData.products,
+      stores: mockData.stores,
+      initialProduct: { id: 'p1', name: 'Milk', defaultStoreId: 's1' } as any,
+    };
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ShoppingAddModalComponent],
+      providers: [
+        { provide: DIALOG_DATA, useValue: preselectedData },
+        { provide: DialogRef, useValue: mockDialogRef },
+        { provide: Dialog, useValue: mockDialog },
+        { provide: ApiService, useValue: mockApiService },
+      ],
+    }).compileComponents();
+
+    const preFixture = TestBed.createComponent(ShoppingAddModalComponent);
+    const preComponent = preFixture.componentInstance;
+    preFixture.detectChanges();
+
+    expect(preComponent.selectedProduct()?.id).toBe('p1');
+    expect(preComponent.selectedStoreId).toBe('s1');
+    expect(preComponent.isDirty()).toBe(false);
+    expect(preComponent.canSave()).toBe(true);
+
+    await preComponent.save();
+    expect(mockApiService.addShoppingItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shoppingListId: 'list-default',
+        productId: 'p1',
+        storeId: 's1',
+      }),
+    );
   });
 });

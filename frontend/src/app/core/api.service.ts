@@ -1344,8 +1344,40 @@ export class ApiService {
     );
     const target = (data.stockItemId ? allStock.find((s) => s.id === data.stockItemId) : null) || candidates[0];
     if (target) {
+      const targetHouseholdId = target.householdId || hhId;
+      const [product, catalogs] = await Promise.all([
+        this.storage.getProduct(data.productId),
+        targetHouseholdId ? this.storage.getCatalogs(targetHouseholdId) : Promise.resolve(null),
+      ]);
+      const locations = catalogs?.locations || [];
+      const fromLoc = target.locationId ? locations.find((l) => l.id === target.locationId) : undefined;
+      const toLoc = locations.find((l) => l.id === data.toLocationId);
+
+      // Recalculate expiration date only when transitioning into or out of a freezer (not freezer -> freezer)
+      let updatedBestBeforeDate = target.bestBeforeDate;
+      if (
+        !fromLoc?.isFreezer &&
+        toLoc?.isFreezer &&
+        product?.defaultBestBeforeDaysAfterFreezing &&
+        product.defaultBestBeforeDaysAfterFreezing > 0
+      ) {
+        const d = new Date();
+        d.setDate(d.getDate() + product.defaultBestBeforeDaysAfterFreezing);
+        updatedBestBeforeDate = d.toISOString().slice(0, 10);
+      } else if (
+        fromLoc?.isFreezer &&
+        !toLoc?.isFreezer &&
+        product?.defaultBestBeforeDaysAfterThawing &&
+        product.defaultBestBeforeDaysAfterThawing > 0
+      ) {
+        const d = new Date();
+        d.setDate(d.getDate() + product.defaultBestBeforeDaysAfterThawing);
+        updatedBestBeforeDate = d.toISOString().slice(0, 10);
+      }
+
       if (target.amount <= data.amount) {
         target.locationId = data.toLocationId;
+        target.bestBeforeDate = updatedBestBeforeDate;
         await this.storage.putStockItem(target);
         await this.storage.enqueue({ entity: 'stock', action: 'update', payload: target });
       } else {
@@ -1358,6 +1390,7 @@ export class ApiService {
           id: `stock-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           amount: data.amount,
           locationId: data.toLocationId,
+          bestBeforeDate: updatedBestBeforeDate,
         };
         await this.storage.putStockItem(moved);
         await this.storage.enqueue({ entity: 'stock', action: 'create', payload: moved });

@@ -22,6 +22,21 @@ describe('PlannerComponent', () => {
     getSavedFilters: vi.fn().mockResolvedValue([]),
     getProfile: vi.fn().mockResolvedValue({ settings: { nextExpiringDays: 7 } }),
     getHouseholdMembers: vi.fn().mockResolvedValue([]),
+    getProduct: vi.fn().mockResolvedValue(null),
+    getStores: vi.fn().mockResolvedValue([]),
+    computeNextDataLocally: vi.fn().mockReturnValue({
+      summary: {
+        expiredCount: 0,
+        expiringSoonCount: 0,
+        totalUniqueProductsInStock: 0,
+        totalStockItems: 0,
+        configuredDays: 7,
+      },
+      expired: [],
+      expiringSoon: [],
+      household: { id: 'h1', name: 'Home' },
+      generatedAt: '2026-11-27T12:00:00.000Z',
+    }),
     updateMealPlanEntry: vi.fn().mockResolvedValue(null),
     deleteMealPlanEntry: vi.fn().mockResolvedValue(undefined),
     addMealPlanEntry: vi.fn().mockResolvedValue({
@@ -283,5 +298,94 @@ describe('PlannerComponent', () => {
       sortOrder: 0,
     });
     expect(component.entries().length).toBe(1);
+  });
+
+  it('should toggle the expiration alerts sidebar and push page content without backdrop', () => {
+    expect(component.isAlertsSidebarOpen()).toBe(false);
+    expect(document.body.classList.contains('has-push-sidebar-right')).toBe(false);
+
+    const toggleBtn = fixture.nativeElement.querySelector('.alerts-toggle-btn') as HTMLButtonElement;
+    expect(toggleBtn).toBeTruthy();
+    toggleBtn.click();
+    fixture.detectChanges();
+
+    expect(component.isAlertsSidebarOpen()).toBe(true);
+    expect(document.body.classList.contains('has-push-sidebar-right')).toBe(true);
+    expect(fixture.nativeElement.querySelector('.sidebar-backdrop')).toBeNull();
+    const sidebar = fixture.nativeElement.querySelector('.sidebar-panel');
+    expect(sidebar).toBeTruthy();
+    expect(sidebar.querySelector('app-expiration-alerts')).toBeTruthy();
+    expect(sidebar.querySelector('.alerts-grid.layout-stacked')).toBeTruthy();
+
+    component.closeAlertsSidebar();
+    fixture.detectChanges();
+    expect(component.isAlertsSidebarOpen()).toBe(false);
+    expect(document.body.classList.contains('has-push-sidebar-right')).toBe(false);
+  });
+
+  it('should clean up push sidebar body class on destroy', () => {
+    component.toggleAlertsSidebar();
+    fixture.detectChanges();
+    expect(document.body.classList.contains('has-push-sidebar-right')).toBe(true);
+
+    fixture.destroy();
+    expect(document.body.classList.contains('has-push-sidebar-right')).toBe(false);
+  });
+
+  it('should add meal plan entry and register undo when an alert item is dropped onto a calendar cell', async () => {
+    component.isDesktop.set(true);
+    const undoService = TestBed.inject(UndoService);
+    const createdEntry = {
+      id: 'mp-from-alert',
+      householdId: 'h1',
+      date: '2026-11-26',
+      mealSlot: 'dinner' as const,
+      productId: 'prod-exp-1',
+      userId: 'u1',
+      sortOrder: 0,
+      createdAt: '2026-11-26T10:00:00.000Z',
+      updatedAt: '2026-11-26T10:00:00.000Z',
+    };
+    mockApi.addMealPlanEntry.mockResolvedValueOnce(createdEntry);
+
+    await component.onEntryDrop({
+      previousIndex: 0,
+      currentIndex: 0,
+      previousContainer: { data: { date: '', mealSlot: 'breakfast' } } as any,
+      container: { data: { date: '2026-11-26', mealSlot: 'dinner' } } as any,
+      item: {
+        data: {
+          kind: 'alert',
+          item: {
+            id: 'stock-1',
+            productId: 'prod-exp-1',
+            productName: 'Greek Yogurt',
+            amount: 1,
+            quantityUnit: 'cup',
+            location: 'Fridge',
+            bestBeforeDate: '2026-11-25',
+            isOpened: false,
+            daysOverdue: 2,
+          },
+        },
+      } as any,
+      isPointerOverContainer: true,
+      distance: { x: 0, y: 0 },
+      dropPoint: { x: 0, y: 0 },
+      event: new MouseEvent('mouseup'),
+    });
+
+    expect(mockApi.addMealPlanEntry).toHaveBeenCalledWith({
+      date: '2026-11-26',
+      mealSlot: 'dinner',
+      productId: 'prod-exp-1',
+      sortOrder: 0,
+    });
+    expect(component.entries().some((e) => e.id === 'mp-from-alert')).toBe(true);
+    expect(undoService.activeAction()?.description).toContain('Greek Yogurt');
+
+    await undoService.executeUndo();
+    expect(mockApi.deleteMealPlanEntry).toHaveBeenCalledWith('mp-from-alert');
+    expect(component.entries().some((e) => e.id === 'mp-from-alert')).toBe(false);
   });
 });
