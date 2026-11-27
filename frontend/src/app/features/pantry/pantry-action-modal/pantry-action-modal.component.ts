@@ -28,6 +28,7 @@ import { LocalDatePipe } from '../../../shared/pipes/local-date.pipe.js';
 import { StockPurchaseFormComponent } from '../stock-purchase-form/stock-purchase-form.component.js';
 import { StockItemEditorModalComponent } from '../stock-item-editor-modal/stock-item-editor-modal.component.js';
 import { NumberStepperComponent } from '../../../shared/components/number-stepper/number-stepper.component.js';
+import { ShoppingAddModalComponent } from '../../shopping/shopping-add-modal/shopping-add-modal.component.js';
 
 export interface PantryActionModalData {
   product: Product;
@@ -197,6 +198,24 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     this.consumeAmount = Math.max(1, this.consumeAmount + delta);
   }
 
+  private resolveMoveSourceLocation(): Location | undefined {
+    const items = this.productStockItems();
+    if (this.moveStockItemId) {
+      const selectedItem = items.find((s) => s.id === this.moveStockItemId);
+      if (selectedItem?.locationId) {
+        return this.data.locations.find((l) => l.id === selectedItem.locationId);
+      }
+    }
+    if (this.moveFromLocationId) {
+      return this.data.locations.find((l) => l.id === this.moveFromLocationId);
+    }
+    const fallbackItem = items[0];
+    if (fallbackItem?.locationId) {
+      return this.data.locations.find((l) => l.id === fallbackItem.locationId);
+    }
+    return undefined;
+  }
+
   onTargetLocationChanged(): void {
     const targetLoc = this.data.locations.find((l) => l.id === this.moveToLocationId);
     if (targetLoc?.isFreezer && this.data.product.cannotBeFrozen) {
@@ -206,7 +225,8 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     }
     this.moveFreezerWarning.set(false);
 
-    if (targetLoc?.isFreezer && this.data.product.defaultBestBeforeDaysAfterFreezing) {
+    const sourceLoc = this.resolveMoveSourceLocation();
+    if (!sourceLoc?.isFreezer && targetLoc?.isFreezer && this.data.product.defaultBestBeforeDaysAfterFreezing) {
       const target = new Date();
       target.setDate(target.getDate() + this.data.product.defaultBestBeforeDaysAfterFreezing);
       this.recalculatedExpiryInfo.set(target.toISOString().slice(0, 10));
@@ -220,6 +240,19 @@ export class PantryActionModalComponent implements OnInit, OnDestroy {
     if (!groupId) return;
     this.dialog.closeAll();
     void this.router.navigate(['/pantry'], { queryParams: { group: groupId } });
+  }
+
+  openAddToShoppingList(): void {
+    const p = this.data.product;
+    if (!p) return;
+    this.dialog.open(ShoppingAddModalComponent, {
+      disableClose: true,
+      data: {
+        products: this.data.allProducts?.length ? this.data.allProducts : [p],
+        stores: this.data.stores ?? [],
+        initialProduct: p,
+      },
+    });
   }
 
   async openEditProduct(): Promise<void> {

@@ -276,7 +276,7 @@ All catalog list endpoints for quantity units, product groups, locations, and st
 ```
 - **Description**: Relocates stock item to target location.
   - **Constraint Validation**: If target location has `isFreezer: true` and the product has `cannotBeFrozen: true`, the transfer is rejected with `400 Bad Request` ("This product cannot be stored in a freezer location").
-  - **Date Recalculation**: If moved to a freezer location, expiration date is recalculated using `defaultBestBeforeDaysAfterFreezing`. If moved out of a freezer location to a non-freezer location, expiration date is recalculated using `defaultBestBeforeDaysAfterThawing`.
+  - **Date Recalculation**: If moved from a non-freezer location to a freezer location, expiration date is recalculated using `defaultBestBeforeDaysAfterFreezing`. If moved out of a freezer location to a non-freezer location, expiration date is recalculated using `defaultBestBeforeDaysAfterThawing`. Moving between two freezer locations preserves the existing expiration date without recalculation.
 
 ### `DELETE /api/stock/:id`
 - **Description**: Deletes item and writes to `sync_tombstones`.

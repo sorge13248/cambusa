@@ -43,6 +43,17 @@
       </div>
 
       <div class="topbar-actions">
+        @if (product()) {
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm topbar-icon-btn btn-add-to-shopping"
+            (click)="openAddToShoppingList()"
+            title="Add to shopping list"
+            aria-label="Add to shopping list"
+          >
+            <svg lucideShoppingCart [size]="14"></svg>
+          </button>
+        }
         <button
           type="button"
           class="btn btn-secondary btn-sm topbar-btn btn-switch-edit"

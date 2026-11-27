@@ -14,6 +14,9 @@
       }
     </div>
     <div class="header-right">
+      <button type="button" class="btn btn-secondary btn-sm modal-header-btn btn-add-to-shopping" (click)="openAddToShoppingList()" title="Add to shopping list" aria-label="Add to shopping list">
+        <svg lucideShoppingCart [size]="14"></svg>
+      </button>
       <button type="button" class="btn btn-secondary btn-sm modal-header-btn" (click)="openEditProduct()" title="Product info" aria-label="Product info">
         <svg lucideInfo [size]="14"></svg>
       </button>
@@ -140,7 +143,7 @@
         <h4>Move Item</h4>
         <div class="form-group">
           <label>From Location</label>
-          <select [(ngModel)]="moveFromLocationId">
+          <select [(ngModel)]="moveFromLocationId" (ngModelChange)="onTargetLocationChanged()">
             <option value="">Any location</option>
             @for (loc of availableLocations(); track loc.id) {
               <option [value]="loc.id">{{ loc.name }}</option>
@@ -177,7 +180,7 @@
 
         <div class="form-group">
           <label>Specific batch (optional)</label>
-          <select [(ngModel)]="moveStockItemId">
+          <select [(ngModel)]="moveStockItemId" (ngModelChange)="onTargetLocationChanged()">
             <option value="">Any batch</option>
             @for (item of productStockItems(); track item.id) {
               <option [value]="item.id">

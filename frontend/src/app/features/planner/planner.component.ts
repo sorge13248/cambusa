@@ -8,6 +8,7 @@ import {
   LucideApple,
   LucideChevronLeft,
   LucideChevronRight,
+  LucideClock,
   LucideCoffee,
   LucideCookie,
   LucideMoon,
@@ -22,6 +23,8 @@ import {
   MealPlanEntry,
   MealSlot,
   MealSlotConfig,
+  NextItemDto,
+  NextResponseDto,
   Product,
   ProductGroup,
   QuantityUnit,
@@ -34,6 +37,9 @@ import { SyncService } from '../../core/sync.service.js';
 import { UndoService } from '../../core/undo.service.js';
 import { compareByName } from '../../core/sorting.utils.js';
 import { PlannerSlotModalComponent } from './planner-slot-modal/planner-slot-modal.component.js';
+import { PantryActionModalComponent } from '../pantry/pantry-action-modal/pantry-action-modal.component.js';
+import { ExpirationAlertsComponent, AlertDragItem } from '../../shared/components/expiration-alerts/expiration-alerts.component.js';
+import { SidebarComponent } from '../../shared/components/sidebar/sidebar.component.js';
 
 export interface WeekDayColumn {
   date: string; // YYYY-MM-DD
@@ -64,12 +70,15 @@ export interface CellEntryViewModel {
     LucideApple,
     LucideChevronLeft,
     LucideChevronRight,
+    LucideClock,
     LucideCoffee,
     LucideCookie,
     LucideMoon,
     LucidePlus,
     LucideTrash2,
     LucideUtensils,
+    ExpirationAlertsComponent,
+    SidebarComponent,
   ],
   templateUrl: './planner.component.html',
   styleUrl: './planner.component.scss',
@@ -98,6 +107,18 @@ export class PlannerComponent implements OnInit {
   readonly isHorizontallyScrolled = signal<boolean>(false);
   readonly hoveredCell = signal<{ date: string; mealSlot: MealSlot } | null>(null);
   readonly isDesktop = signal<boolean>(false);
+  readonly isAlertsSidebarOpen = signal<boolean>(false);
+
+  readonly alertsData = computed<NextResponseDto>(() =>
+    this.api.computeNextDataLocally(this.stock(), this.products(), this.expiringSoonDays(), {
+      units: this.units(),
+      locations: this.locations(),
+    }),
+  );
+
+  readonly totalAlertCount = computed<number>(
+    () => this.alertsData().expired.length + this.alertsData().expiringSoon.length,
+  );
 
   private readonly calendarWrapper = viewChild<ElementRef<HTMLElement>>('calendarWrapper');
 
@@ -322,14 +343,41 @@ export class PlannerComponent implements OnInit {
   }
 
   async onEntryDrop(
-    event: CdkDragDrop<{ date: string; mealSlot: MealSlot }, { date: string; mealSlot: MealSlot }, CellEntryViewModel>,
+    event: CdkDragDrop<
+      { date: string; mealSlot: MealSlot },
+      { date: string; mealSlot: MealSlot },
+      CellEntryViewModel | AlertDragItem
+    >,
   ): Promise<void> {
     if (!this.isDesktop()) return;
 
-    const item = event.item.data;
-    if (!item) return;
+    const dragData = event.item.data;
+    if (!dragData) return;
 
     const target = event.container.data;
+
+    if ('kind' in dragData && dragData.kind === 'alert') {
+      const alertItem = dragData.item;
+      const slotLabel = this.mealSlots.find((s) => s.key === target.mealSlot)?.label ?? target.mealSlot;
+      const created = await this.api.addMealPlanEntry({
+        date: target.date,
+        mealSlot: target.mealSlot,
+        productId: alertItem.productId,
+        sortOrder: event.currentIndex,
+      });
+      this.entries.update((list) => [...list, created]);
+
+      this.undoService.register({
+        description: `Added ${alertItem.productName} to ${slotLabel}`,
+        onUndo: async () => {
+          await this.api.deleteMealPlanEntry(created.id);
+          this.entries.update((list) => list.filter((e) => e.id !== created.id));
+        },
+      });
+      return;
+    }
+
+    const item = dragData as CellEntryViewModel;
     const isSameCell = event.previousContainer === event.container;
 
     if (isSameCell) {
@@ -416,5 +464,38 @@ export class PlannerComponent implements OnInit {
         }
       })
       .catch(() => {});
+  }
+
+  toggleAlertsSidebar(): void {
+    this.isAlertsSidebarOpen.update((open) => !open);
+  }
+
+  closeAlertsSidebar(): void {
+    this.isAlertsSidebarOpen.set(false);
+  }
+
+  async openAlertProductActionModal(item: NextItemDto): Promise<void> {
+    const product =
+      this.products().find((p) => p.id === item.productId) || (await this.api.getProduct(item.productId).catch(() => null));
+    if (!product) return;
+
+    const stores = await this.api.getStores().catch(() => []);
+    const ref = this.dialog.open(PantryActionModalComponent, {
+      disableClose: true,
+      data: {
+        product,
+        stockItems: this.stock(),
+        locations: this.locations(),
+        stores,
+        units: this.units(),
+        allProducts: this.products(),
+        productGroups: this.productGroups(),
+      },
+    });
+
+    const result = await firstValueFrom(ref.closed).catch(() => null);
+    if (result && typeof result === 'object' && (result as { refreshed?: boolean }).refreshed) {
+      await this.refreshEntriesAndStock();
+    }
   }
 }

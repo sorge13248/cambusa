@@ -1,0 +1,35 @@
+@if (open()) {
+  @if (backdrop()) {
+    <div class="sidebar-backdrop" (click)="onBackdropClick()" aria-hidden="true"></div>
+  }
+
+  <aside
+    class="sidebar-panel"
+    [class.position-left]="position() === 'left'"
+    [class.position-right]="position() === 'right'"
+    [style.--sidebar-width]="width()"
+    [attr.aria-label]="title() || ariaLabel()"
+  >
+    <div class="sidebar-header">
+      <div class="sidebar-title-wrap">
+        <ng-content select="[sidebar-header-icon]"></ng-content>
+        @if (title()) {
+          <h3 class="sidebar-title">{{ title() }}</h3>
+        }
+      </div>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm sidebar-close-btn"
+        (click)="close()"
+        aria-label="Close sidebar"
+        title="Close sidebar"
+      >
+        <svg lucideX [size]="14"></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-body">
+      <ng-content></ng-content>
+    </div>
+  </aside>
+}

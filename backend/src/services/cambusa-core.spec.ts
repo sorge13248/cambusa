@@ -467,6 +467,20 @@ describe('Cambusa Core Business Logic & Invariants', () => {
     expect(transferResult.targetStockItem.bestBeforeDate).toBeTruthy();
     expect(transferResult.targetStockItem.bestBeforeDate).not.toBe('2026-11-25');
 
+    // Moving from one freezer location to another freezer location must NOT recalculate bestBeforeDate
+    const secondFreezerLoc = await catalogsService.createLocation(hh!.id, { name: 'Chest Freezer', isFreezer: true });
+    const frozenExpiry = transferResult.targetStockItem.bestBeforeDate;
+    const freezerToFreezerResult = await stockService.transferStock(hh!.id, {
+      productId: meatProduct.id,
+      stockItemId: transferResult.targetStockItem.id,
+      fromLocationId: freezerLoc.id,
+      toLocationId: secondFreezerLoc.id,
+      amount: 2,
+    });
+    expect(freezerToFreezerResult.transferred).toBe(true);
+    expect(freezerToFreezerResult.targetStockItem.locationId).toBe(secondFreezerLoc.id);
+    expect(freezerToFreezerResult.targetStockItem.bestBeforeDate).toBe(frozenExpiry);
+
     // Cannot update meatProduct to cannotBeFrozen while it has items in the freezer
     await expect(
       productsService.updateProduct(meatProduct.id, hh!.id, {
